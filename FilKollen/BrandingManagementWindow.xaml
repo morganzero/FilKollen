@@ -15,7 +15,6 @@
         
         <Style x:Key="BrandingCard" TargetType="materialDesign:Card">
             <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp8"/>
-            <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Margin" Value="16"/>
             <Setter Property="Padding" Value="24"/>
         </Style>

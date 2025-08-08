@@ -26,20 +26,15 @@
     <PackageReference Include="Serilog" Version="3.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    
+    <!-- För licenssystem och branding -->
     <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
     <PackageReference Include="System.Security.Cryptography.Algorithms" Version="4.3.1" />
-
-    <!-- System Tray Support -->
-    <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
     
     <!-- Real-time File System Monitoring -->
     <PackageReference Include="System.IO.FileSystem.Watcher" Version="4.3.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Windows Forms reference för NotifyIcon -->
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Drawing" />
-  </ItemGroup>
+  <!-- Ta bort FrameworkReference eftersom den inte behövs för .NET 6 Windows -->
 
 </Project>

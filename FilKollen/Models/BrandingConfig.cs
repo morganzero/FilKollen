@@ -1,3 +1,8 @@
+#nullable disable
+using System;
+
+namespace FilKollen.Models
+{
     public class BrandingConfig
     {
         public string CompanyName { get; set; } = "FilKollen Security";
@@ -15,3 +20,4 @@
         public const int MAX_LOGO_SIZE_KB = 50;
         public const string REQUIRED_LOGO_FORMAT = "PNG";
     }
+}

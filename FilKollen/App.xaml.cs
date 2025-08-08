@@ -453,11 +453,10 @@ namespace FilKollen
                 "Säkerhetsinställningar", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        protected override void OnExit(ExitEventArgs e)
+        private void ApplicationExit()
         {
             _logger?.Information("FilKollen Real-time Security avslutas");
-            
-            // Säkerställ att alla services stängs av korrekt
+
             try
             {
                 _mainWindow?.Close();
@@ -466,15 +465,13 @@ namespace FilKollen
             {
                 _logger?.Error($"Fel vid avstängning: {ex.Message}");
             }
-            
-            base.OnExit(e);
         }
 
         // Hantera system shutdown/logoff
         protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
         {
             _logger?.Information($"System session avslutas: {e.ReasonSessionEnding}");
-            
+
             try
             {
                 // Säkerställ att alla säkerhetsoperationer slutförs innan shutdown
@@ -488,7 +485,7 @@ namespace FilKollen
             {
                 _logger?.Error($"Fel vid session shutdown: {ex.Message}");
             }
-            
+
             base.OnSessionEnding(e);
         }
     }

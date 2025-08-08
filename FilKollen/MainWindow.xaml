@@ -12,24 +12,22 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         
-        <!-- Modern Card Style -->
+        <!-- Förenklad Card Style utan CornerRadius -->
         <Style x:Key="ModernCard" TargetType="materialDesign:Card">
             <Setter Property="Background" Value="{DynamicResource CustomCardBackground}"/>
             <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp8"/>
-            <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Margin" Value="8"/>
             <Setter Property="Padding" Value="20"/>
         </Style>
         
-        <!-- Gradient Button Style -->
+        <!-- Förenklad Button Style -->
         <Style x:Key="GradientButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
             <Setter Property="Height" Value="45"/>
-            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp4"/>
         </Style>
         
-        <!-- Modern Stats Card -->
+        <!-- Förenklad Stats Card utan CornerRadius -->
         <Style x:Key="StatsCard" TargetType="Border">
             <Setter Property="Background">
                 <Setter.Value>
@@ -39,7 +37,6 @@
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
-            <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="20"/>
             <Setter Property="Margin" Value="8"/>
         </Style>
@@ -61,13 +58,17 @@
                 Background="{DynamicResource CustomSidebarBackground}"
                 Height="70">
             <Grid Margin="20,0">
+                <!-- Dynamisk logo och produktnamn -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <materialDesign:PackIcon Kind="Shield" 
-                                           Width="32" Height="32" 
-                                           Foreground="{DynamicResource PrimaryHueMidBrush}"
-                                           Margin="0,0,12,0"/>
+                    <Image x:Name="CompanyLogoImage" 
+                           Width="128" Height="32" 
+                           Stretch="Uniform"
+                           Margin="0,0,12,0"
+                           Source="{Binding CurrentBrandingLogoPath}"/>
+                    
                     <StackPanel>
-                        <TextBlock Text="FilKollen" 
+                        <TextBlock x:Name="ProductNameHeader" 
+                                  Text="{Binding CurrentBrandingProductName}" 
                                   FontSize="22" 
                                   FontWeight="Bold"/>
                         <TextBlock Text="Modern Säkerhetsscanner" 
@@ -75,25 +76,8 @@
                                   Opacity="0.7"/>
                     </StackPanel>
                 </StackPanel>
-                <!-- I MainWindow.xaml, uppdatera header-delen -->
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- Dynamisk logo som ändras baserat på branding -->
-                    <Image x:Name="CompanyLogoImage" 
-                        Width="128" Height="32" 
-                        Stretch="Uniform"
-                        Margin="0,0,12,0"
-                        Source="{Binding CurrentBrandingLogoPath}"/>
-                    
-                    <StackPanel>
-                        <TextBlock x:Name="ProductNameHeader" 
-                                Text="{Binding CurrentBrandingProductName}" 
-                                FontSize="22" 
-                                FontWeight="Bold"/>
-                        <TextBlock Text="Modern Säkerhetsscanner" 
-                                FontSize="12" 
-                                Opacity="0.7"/>
-                    </StackPanel>
-                </StackPanel>
+                
+                <!-- Knappar till höger -->
                 <StackPanel Orientation="Horizontal" 
                            HorizontalAlignment="Right"
                            VerticalAlignment="Center">
@@ -207,113 +191,111 @@
                     </StackPanel>
                 </Button>
 
-<!-- Ersätt Mode Selection i sidebar med Real-time Protection Settings -->
-
-<!-- Real-time Protection Settings -->
-<Border Background="{DynamicResource CustomCardBackground}" 
-        CornerRadius="8" 
-        Padding="16" 
-        Margin="0,20,0,0">
-    <StackPanel>
-        <TextBlock Text="Real-time Skydd" 
-                  FontSize="16" 
-                  FontWeight="SemiBold" 
-                  Margin="0,0,0,12"/>
-        
-        <!-- Protection Status -->
-        <Grid Margin="0,0,0,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            
-            <StackPanel Grid.Column="0">
-                <TextBlock x:Name="ProtectionStatusText" 
-                          Text="Inaktiverat" 
-                          FontWeight="SemiBold"
-                          Foreground="{DynamicResource SecondaryHueMidBrush}"/>
-                <TextBlock x:Name="ProtectionDetailsText" 
-                          Text="Klicka för att aktivera" 
-                          FontSize="11" 
-                          Opacity="0.7"/>
+                <!-- Real-time Protection Settings -->
+                <Border Background="{DynamicResource CustomCardBackground}" 
+                        Padding="16" 
+                        Margin="0,20,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Real-time Skydd" 
+                                  FontSize="16" 
+                                  FontWeight="SemiBold" 
+                                  Margin="0,0,0,12"/>
+                        
+                        <!-- Protection Status -->
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <StackPanel Grid.Column="0">
+                                <TextBlock x:Name="ProtectionStatusText" 
+                                          Text="Inaktiverat" 
+                                          FontWeight="SemiBold"
+                                          Foreground="{DynamicResource SecondaryHueMidBrush}"/>
+                                <TextBlock x:Name="ProtectionDetailsText" 
+                                          Text="Klicka för att aktivera" 
+                                          FontSize="11" 
+                                          Opacity="0.7"/>
+                            </StackPanel>
+                            
+                            <materialDesign:PackIcon x:Name="ProtectionStatusIcon" 
+                                                   Grid.Column="1"
+                                                   Kind="ShieldOff" 
+                                                   Width="24" Height="24"
+                                                   Foreground="{DynamicResource SecondaryHueMidBrush}"/>
+                        </Grid>
+                        
+                        <!-- Protection Toggle -->
+                        <ToggleButton x:Name="ProtectionToggle"
+                                     Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                     Margin="0,8"
+                                     Checked="ProtectionToggle_Checked"
+                                     Unchecked="ProtectionToggle_Unchecked">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Aktivera Real-time Skydd" Margin="0,0,8,0"/>
+                            </StackPanel>
+                        </ToggleButton>
+                        
+                        <Separator Margin="0,12"/>
+                        
+                        <!-- Auto-clean Mode -->
+                        <TextBlock Text="Hanteringsläge" 
+                                  FontSize="14" 
+                                  FontWeight="SemiBold" 
+                                  Margin="0,8,0,8"/>
+                        
+                        <RadioButton x:Name="ManualModeRadio" 
+                                   Content="Manuell hantering" 
+                                   IsChecked="True"
+                                   Margin="0,4"
+                                   Checked="ModeRadio_Checked"/>
+                        <TextBlock Text="Användaren väljer vilka hot som ska hanteras" 
+                                  FontSize="11" 
+                                  Opacity="0.7" 
+                                  Margin="20,0,0,8"/>
+                        
+                        <RadioButton x:Name="AutoModeRadio" 
+                                   Content="Automatisk rensning" 
+                                   Margin="0,4"
+                                   Checked="ModeRadio_Checked"/>
+                        <TextBlock Text="Alla hot hanteras automatiskt direkt" 
+                                  FontSize="11" 
+                                  Opacity="0.7" 
+                                  Margin="20,0,0,8"/>
+                        
+                        <!-- Real-time Stats -->
+                        <Border Background="{DynamicResource PrimaryHueMidBrush}" 
+                                Padding="12" 
+                                Margin="0,12,0,0"
+                                Opacity="0.1">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                
+                                <StackPanel Grid.Row="0" Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Eye" Width="14" Height="14" Margin="0,0,6,0"/>
+                                    <TextBlock x:Name="MonitoredPathsText" Text="0 övervakade sökvägar" FontSize="11"/>
+                                </StackPanel>
+                                
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
+                                    <materialDesign:PackIcon Kind="AlertCircle" Width="14" Height="14" Margin="0,0,6,0"/>
+                                    <TextBlock x:Name="ThreatsFoundText" Text="0 hot funna" FontSize="11"/>
+                                </StackPanel>
+                                
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                    <materialDesign:PackIcon Kind="CheckCircle" Width="14" Height="14" Margin="0,0,6,0"/>
+                                    <TextBlock x:Name="ThreatsHandledText" Text="0 hot hanterade" FontSize="11"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
             </StackPanel>
-            
-            <materialDesign:PackIcon x:Name="ProtectionStatusIcon" 
-                                   Grid.Column="1"
-                                   Kind="ShieldOff" 
-                                   Width="24" Height="24"
-                                   Foreground="{DynamicResource SecondaryHueMidBrush}"/>
-        </Grid>
-        
-        <!-- Protection Toggle -->
-        <ToggleButton x:Name="ProtectionToggle"
-                     Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                     Margin="0,8"
-                     Checked="ProtectionToggle_Checked"
-                     Unchecked="ProtectionToggle_Unchecked">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Aktivera Real-time Skydd" Margin="0,0,8,0"/>
-            </StackPanel>
-        </ToggleButton>
-        
-        <Separator Margin="0,12"/>
-        
-        <!-- Auto-clean Mode -->
-        <TextBlock Text="Hanteringsläge" 
-                  FontSize="14" 
-                  FontWeight="SemiBold" 
-                  Margin="0,8,0,8"/>
-        
-        <RadioButton x:Name="ManualModeRadio" 
-                   Content="Manuell hantering" 
-                   IsChecked="True"
-                   Margin="0,4"
-                   Checked="ModeRadio_Checked"/>
-        <TextBlock Text="Användaren väljer vilka hot som ska hanteras" 
-                  FontSize="11" 
-                  Opacity="0.7" 
-                  Margin="20,0,0,8"/>
-        
-        <RadioButton x:Name="AutoModeRadio" 
-                   Content="Automatisk rensning" 
-                   Margin="0,4"
-                   Checked="ModeRadio_Checked"/>
-        <TextBlock Text="Alla hot hanteras automatiskt direkt" 
-                  FontSize="11" 
-                  Opacity="0.7" 
-                  Margin="20,0,0,8"/>
-        
-        <!-- Real-time Stats -->
-        <Border Background="{DynamicResource PrimaryHueMidBrush}" 
-                CornerRadius="6" 
-                Padding="12" 
-                Margin="0,12,0,0"
-                Opacity="0.1">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition/>
-                    <RowDefinition/>
-                    <RowDefinition/>
-                </Grid.RowDefinitions>
-                
-                <StackPanel Grid.Row="0" Orientation="Horizontal">
-                    <materialDesign:PackIcon Kind="Eye" Width="14" Height="14" Margin="0,0,6,0"/>
-                    <TextBlock x:Name="MonitoredPathsText" Text="0 övervakade sökvägar" FontSize="11"/>
-                </StackPanel>
-                
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
-                    <materialDesign:PackIcon Kind="AlertCircle" Width="14" Height="14" Margin="0,0,6,0"/>
-                    <TextBlock x:Name="ThreatsFoundText" Text="0 hot funna" FontSize="11"/>
-                </StackPanel>
-                
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
-                    <materialDesign:PackIcon Kind="CheckCircle" Width="14" Height="14" Margin="0,0,6,0"/>
-                    <TextBlock x:Name="ThreatsHandledText" Text="0 hot hanterade" FontSize="11"/>
-                </StackPanel>
-            </Grid>
         </Border>
-    </StackPanel>
-</Border>
 
         <!-- Main Content Area -->
         <Grid Grid.Row="1" Grid.Column="1" Margin="20">
@@ -456,21 +438,9 @@
                                                           Binding="{Binding IsSelected}" 
                                                           Width="50"/>
                                     
-                                    <DataGridTemplateColumn Header="Risk" Width="80">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <Border Background="{Binding ThreatLevel, Converter={StaticResource ThreatLevelToBrushConverter}}" 
-                                                      CornerRadius="4" 
-                                                      Padding="6,3">
-                                                    <TextBlock Text="{Binding ThreatLevel}" 
-                                                             Foreground="White" 
-                                                             FontSize="11" 
-                                                             FontWeight="SemiBold"
-                                                             HorizontalAlignment="Center"/>
-                                                </Border>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Risk" 
+                                                      Binding="{Binding ThreatLevel}" 
+                                                      Width="80"/>
                                     
                                     <DataGridTextColumn Header="Filnamn" 
                                                       Binding="{Binding FileName}" 
@@ -568,9 +538,8 @@
                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="{Binding LevelColor, Converter={StaticResource ColorToBrushConverter}}"
+                                        <Border Background="LightGray"
                                               Opacity="0.1" 
-                                              CornerRadius="6" 
                                               Padding="12,8" 
                                               Margin="0,2">
                                             <Grid>
@@ -588,8 +557,7 @@
                                                              FontSize="11"
                                                              Opacity="0.8"
                                                              Margin="0,0,12,0"/>
-                                                    <Border Background="{Binding LevelColor, Converter={StaticResource ColorToBrushConverter}}"
-                                                          CornerRadius="3"
+                                                    <Border Background="Gray"
                                                           Padding="6,2">
                                                         <TextBlock Text="{Binding Source}" 
                                                                  FontSize="10"
