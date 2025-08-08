@@ -1,28 +1,17 @@
-<!-- FilKollen.csproj -->
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon>Resources\shield.ico</ApplicationIcon>
-    <AssemblyTitle>FilKollen</AssemblyTitle>
-    <AssemblyDescription>Säkerhetsscanner för Windows temp-filer</AssemblyDescription>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyTitle>FilKollen Real-time Security</AssemblyTitle>
+    <AssemblyDescription>Real-time säkerhetsscanner för Windows med kontinuerligt skydd</AssemblyDescription>
     <AssemblyCompany>FilKollen Security</AssemblyCompany>
-    <AssemblyProduct>FilKollen</AssemblyProduct>
+    <AssemblyProduct>FilKollen Real-time</AssemblyProduct>
     <AssemblyCopyright>© 2025 FilKollen Security</AssemblyCopyright>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    
-    <!-- UAC Manifest för admin-rättigheter -->
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    
-    <!-- Publish settings för single-file distribution -->
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishTrimmed>false</PublishTrimmed>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -32,27 +21,25 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- NuGet Packages -->
+    <!-- Core Dependencies -->
     <PackageReference Include="MaterialDesignThemes" Version="4.9.0" />
-    <PackageReference Include="Microsoft.Win32.TaskScheduler" Version="2.10.1" />
     <PackageReference Include="Serilog" Version="3.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <PackageReference Include="System.Text.Json" Version="7.0.3" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
+    <PackageReference Include="System.Security.Cryptography.Algorithms" Version="4.3.1" />
+
+    <!-- System Tray Support -->
+    <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
     
-    <!-- Optional: För system tray notifications -->
-    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
+    <!-- Real-time File System Monitoring -->
+    <PackageReference Include="System.IO.FileSystem.Watcher" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Embedded Resources -->
-    <Resource Include="Resources\**\*" />
-    <EmbeddedResource Include="appsettings.json" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Create directories -->
-    <None Include="logs\.gitkeep" />
-    <None Include="quarantine\.gitkeep" />
+    <!-- Windows Forms reference för NotifyIcon -->
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
   </ItemGroup>
 
 </Project>

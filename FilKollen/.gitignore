@@ -1,15 +1,37 @@
+# Build outputs
 bin/
 obj/
 publish/
 *.exe
 *.pdb
+
+# Visual Studio
 .vs/
 *.user
 *.suo
+*.sln.docstates
+
+# Logs och temp-filer
 logs/
+temp/
 quarantine/
 *.log
+
+# NuGet packages
 packages/
 *.nupkg
+*.snupkg
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+
+# Installer outputs
+*.msi
+*.msm
+*.msp

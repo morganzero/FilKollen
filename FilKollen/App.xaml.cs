@@ -1,16 +1,18 @@
-// App.xaml.cs
 using System;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Forms;
 using FilKollen.Services;
+using FilKollen.Windows;
 using Serilog;
 
 namespace FilKollen
 {
-    public partial class App : Application
+    public partial class App : System.Windows.Application
     {
         private ILogger _logger;
+        private MainWindow _mainWindow;
+        private LicenseService _licenseService;
+        private BrandingService _brandingService;
         
         protected override async void OnStartup(StartupEventArgs e)
         {
@@ -21,17 +23,72 @@ namespace FilKollen
                     retainedFileCountLimit: 30)
                 .CreateLogger();
 
-            _logger.Information("FilKollen startar...");
+            _logger.Information("FilKollen Real-time Security startar...");
 
-            // Kontrollera admin-rättigheter
+            // Initiera services
+            _licenseService = new LicenseService(_logger);
+            _brandingService = new BrandingService(_logger);
+
+            // Kontrollera och tillämpa branding först
+            try
+            {
+                var currentBranding = _brandingService.GetCurrentBranding();
+                _logger.Information($"Branding loaded: {currentBranding.CompanyName} - {currentBranding.ProductName}");
+                
+                // Uppdatera fönster-titel och andra branding-element här
+                // Detta kan göras genom att sätta globala resurser eller tema-variabler
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to load branding: {ex.Message}");
+            }
+
+            // Kontrollera licensstatus
+            var licenseStatus = await _licenseService.ValidateLicenseAsync();
+            _logger.Information($"License status: {licenseStatus}");
+
+            switch (licenseStatus)
+            {
+                case Models.LicenseStatus.Valid:
+                    _logger.Information("Valid license found - starting application");
+                    StartMainApplication();
+                    break;
+
+                case Models.LicenseStatus.TrialActive:
+                    _logger.Information("Trial license active - starting application");
+                    StartMainApplication();
+                    ShowTrialNotification();
+                    break;
+
+                case Models.LicenseStatus.Expired:
+                case Models.LicenseStatus.TrialExpired:
+                case Models.LicenseStatus.Invalid:
+                case Models.LicenseStatus.NotFound:
+                    _logger.Warning($"License issue: {licenseStatus} - showing registration window");
+                    ShowLicenseRegistrationWindow();
+                    break;
+
+                default:
+                    _logger.Error($"Unexpected license status: {licenseStatus}");
+                    ShowLicenseRegistrationWindow();
+                    break;
+            }
+
+            // Kontrollera admin-rättigheter (befintlig kod fortsätter här)
             if (!IsRunningAsAdministrator())
             {
-                var result = MessageBox.Show(
-                    "FilKollen behöver administratörsrättigheter för att fungera optimalt.\n\n" +
-                    "Vill du starta om programmet som administratör?",
-                    "Administratörsrättigheter krävs",
+                var result = System.Windows.MessageBox.Show(
+                    "🛡️ FILKOLLEN REAL-TIME SECURITY\n\n" +
+                    "🛡️ FILKOLLEN REAL-TIME SECURITY\n\n" +
+                    "För optimal säkerhet behöver FilKollen administratörsrättigheter för att:\n\n" +
+                    "🔒 Övervaka systemkataloger\n" +
+                    "🗑️ Säkert radera skadlig kod\n" +
+                    "⚙️ Sätta säkerhetspolicies\n" +
+                    "🛡️ Blockera malware i realtid\n\n" +
+                    "Vill du starta om som administratör för fullständig säkerhet?",
+                    "Administratörsrättigheter Rekommenderade",
                     MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
+                    MessageBoxImage.Shield);
 
                 if (result == MessageBoxResult.Yes)
                 {
@@ -40,22 +97,96 @@ namespace FilKollen
                 }
             }
 
-            // Kontrollera command line arguments för scheduled runs
-            if (e.Args.Length > 0 && e.Args[0] == "--scheduled")
-            {
-                _logger.Information("Startar schemalagd skanning...");
-                await RunScheduledScan();
-                Shutdown();
-                return;
-            }
-
-            // Sätt global exception handlers
-            DispatcherUnhandledException += OnDispatcherUnhandledException;
-            AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
-
             base.OnStartup(e);
         }
 
+        private void StartMainApplication()
+        {
+            try
+            {
+                _mainWindow = new MainWindow(_licenseService, _brandingService);
+                
+                // Kontrollera om användaren vill starta minimerat
+                bool startMinimized = Environment.GetCommandLineArgs().Contains("--minimized");
+                
+                if (startMinimized)
+                {
+                    _mainWindow.WindowState = WindowState.Minimized;
+                    _mainWindow.Show();
+                    _mainWindow.Hide(); // Direkt till tray
+                }
+                else
+                {
+                    _mainWindow.Show();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to start main application: {ex.Message}");
+                System.Windows.MessageBox.Show(
+                    $"❌ Kunde inte starta FilKollen:\n\n{ex.Message}",
+                    "Startfel", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown();
+            }
+        }
+
+        private void ShowLicenseRegistrationWindow()
+        {
+            try
+            {
+                var licenseWindow = new LicenseRegistrationWindow(_licenseService, _logger);
+                var result = licenseWindow.ShowDialog();
+                
+                if (result == true)
+                {
+                    // Licens registrerad eller trial fortsätter
+                    StartMainApplication();
+                }
+                else
+                {
+                    // Användaren stängde fönstret utan registrering
+                    _logger.Information("User closed license registration - shutting down");
+                    Shutdown();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to show license registration: {ex.Message}");
+                System.Windows.MessageBox.Show(
+                    $"❌ Kunde inte visa licensregistrering:\n\n{ex.Message}",
+                    "Licensfel", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown();
+            }
+        }
+
+        private void ShowTrialNotification()
+        {
+            try
+            {
+                var remainingTime = _licenseService.GetRemainingTrialTime();
+                if (remainingTime.HasValue && remainingTime.Value.TotalDays <= 3)
+                {
+                    var daysLeft = (int)Math.Ceiling(remainingTime.Value.TotalDays);
+                    _logger.Information($"Trial expires in {daysLeft} days - showing notification");
+                    
+                    System.Windows.MessageBox.Show(
+                        $"⏰ TRIAL-PÅMINNELSE\n\n" +
+                        $"Din FilKollen trial går ut om {daysLeft} dag{(daysLeft == 1 ? "" : "ar")}.\n\n" +
+                        $"För att fortsätta använda alla säkerhetsfunktioner,\n" +
+                        $"registrera en licens innan trial-perioden slutar.\n\n" +
+                        $"Klicka på ⚙️ Inställningar → Licenshantering för att registrera.",
+                        "Trial Går Ut Snart",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to show trial notification: {ex.Message}");
+            }
+        }
+
+        // Resten av befintlig OnStartup-kod fortsätter här...
         private bool IsRunningAsAdministrator()
         {
             try
@@ -78,7 +209,8 @@ namespace FilKollen
                 {
                     FileName = System.Reflection.Assembly.GetExecutingAssembly().Location,
                     UseShellExecute = true,
-                    Verb = "runas"
+                    Verb = "runas",
+                    Arguments = "--minimized"
                 };
 
                 System.Diagnostics.Process.Start(processInfo);
@@ -87,154 +219,277 @@ namespace FilKollen
             catch (Exception ex)
             {
                 _logger.Error($"Kunde inte starta som administratör: {ex.Message}");
-                MessageBox.Show("Kunde inte starta programmet som administratör. " +
-                               "Vissa funktioner kan vara begränsade.",
-                    "Varning", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
-        }
-
-        private async Task RunScheduledScan()
-        {
-            try
-            {
-                // Ladda konfiguration
-                var config = LoadScheduledScanConfig();
-                
-                // Kör skanning
-                var scanner = new FileScanner(config, _logger);
-                var results = await scanner.ScanAsync();
-
-                if (results.Any())
-                {
-                    var quarantineManager = new QuarantineManager(_logger);
-                    
-                    if (config.AutoDelete)
-                    {
-                        // Automatisk hantering
-                        foreach (var result in results)
-                        {
-                            if (result.ThreatLevel >= ThreatLevel.High)
-                            {
-                                await quarantineManager.DeleteFileAsync(result);
-                            }
-                            else
-                            {
-                                await quarantineManager.QuarantineFileAsync(result);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Sätt alla i karantän för manuell granskning
-                        foreach (var result in results)
-                        {
-                            await quarantineManager.QuarantineFileAsync(result);
-                        }
-                    }
-
-                    // Visa notifikation om hot hittades
-                    if (config.ShowNotifications)
-                    {
-                        ShowScheduledScanNotification(results.Count);
-                    }
-                }
-
-                _logger.Information($"Schemalagd skanning klar. {results.Count} hot hanterade.");
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Fel vid schemalagd skanning: {ex.Message}");
-            }
-        }
-
-        private Models.AppConfig LoadScheduledScanConfig()
-        {
-            // Ladda konfiguration från fil eller använd defaults
-            return new Models.AppConfig
-            {
-                ScanPaths = new() { "%TEMP%", "C:\\Windows\\Temp", "%LOCALAPPDATA%\\Temp" },
-                SuspiciousExtensions = new() { ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".scr", ".com", ".pif" },
-                WhitelistPaths = new(),
-                AutoDelete = false,
-                QuarantineDays = 30,
-                ShowNotifications = true
-            };
-        }
-
-        private void ShowScheduledScanNotification(int threatCount)
-        {
-            // Implementera Windows Toast Notification
-            try
-            {
-                var message = threatCount > 0 
-                    ? $"FilKollen hittade {threatCount} hot som har karantänerats"
-                    : "FilKollen-skanning klar - inga hot funna";
-
-                // Enkelt MessageBox för nu - kan ersättas med Toast senare
-                MessageBox.Show(message, "FilKollen", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Kunde inte visa notifikation: {ex.Message}");
-            }
-        }
-
-        private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
-        {
-            _logger.Error($"Ohanterat UI-fel: {e.Exception.Message}");
-            _logger.Error($"Stack trace: {e.Exception.StackTrace}");
-            
-            MessageBox.Show($"Ett oväntat fel uppstod:\n{e.Exception.Message}\n\nSe loggfilen för mer information.",
-                "Fel", MessageBoxButton.OK, MessageBoxImage.Error);
-            
-            e.Handled = true;
-        }
-
-        private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
-        {
-            _logger.Fatal($"Kritiskt fel: {e.ExceptionObject}");
-            
-            if (e.ExceptionObject is Exception ex)
-            {
-                MessageBox.Show($"Ett kritiskt fel uppstod:\n{ex.Message}\n\nProgrammet kommer att avslutas.",
-                    "Kritiskt fel", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        protected override void OnExit(ExitEventArgs e)
-        {
-            _logger?.Information("FilKollen avslutas");
-            _logger?.Dispose();
-            base.OnExit(e);
         }
     }
 }
 
-// Program.cs (om du vill ha en explicit Main-metod)
-using System;
-using System.Threading;
-using System.Windows;
-
+// Uppdateringar för MainWindow.xaml.cs konstruktor
 namespace FilKollen
 {
-    public static class Program
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
-        [STAThread]
-        public static void Main(string[] args)
-        {
-            // Säkerställ att bara en instans körs
-            using var mutex = new Mutex(true, "FilKollen_SingleInstance", out bool createdNew);
-            
-            if (!createdNew)
-            {
-                MessageBox.Show("FilKollen körs redan!", 
-                    "FilKollen", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
+        private readonly LicenseService _licenseService;
+        private readonly BrandingService _brandingService;
+        // ... övriga fields
 
-            var app = new App();
-            app.InitializeComponent();
-            app.Run();
+        public MainWindow(LicenseService licenseService, BrandingService brandingService)
+        {
+            InitializeComponent();
+            
+            _licenseService = licenseService;
+            _brandingService = brandingService;
+            
+            // Initiera theme service
+            _themeService = new ThemeService();
+            
+            // Initiera logging
+            _logger = new LoggerConfiguration()
+                .WriteTo.File("logs/filkollen-.log", 
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 30)
+                .CreateLogger();
+
+            // Ladda konfiguration
+            _config = LoadConfiguration();
+            
+            // Tillämpa branding
+            ApplyCurrentBranding();
+            
+            // Initiera övriga services
+            _fileScanner = new FileScanner(_config, _logger);
+            _quarantineManager = new QuarantineManager(_logger);
+            _browserCleaner = new BrowserCleaner(_logger);
+            _logViewer = new LogViewerService();
+            
+            // Initiera real-time protection
+            _protectionService = new RealTimeProtectionService(
+                _fileScanner, _quarantineManager, _logViewer, _logger, _config);
+            
+            // Initiera system tray
+            _trayService = new SystemTrayService(_protectionService, _logViewer, _logger);
+            
+            // Initiera UI
+            ScanResults = new ObservableCollection<ScanResultViewModel>();
+            PendingThreats = new ObservableCollection<ScanResultViewModel>();
+            ResultsDataGrid.ItemsSource = ScanResults;
+            LogListView.ItemsSource = _logViewer.LogEntries;
+            
+            // Bind events
+            _protectionService.ProtectionStatusChanged += OnProtectionStatusChanged;
+            _protectionService.ThreatDetected += OnThreatDetected;
+            _trayService.ShowMainWindowRequested += OnShowMainWindowRequested;
+            _trayService.ExitApplicationRequested += OnExitApplicationRequested;
+            
+            DataContext = this;
+            
+            // Uppdatera UI
+            UpdateProtectionStatus();
+            UpdateDashboard();
+            UpdateLicenseStatus();
+            
+            _logger.Information("FilKollen startad med real-time protection");
+            
+            // Starta protection automatiskt
+            _ = Task.Run(async () => await _protectionService.StartProtectionAsync());
+        }
+
+        private void ApplyCurrentBranding()
+        {
+            try
+            {
+                var branding = _brandingService.GetCurrentBranding();
+                
+                // Uppdatera fönster-titel
+                Title = $"{branding.ProductName} - Modern Säkerhetsscanner";
+                
+                // Uppdatera logo om det finns en anpassad
+                if (File.Exists(branding.LogoPath))
+                {
+                    // Uppdatera logo-element i UI
+                    // Detta kräver att du har ett Image-element för logon i XAML
+                    // CompanyLogo.Source = new BitmapImage(new Uri(Path.GetFullPath(branding.LogoPath)));
+                }
+                
+                // Uppdatera färger om anpassade
+                if (!string.IsNullOrEmpty(branding.PrimaryColor))
+                {
+                    // Tillämpa anpassade färger till tema
+                    // Detta kräver dynamisk uppdatering av MaterialDesign-färger
+                }
+                
+                _logger.Information($"Branding applied: {branding.CompanyName} - {branding.ProductName}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to apply branding: {ex.Message}");
+            }
+        }
+
+        private void UpdateLicenseStatus()
+        {
+            try
+            {
+                var license = _licenseService.GetCurrentLicense();
+                if (license != null)
+                {
+                    // Uppdatera UI med licensinformation
+                    var remainingTime = license.TimeRemaining;
+                    if (remainingTime.TotalDays <= 30 && license.Type != Models.LicenseType.Lifetime)
+                    {
+                        // Visa varning för licens som snart går ut
+                        _logViewer.AddLogEntry(Services.LogLevel.Warning, "License", 
+                            $"⚠️ Licensen går ut om {license.FormattedTimeRemaining}");
+                    }
+                }
+                else
+                {
+                    // Kontrollera trial-status
+                    var trialTime = _licenseService.GetRemainingTrialTime();
+                    if (trialTime.HasValue)
+                    {
+                        var trialTimeSpan = trialTime.Value;
+                        if (trialTimeSpan.TotalHours <= 24)
+                        {
+                            _logViewer.AddLogEntry(Services.LogLevel.Warning, "Trial", 
+                                $"⏰ Trial går ut om {(int)trialTimeSpan.TotalHours} timmar");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to update license status: {ex.Message}");
+            }
+        }
+
+        // Lägg till nya menyalternativ för licens- och branding-hantering
+        private void SettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            var settingsMenu = new ContextMenu();
+            
+            // Licens Management
+            var licenseMenuItem = new MenuItem
+            {
+                Header = "🔑 Licenshantering",
+                Icon = new MaterialDesignThemes.Wpf.PackIcon { Kind = MaterialDesignThemes.Wpf.PackIconKind.Key }
+            };
+            licenseMenuItem.Click += LicenseManagementMenuItem_Click;
+            settingsMenu.Items.Add(licenseMenuItem);
+            
+            // Branding Management (endast för återförsäljare med rätt licens)
+            var license = _licenseService.GetCurrentLicense();
+            if (license?.Type == Models.LicenseType.Lifetime || license?.Type == Models.LicenseType.Yearly)
+            {
+                var brandingMenuItem = new MenuItem
+                {
+                    Header = "🎨 Branding Management",
+                    Icon = new MaterialDesignThemes.Wpf.PackIcon { Kind = MaterialDesignThemes.Wpf.PackIconKind.Palette }
+                };
+                brandingMenuItem.Click += BrandingManagementMenuItem_Click;
+                settingsMenu.Items.Add(brandingMenuItem);
+            }
+            
+            settingsMenu.Items.Add(new Separator());
+            
+            // Övriga inställningar
+            var generalSettingsMenuItem = new MenuItem
+            {
+                Header = "⚙️ Allmänna Inställningar",
+                Icon = new MaterialDesignThemes.Wpf.PackIcon { Kind = MaterialDesignThemes.Wpf.PackIconKind.Settings }
+            };
+            generalSettingsMenuItem.Click += GeneralSettingsMenuItem_Click;
+            settingsMenu.Items.Add(generalSettingsMenuItem);
+            
+            settingsMenu.PlacementTarget = SettingsButton;
+            settingsMenu.IsOpen = true;
+        }
+
+        private void LicenseManagementMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var licenseWindow = new LicenseRegistrationWindow(_licenseService, _logger);
+                licenseWindow.ShowDialog();
+                
+                // Uppdatera licensstatus efter eventuell ändring
+                UpdateLicenseStatus();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to open license management: {ex.Message}");
+                MessageBox.Show($"Kunde inte öppna licenshantering: {ex.Message}",
+                    "Fel", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BrandingManagementMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var brandingWindow = new BrandingManagementWindow(_brandingService, _logger);
+                brandingWindow.ShowDialog();
+                
+                // Uppdatera branding efter eventuell ändring
+                ApplyCurrentBranding();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to open branding management: {ex.Message}");
+                MessageBox.Show($"Kunde inte öppna branding-hantering: {ex.Message}",
+                    "Fel", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void GeneralSettingsMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("⚙️ Avancerade säkerhetsinställningar kommer snart!\n\n" +
+                          "🔧 Planerade funktioner:\n" +
+                          "• Real-time skanningsintervall\n" +
+                          "• Anpassade övervakningssökvägar\n" +
+                          "• Whitelist-hantering\n" +
+                          "• Avancerade hotdetekteringsinställningar\n" +
+                          "• Notification-preferenser", 
+                "Säkerhetsinställningar", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            _logger?.Information("FilKollen Real-time Security avslutas");
+            
+            // Säkerställ att alla services stängs av korrekt
+            try
+            {
+                _mainWindow?.Close();
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error($"Fel vid avstängning: {ex.Message}");
+            }
+            
+            base.OnExit(e);
+        }
+
+        // Hantera system shutdown/logoff
+        protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+        {
+            _logger?.Information($"System session avslutas: {e.ReasonSessionEnding}");
+            
+            try
+            {
+                // Säkerställ att alla säkerhetsoperationer slutförs innan shutdown
+                if (_mainWindow != null)
+                {
+                    // Ge services tid att stänga av säkert
+                    System.Threading.Tasks.Task.Delay(2000).Wait();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error($"Fel vid session shutdown: {ex.Message}");
+            }
+            
+            base.OnSessionEnding(e);
         }
     }
 }
