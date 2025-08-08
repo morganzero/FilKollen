@@ -220,4 +220,21 @@ namespace FilKollen
     public static class Program
     {
         [STAThread]
-        public
+        public static void Main(string[] args)
+        {
+            // Säkerställ att bara en instans körs
+            using var mutex = new Mutex(true, "FilKollen_SingleInstance", out bool createdNew);
+            
+            if (!createdNew)
+            {
+                MessageBox.Show("FilKollen körs redan!", 
+                    "FilKollen", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var app = new App();
+            app.InitializeComponent();
+            app.Run();
+        }
+    }
+}
