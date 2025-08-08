@@ -1,0 +1,58 @@
+<!-- FilKollen.csproj -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>Resources\shield.ico</ApplicationIcon>
+    <AssemblyTitle>FilKollen</AssemblyTitle>
+    <AssemblyDescription>Säkerhetsscanner för Windows temp-filer</AssemblyDescription>
+    <AssemblyCompany>FilKollen Security</AssemblyCompany>
+    <AssemblyProduct>FilKollen</AssemblyProduct>
+    <AssemblyCopyright>© 2025 FilKollen Security</AssemblyCopyright>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    
+    <!-- UAC Manifest för admin-rättigheter -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    
+    <!-- Publish settings för single-file distribution -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishTrimmed>false</PublishTrimmed>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Optimize>true</Optimize>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- NuGet Packages -->
+    <PackageReference Include="MaterialDesignThemes" Version="4.9.0" />
+    <PackageReference Include="Microsoft.Win32.TaskScheduler" Version="2.10.1" />
+    <PackageReference Include="Serilog" Version="3.1.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="System.Text.Json" Version="7.0.3" />
+    
+    <!-- Optional: För system tray notifications -->
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Embedded Resources -->
+    <Resource Include="Resources\**\*" />
+    <EmbeddedResource Include="appsettings.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Create directories -->
+    <None Include="logs\.gitkeep" />
+    <None Include="quarantine\.gitkeep" />
+  </ItemGroup>
+
+</Project>
