@@ -1,0 +1,15 @@
+bin/
+obj/
+publish/
+*.exe
+*.pdb
+.vs/
+*.user
+*.suo
+logs/
+quarantine/
+*.log
+packages/
+*.nupkg
+.DS_Store
+Thumbs.db
