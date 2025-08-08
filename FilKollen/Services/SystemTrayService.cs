@@ -11,16 +11,16 @@ namespace FilKollen.Services
 {
     public class SystemTrayService : IDisposable
     {
-        private NotifyIcon _notifyIcon;
+        private NotifyIcon _notifyIcon = null!;
         private readonly RealTimeProtectionService _protectionService;
         private readonly LogViewerService _logViewer;
         private readonly ILogger _logger;
-        private Icon _protectedIcon;
-        private Icon _unprotectedIcon;
-        private Icon _alertIcon;
+        private Icon _protectedIcon = null!;
+        private Icon _unprotectedIcon = null!;
+        private Icon _alertIcon = null!;
 
-        public event EventHandler ShowMainWindowRequested;
-        public event EventHandler ExitApplicationRequested;
+        public event EventHandler? ShowMainWindowRequested;
+        public event EventHandler? ExitApplicationRequested;
 
         public SystemTrayService(RealTimeProtectionService protectionService, 
             LogViewerService logViewer, ILogger logger)
@@ -137,7 +137,7 @@ namespace FilKollen.Services
             UpdateTrayStatus();
         }
 
-        private void OnProtectionStatusChanged(object sender, ProtectionStatusChangedEventArgs e)
+        private void OnProtectionStatusChanged(object? sender, ProtectionStatusChangedEventArgs e)
         {
             UpdateTrayStatus();
             
@@ -148,7 +148,7 @@ namespace FilKollen.Services
                 $"Real-time skydd {status}", icon);
         }
 
-        private void OnThreatDetected(object sender, ThreatDetectedEventArgs e)
+        private void OnThreatDetected(object? sender, ThreatDetectedEventArgs e)
         {
             var threat = e.Threat;
             var fileName = System.IO.Path.GetFileName(threat.FilePath);

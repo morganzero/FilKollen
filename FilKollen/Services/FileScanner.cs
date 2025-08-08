@@ -79,7 +79,7 @@ namespace FilKollen.Services
                 
                 // Kolla mot whitelist
                 if (IsWhitelisted(filePath))
-                    return null;
+                    return string.Empty;
                 
                 var threatLevel = ThreatLevel.Low;
                 var reasons = new List<string>();
@@ -114,7 +114,7 @@ namespace FilKollen.Services
                 
                 // Om ingen hotflag, returnera null
                 if (!reasons.Any())
-                    return null;
+                    return string.Empty;
                 
                 return new ScanResult
                 {
@@ -131,7 +131,7 @@ namespace FilKollen.Services
             catch (Exception ex)
             {
                 _logger.Error($"Fel vid analys av fil {filePath}: {ex.Message}");
-                return null;
+                return string.Empty;
             }
         }
 

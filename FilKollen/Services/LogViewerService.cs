@@ -13,7 +13,7 @@ namespace FilKollen.Services
     {
         private readonly string _logDirectory;
         private ObservableCollection<LogEntry> _logEntries;
-        private FileSystemWatcher _logWatcher;
+        private FileSystemWatcher _logWatcher = null!;
 
         public ObservableCollection<LogEntry> LogEntries
         {
@@ -115,7 +115,7 @@ namespace FilKollen.Services
         private LogEntry ParseLogLine(string line)
         {
             if (string.IsNullOrWhiteSpace(line))
-                return null;
+                return string.Empty;
 
             try
             {
@@ -153,7 +153,7 @@ namespace FilKollen.Services
                 // Ignorera malformatterade rader
             }
 
-            return null;
+            return string.Empty;
         }
 
         private string ExtractSource(string message)
@@ -213,8 +213,8 @@ namespace FilKollen.Services
     {
         public DateTime Timestamp { get; set; }
         public LogLevel Level { get; set; }
-        public string Source { get; set; }
-        public string Message { get; set; }
+        public string Source { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
         
         public string FormattedTimestamp => Timestamp.ToString("HH:mm:ss");
         

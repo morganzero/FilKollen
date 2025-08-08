@@ -40,12 +40,12 @@ namespace FilKollen.Windows
         private void CheckTrialStatus()
         {
             var trialTime = _licenseService.GetRemainingTrialTime();
-            IsTrialMode = trialTime.HasValue && trialTime.Value > TimeSpan.Zero;
+            IsTrialMode = trialTime.HasValue && trialTime.GetValueOrDefault() > TimeSpan.Zero;
             
             if (IsTrialMode)
             {
-                TrialTimeRemainingText.Text = FormatTimeSpan(trialTime.Value);
-                TrialExpiryDateText.Text = DateTime.UtcNow.Add(trialTime.Value).ToString("yyyy-MM-dd");
+                TrialTimeRemainingText.Text = FormatTimeSpan(trialTime.GetValueOrDefault());
+                TrialExpiryDateText.Text = DateTime.UtcNow.Add(trialTime.GetValueOrDefault()).ToString("yyyy-MM-dd");
                 StatusHeaderText.Text = "Trial-period aktiv - Registrera licens för fortsatt användning";
             }
             else
@@ -245,7 +245,7 @@ namespace FilKollen.Windows
         {
             var remainingTime = _licenseService.GetRemainingTrialTime();
             
-            if (remainingTime.HasValue && remainingTime.Value > TimeSpan.Zero)
+            if (remainingTime.HasValue && remainingTime.GetValueOrDefault() > TimeSpan.Zero)
             {
                 _logger.Information("User chose to continue trial period");
                 DialogResult = true;

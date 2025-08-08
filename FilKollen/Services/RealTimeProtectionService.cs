@@ -19,10 +19,10 @@ namespace FilKollen.Services
         private readonly ILogger _logger;
         private readonly AppConfig _config;
         
-        private System.Timers.Timer _scanTimer;
+        private System.Timers.Timer _scanTimer = null!;
         private readonly List<FileSystemWatcher> _fileWatchers;
         private readonly HashSet<string> _recentlyProcessed;
-        private CancellationTokenSource _cancellationTokenSource;
+        private CancellationTokenSource _cancellationTokenSource = null!;
         
         public bool IsProtectionActive { get; private set; }
         public bool AutoCleanMode { get; set; } = false;
@@ -30,8 +30,8 @@ namespace FilKollen.Services
         public int TotalThreatsFound { get; private set; }
         public int TotalThreatsHandled { get; private set; }
 
-        public event EventHandler<ThreatDetectedEventArgs> ThreatDetected;
-        public event EventHandler<ProtectionStatusChangedEventArgs> ProtectionStatusChanged;
+        public event EventHandler<ThreatDetectedEventArgs>? ThreatDetected;
+        public event EventHandler<ProtectionStatusChangedEventArgs>? ProtectionStatusChanged;
 
         public RealTimeProtectionService(FileScanner fileScanner, QuarantineManager quarantineManager, 
             LogViewerService logViewer, ILogger logger, AppConfig config)
@@ -79,6 +79,8 @@ namespace FilKollen.Services
 
         public async Task StopProtectionAsync()
         {
+            await System.Threading.Tasks.Task.Yield();
+
             if (!IsProtectionActive) return;
 
             try
@@ -230,7 +232,7 @@ namespace FilKollen.Services
                     reasons.Add("Dubbel fil-extension");
                 }
                 
-                if (!reasons.Any()) return null;
+                if (!reasons.Any()) return string.Empty;
                 
                 return new ScanResult
                 {
@@ -246,7 +248,7 @@ namespace FilKollen.Services
             }
             catch
             {
-                return null;
+                return string.Empty;
             }
         }
 
@@ -289,6 +291,8 @@ namespace FilKollen.Services
 
         private async Task HandleThreatDetected(ScanResult threat)
         {
+            await System.Threading.Tasks.Task.Yield();
+
             TotalThreatsFound++;
             
             _logViewer.AddLogEntry(LogLevel.Warning, "Security", 

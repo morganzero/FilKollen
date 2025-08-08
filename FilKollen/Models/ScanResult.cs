@@ -5,15 +5,15 @@ namespace FilKollen.Models
 {
     public class ScanResult
     {
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
         public long FileSize { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime LastModified { get; set; }
-        public string FileType { get; set; }
+        public string FileType { get; set; } = string.Empty;
         public ThreatLevel ThreatLevel { get; set; }
-        public string Reason { get; set; }
+        public string Reason { get; set; } = string.Empty;
         public bool IsQuarantined { get; set; }
-        public string FileHash { get; set; }
+        public string FileHash { get; set; } = string.Empty;
         
         public string FileName => Path.GetFileName(FilePath);
         public string FormattedSize => FormatFileSize(FileSize);

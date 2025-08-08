@@ -68,6 +68,8 @@ namespace FilKollen.Services
 
         private async Task CloseBrowsersAsync()
         {
+            await System.Threading.Tasks.Task.Yield();
+
             var browserProcesses = new[] { "chrome", "msedge", "firefox", "opera", "brave" };
             
             foreach (var browserName in browserProcesses)
@@ -266,6 +268,8 @@ namespace FilKollen.Services
 
         private async Task ClearChromeSitePermissionsAsync(string profilePath)
         {
+            await System.Threading.Tasks.Task.Yield();
+
             try
             {
                 // Rensa Site Settings (Web Data database)
@@ -284,6 +288,8 @@ namespace FilKollen.Services
 
         private async Task ClearEdgeSitePermissionsAsync(string profilePath)
         {
+            await System.Threading.Tasks.Task.Yield();
+
             try
             {
                 // Rensa Site Settings (Web Data database)
@@ -302,6 +308,8 @@ namespace FilKollen.Services
 
         private async Task SetChromePoliciesAsync()
         {
+            await System.Threading.Tasks.Task.Yield();
+
             try
             {
                 // Sätt registry policies för Chrome
@@ -326,6 +334,8 @@ namespace FilKollen.Services
 
         private async Task SetEdgePoliciesAsync()
         {
+            await System.Threading.Tasks.Task.Yield();
+
             try
             {
                 // Sätt registry policies för Edge
@@ -357,6 +367,8 @@ namespace FilKollen.Services
 
         private async Task CleanWindowsNotificationsAsync()
         {
+            await System.Threading.Tasks.Task.Yield();
+
             try
             {
                 LogOperation("--- WINDOWS NOTIFICATIONS ---");
