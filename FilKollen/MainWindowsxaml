@@ -185,4 +185,166 @@
                         </DataGrid.Columns>
                     </DataGrid>
                     
-                    <!--
+                    <!-- Progress Bar -->
+                    <ProgressBar x:Name="ScanProgressBar" 
+                               Grid.Row="1"
+                               Height="4" 
+                               VerticalAlignment="Top"
+                               IsIndeterminate="True"
+                               Visibility="Collapsed"
+                               materialDesign:TransitionAssist.DisableTransitions="True"/>
+                </Grid>
+            </materialDesign:Card>
+
+            <GridSplitter Grid.Column="1" 
+                        HorizontalAlignment="Stretch" 
+                        Background="Transparent"/>
+
+            <!-- Action Panel -->
+            <materialDesign:Card Grid.Column="2">
+                <StackPanel Margin="16">
+                    <TextBlock Text="Åtgärder" 
+                             FontSize="16" 
+                             FontWeight="SemiBold" 
+                             Margin="0,0,0,16"/>
+
+                    <!-- Scan Button -->
+                    <Button x:Name="ScanButton" 
+                          Content="Starta skanning"
+                          Style="{StaticResource MaterialDesignRaisedButton}"
+                          Margin="0,0,0,8"
+                          Click="ScanButton_Click">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Magnify" 
+                                                       Width="16" Height="16" 
+                                                       Margin="0,0,8,0"/>
+                                <TextBlock Text="Starta skanning"/>
+                            </StackPanel>
+                        </Button.Content>
+                    </Button>
+
+                    <Separator Margin="0,16"/>
+
+                    <!-- File Actions -->
+                    <TextBlock Text="Valda filer:" 
+                             FontWeight="SemiBold" 
+                             Margin="0,0,0,8"/>
+
+                    <Button x:Name="QuarantineSelectedButton" 
+                          Content="Karantän"
+                          Style="{StaticResource MaterialDesignOutlinedButton}"
+                          Margin="0,0,0,4"
+                          Click="QuarantineSelectedButton_Click">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Archive" 
+                                                       Width="16" Height="16" 
+                                                       Margin="0,0,8,0"/>
+                                <TextBlock Text="Karantän"/>
+                            </StackPanel>
+                        </Button.Content>
+                    </Button>
+
+                    <Button x:Name="DeleteSelectedButton" 
+                          Content="Radera säkert"
+                          Style="{StaticResource MaterialDesignOutlinedButton}"
+                          Foreground="{StaticResource SecondaryHueMidBrush}"
+                          BorderBrush="{StaticResource SecondaryHueMidBrush}"
+                          Margin="0,0,0,4"
+                          Click="DeleteSelectedButton_Click">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="DeleteForever" 
+                                                       Width="16" Height="16" 
+                                                       Margin="0,0,8,0"/>
+                                <TextBlock Text="Radera säkert"/>
+                            </StackPanel>
+                        </Button.Content>
+                    </Button>
+
+                    <Separator Margin="0,16"/>
+
+                    <!-- Bulk Actions -->
+                    <TextBlock Text="Alla filer:" 
+                             FontWeight="SemiBold" 
+                             Margin="0,0,0,8"/>
+
+                    <Button x:Name="QuarantineAllButton" 
+                          Content="Karantän alla"
+                          Style="{StaticResource MaterialDesignOutlinedButton}"
+                          Margin="0,0,0,4"
+                          Click="QuarantineAllButton_Click"/>
+
+                    <Button x:Name="DeleteAllButton" 
+                          Content="Radera alla"
+                          Style="{StaticResource MaterialDesignOutlinedButton}"
+                          Foreground="{StaticResource SecondaryHueMidBrush}"
+                          BorderBrush="{StaticResource SecondaryHueMidBrush}"
+                          Margin="0,0,0,4"
+                          Click="DeleteAllButton_Click"/>
+
+                    <Separator Margin="0,16"/>
+
+                    <!-- Quarantine Management -->
+                    <Button x:Name="ManageQuarantineButton" 
+                          Content="Hantera karantän"
+                          Style="{StaticResource MaterialDesignFlatButton}"
+                          Click="ManageQuarantineButton_Click"/>
+
+                    <!-- Status Info -->
+                    <Border Background="{StaticResource MaterialDesignSelection}" 
+                          CornerRadius="4" 
+                          Padding="8" 
+                          Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Status" 
+                                     FontWeight="SemiBold" 
+                                     Margin="0,0,0,4"/>
+                            <TextBlock x:Name="StatusText" 
+                                     Text="Redo för skanning" 
+                                     TextWrapping="Wrap"/>
+                            <TextBlock x:Name="NextScanText" 
+                                     Text="" 
+                                     FontSize="12" 
+                                     Opacity="0.7" 
+                                     Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </materialDesign:Card>
+        </Grid>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="3" Background="{StaticResource MaterialDesignSelection}">
+            <StatusBar.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                </ItemsPanelTemplate>
+            </StatusBar.ItemsPanel>
+            
+            <StatusBarItem Grid.Column="0">
+                <TextBlock x:Name="StatusBarText" Text="Välkommen till FilKollen"/>
+            </StatusBarItem>
+            
+            <StatusBarItem Grid.Column="1">
+                <TextBlock x:Name="VersionText" Text="v1.0.0" Margin="16,0"/>
+            </StatusBarItem>
+            
+            <StatusBarItem Grid.Column="2">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="Shield" 
+                                           Width="16" Height="16" 
+                                           Margin="0,0,4,0"/>
+                    <TextBlock x:Name="ProtectionStatusText" Text="Aktiv"/>
+                </StackPanel>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
