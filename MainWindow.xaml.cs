@@ -1,9 +1,9 @@
-#nullable disable
+#nullable enable
+using System.Collections.Generic;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.IO;
@@ -24,19 +24,20 @@ namespace FilKollen
 {
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        // Service-fält som initieras i konstruktor
         private readonly LicenseService _licenseService;
         private readonly BrandingService _brandingService;
         private readonly ThemeService _themeService;
         private readonly ILogger _logger;
         
-        // Real services
-        private readonly FileScanner _fileScanner;
-        private readonly QuarantineManager _quarantineManager;
-        private readonly BrowserCleaner _browserCleaner;
-        private readonly LogViewerService _logViewer;
-        private readonly RealTimeProtectionService _protectionService;
-        private readonly SystemTrayService _trayService;
-        private AppConfig _config;
+        // Services som initieras senare - UTAN nullable annotations
+        private FileScanner _fileScanner = null!;
+        private QuarantineManager _quarantineManager = null!;
+        private BrowserCleaner _browserCleaner = null!;
+        private LogViewerService _logViewer = null!;
+        private RealTimeProtectionService _protectionService = null!;
+        private SystemTrayService _trayService = null!;
+        private AppConfig _config = null!;
 
         public ObservableCollection<ScanResultViewModel> ScanResults { get; set; }
         public ObservableCollection<ScanResultViewModel> PendingThreats { get; set; }
@@ -301,6 +302,8 @@ namespace FilKollen
                         ProtectionStatusIcon.Kind = PackIconKind.Shield;
                         ProtectionStatusIcon.Foreground = Brushes.Green;
                     }
+                    if (SidebarStatusText != null)
+                        SidebarStatusText.Text = "Real-time skydd aktivt";
                 }
                 else
                 {
@@ -315,6 +318,22 @@ namespace FilKollen
                     {
                         ProtectionStatusIcon.Kind = PackIconKind.ShieldOff;
                         ProtectionStatusIcon.Foreground = Brushes.Red;
+                    }
+                    if (SidebarStatusText != null)
+                        SidebarStatusText.Text = "Redo för skanning";
+                }
+                
+                // Uppdatera sidebar "next scan" text
+                if (SidebarNextScanText != null)
+                {
+                    var stats = _protectionService?.GetProtectionStats();
+                    if (stats?.LastScanTime != default)
+                    {
+                        SidebarNextScanText.Text = $"Senaste: {stats.LastScanTime:HH:mm}";
+                    }
+                    else
+                    {
+                        SidebarNextScanText.Text = "Senaste: Aldrig";
                     }
                 }
             }
@@ -364,6 +383,14 @@ namespace FilKollen
                             StatusBarText.Text = "❌ Ingen giltig licens - Begränsad funktionalitet";
                     }
                 }
+                
+                // Uppdatera version text
+                if (VersionText != null)
+                    VersionText.Text = "v2.0.0";
+                    
+                // Uppdatera connection status
+                if (ConnectionStatusText != null)
+                    ConnectionStatusText.Text = "Online";
             }
             catch (Exception ex)
             {
@@ -628,6 +655,8 @@ namespace FilKollen
             try
             {
                 IsScanning = true;
+                OnPropertyChanged(nameof(IsScanning));
+                
                 if (ScanProgressBar != null)
                 {
                     ScanProgressBar.Visibility = Visibility.Visible;
@@ -638,24 +667,25 @@ namespace FilKollen
 
                 var results = await _fileScanner.ScanAsync();
                 
+                // Rensa gamla resultat
+                ScanResults.Clear();
+                
                 // Konvertera till ViewModels
                 foreach (var result in results)
                 {
-                    var viewModel = new ScanResultViewModel
-                    {
-                        FileName = result.FileName,
-                        FilePath = result.FilePath,
-                        ThreatLevel = result.ThreatLevel.ToString(),
-                        Reason = result.Reason,
-                        FormattedSize = result.FormattedSize,
-                        IsSelected = false
-                    };
+                    var viewModel = ScanResultViewModel.FromScanResult(result);
                     ScanResults.Add(viewModel);
                 }
 
                 UpdateDashboard();
                 _logViewer?.AddLogEntry(LogLevel.Information, "Scanner", 
                     $"✅ Skanning slutförd: {results.Count} hot identifierade");
+                    
+                if (results.Count > 0)
+                {
+                    _logViewer?.AddLogEntry(LogLevel.Warning, "Scanner", 
+                        $"⚠️ Rekommendation: Granska och hantera identifierade hot");
+                }
             }
             catch (Exception ex)
             {
@@ -665,6 +695,8 @@ namespace FilKollen
             finally
             {
                 IsScanning = false;
+                OnPropertyChanged(nameof(IsScanning));
+                
                 if (ScanProgressBar != null)
                 {
                     ScanProgressBar.Visibility = Visibility.Collapsed;
@@ -678,57 +710,53 @@ namespace FilKollen
             try
             {
                 var result = MessageBox.Show(
-                    "🌐 WEBBLÄSARRENSNING\n\n" +
+                    "🌐 WEBBLÄSARE SÄKERHETSRENSNING\n\n" +
                     "Detta kommer att:\n" +
                     "• Stänga alla webbläsare\n" +
-                    "• Rensa notification-behörigheter\n" +
-                    "• Ta bort site permissions\n" +
-                    "• Sätta säkerhetspolicies\n\n" +
-                    "Fortsätt?",
-                    "Bekräfta Webbläsarrensning",
+                    "• Rensa malware-notifieringar\n" +
+                    "• Ta bort suspekta site permissions\n" +
+                    "• Sätta starka säkerhetspolicies\n" +
+                    "• Rensa suspekta extensions\n\n" +
+                    "Fortsätt med avancerad säkerhetsrensning?",
+                    "Bekräfta Säkerhetsrensning",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    _logViewer?.AddLogEntry(LogLevel.Information, "BrowserCleaner", "🌐 Webbläsarrensning startad...");
+                    _logViewer?.AddLogEntry(LogLevel.Information, "BrowserCleaner", "🌐 Säkerhetsrensning startad...");
                     
                     var cleanResult = await _browserCleaner.CleanAllBrowsersAsync();
                     
                     if (cleanResult.Success)
                     {
                         MessageBox.Show(
-                            $"✅ WEBBLÄSARRENSNING SLUTFÖRD!\n\n" +
+                            $"✅ SÄKERHETSRENSNING SLUTFÖRD!\n\n" +
                             $"Chrome profiler rensade: {cleanResult.ChromeProfilesCleaned}\n" +
                             $"Edge profiler rensade: {cleanResult.EdgeProfilesCleaned}\n" +
+                            $"Malware-notifieringar borttagna: {cleanResult.MalwareNotificationsRemoved}\n" +
                             $"Totalt: {cleanResult.TotalProfilesCleaned} profiler\n\n" +
-                            $"Säkerhetspolicies har satts för framtida skydd.",
-                            "Rensning Slutförd",
+                            $"Avancerade säkerhetspolicies har aktiverats för framtida skydd.",
+                            "Säkerhetsrensning Slutförd",
                             MessageBoxButton.OK,
                             MessageBoxImage.Information);
                         
                         _logViewer?.AddLogEntry(LogLevel.Information, "BrowserCleaner", 
-                            $"✅ Webbläsarrensning slutförd: {cleanResult.TotalProfilesCleaned} profiler rensade");
+                            $"✅ Säkerhetsrensning slutförd: {cleanResult.TotalProfilesCleaned} profiler, {cleanResult.MalwareNotificationsRemoved} malware-notifieringar");
                     }
                     else
                     {
-                        MessageBox.Show("❌ Webbläsarrensning misslyckades delvis. Se loggar för detaljer.",
+                        MessageBox.Show("❌ Säkerhetsrensning misslyckades delvis. Se loggar för detaljer.",
                             "Rensningsfel", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error($"Browser cleaning failed: {ex.Message}");
-                MessageBox.Show($"Fel vid webbläsarrensning: {ex.Message}",
+                _logger.Error($"Browser security cleaning failed: {ex.Message}");
+                MessageBox.Show($"Fel vid säkerhetsrensning: {ex.Message}",
                     "Fel", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-        private void ManageQuarantineButton_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("🏥 Karantänhantering kommer snart!\n\nFunktionen kommer att hantera:\n• Karantänerade filer\n• Återställning\n• Permanent radering",
-                "Karantän", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         // Protection toggle events
@@ -736,13 +764,16 @@ namespace FilKollen
         {
             try
             {
-                await _protectionService?.StartProtectionAsync();
+                if (_protectionService != null)
+                await _protectionService.StartProtectionAsync();
                 UpdateProtectionStatus();
                 _logger?.Information("Real-time protection enabled by user");
             }
             catch (Exception ex)
             {
                 _logger?.Error($"Failed to start protection: {ex.Message}");
+                if (ProtectionToggle != null)
+                    ProtectionToggle.IsChecked = false;
             }
         }
 
@@ -750,13 +781,16 @@ namespace FilKollen
         {
             try
             {
-                await _protectionService?.StopProtectionAsync();
+                if (_protectionService != null)
+                await _protectionService.StopProtectionAsync();
                 UpdateProtectionStatus();
                 _logger?.Information("Real-time protection disabled by user");
             }
             catch (Exception ex)
             {
                 _logger?.Error($"Failed to stop protection: {ex.Message}");
+                if (ProtectionToggle != null)
+                    ProtectionToggle.IsChecked = true;
             }
         }
 
@@ -765,13 +799,13 @@ namespace FilKollen
             if (_protectionService != null)
             {
                 bool autoMode = AutoModeRadio?.IsChecked ?? false;
-                _protectionService.AutoCleanMode = autoMode;
+                _protectionService.SetAutoCleanMode(autoMode);
                 _logger?.Information($"Protection mode changed to: {(autoMode ? "Auto" : "Manual")}");
             }
         }
 
         // Protection service events
-        private void OnProtectionStatusChanged(object sender, ProtectionStatusChangedEventArgs e)
+        private void OnProtectionStatusChanged(object? sender, ProtectionStatusChangedEventArgs e)
         {
             Dispatcher.Invoke(() => {
                 UpdateProtectionStatus();
@@ -779,20 +813,16 @@ namespace FilKollen
             });
         }
 
-        private void OnThreatDetected(object sender, ThreatDetectedEventArgs e)
+        private void OnThreatDetected(object? sender, ThreatDetectedEventArgs e)
         {
             Dispatcher.Invoke(() => {
-                // Lägg till hot till pending threats
-                var viewModel = new ScanResultViewModel
+                // Lägg till hot till pending threats om inte auto-hanterat
+                if (!e.WasHandledAutomatically)
                 {
-                    FileName = Path.GetFileName(e.Threat.FilePath),
-                    FilePath = e.Threat.FilePath,
-                    ThreatLevel = e.Threat.ThreatLevel.ToString(),
-                    Reason = e.Threat.Reason,
-                    FormattedSize = e.Threat.FormattedSize
-                };
+                    var viewModel = ScanResultViewModel.FromScanResult(e.Threat);
+                    PendingThreats.Add(viewModel);
+                }
                 
-                PendingThreats.Add(viewModel);
                 UpdateDashboard();
                 
                 _logger?.Information($"Threat detected: {e.Threat.FilePath} - {e.Threat.Reason}");
@@ -815,51 +845,87 @@ namespace FilKollen
         }
 
         // DataGrid action events
-        private async void QuarantineSelectedButton_Click(object sender, RoutedEventArgs e)
+        private async void ManageQuarantineButton_Click(object sender, RoutedEventArgs e)
         {
-            var selectedItems = ScanResults.Where(x => x.IsSelected).ToList();
-            if (!selectedItems.Any())
-            {
-                MessageBox.Show("Inga filer valda för karantän.", "Ingen fil vald", 
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
             try
             {
-                foreach (var item in selectedItems)
+                var quarantineFiles = await _quarantineManager.GetQuarantinedFilesAsync();
+                var message = $"🏥 KARANTÄN-HANTERING\n\n";
+                if (quarantineFiles.Count > 0)
                 {
-                    var scanResult = new ScanResult
-                    {
-                        FilePath = item.FilePath,
-                        ThreatLevel = Enum.Parse<ThreatLevel>(item.ThreatLevel),
-                        Reason = item.Reason,
-                        FileSize = 0 // Will be calculated in service
-                    };
-                    
-                    await _quarantineManager.QuarantineFileAsync(scanResult);
-                    ScanResults.Remove(item);
+                    message += $"Karantänerade filer: {quarantineFiles.Count}\n\n";
+                    message += "Funktioner som kommer snart:\n";
+                    message += "• Visa karantänerade filer\n";
+                    message += "• Återställa säkra filer\n";
+                    message += "• Permanent radering\n";
+                    message += "• Automatisk rensning\n\n";
+                    message += $"Karantänkatalog: {Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}\\FilKollen\\Quarantine";
                 }
-                
-                MessageBox.Show($"✅ {selectedItems.Count} filer har karantänerats.",
-                    "Karantän slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
-                
-                UpdateDashboard();
+                else
+                {
+                    message += "Inga filer i karantän för närvarande.\n\n";
+                    message += "Karantän används för att säkert isolera hot\n";
+                    message += "utan att förstöra dem permanent.";
+                }
+
+                MessageBox.Show(message, "Karantän-hantering", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                _logger.Error($"Quarantine failed: {ex.Message}");
-                MessageBox.Show($"Fel vid karantän: {ex.Message}",
-                    "Karantänfel", MessageBoxButton.OK, MessageBoxImage.Error);
+                _logger.Error($"Failed to show quarantine management: {ex.Message}");
+                MessageBox.Show("Fel vid åtkomst till karantän-information.",
+                    "Fel", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+private async void QuarantineSelectedButton_Click(object sender, RoutedEventArgs e)
+{
+    var selectedItems = ScanResults.Where(x => x.IsSelected).ToList();
+    if (!selectedItems.Any())
+    {
+        MessageBox.Show("Inga filer valda för karantän.", "Ingen fil vald",
+            MessageBoxButton.OK, MessageBoxImage.Information);
+        return;
+    }
+
+    try
+    {
+        foreach (var item in selectedItems)
+        {
+            if (!Enum.TryParse<ThreatLevel>(item.ThreatLevel, true, out var level))
+                level = ThreatLevel.Medium;
+
+            var scanResult = new ScanResult
+            {
+                FilePath = item.FilePath,
+                ThreatLevel = level,
+                Reason = item.Reason,
+                FileSize = 0 // beräknas i service
+            };
+
+            await _quarantineManager.QuarantineFileAsync(scanResult);
+            ScanResults.Remove(item);
+        }
+
+        MessageBox.Show($"✅ {selectedItems.Count} filer har karantänerats.",
+            "Karantän slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
+
+        UpdateDashboard();
+    }
+    catch (Exception ex)
+    {
+        _logger.Error($"Quarantine failed: {ex.Message}");
+        MessageBox.Show($"Fel vid karantän: {ex.Message}",
+            "Karantänfel", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+}
 
         private async void DeleteSelectedButton_Click(object sender, RoutedEventArgs e)
         {
             var selectedItems = ScanResults.Where(x => x.IsSelected).ToList();
             if (!selectedItems.Any())
             {
-                MessageBox.Show("Inga filer valda för radering.", "Ingen fil vald", 
+                MessageBox.Show("Inga filer valda för radering.", "Ingen fil vald",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -868,9 +934,9 @@ namespace FilKollen
                 $"⚠️ PERMANENT RADERING\n\n" +
                 $"Är du säker på att du vill radera {selectedItems.Count} valda filer PERMANENT?\n\n" +
                 $"Denna åtgärd kan INTE ångras!",
-                "Bekräfta permanent radering", 
+                "Bekräfta permanent radering",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            
+
             if (result == MessageBoxResult.Yes)
             {
                 try
@@ -881,10 +947,10 @@ namespace FilKollen
                         await _quarantineManager.DeleteFileAsync(scanResult);
                         ScanResults.Remove(item);
                     }
-                    
+
                     MessageBox.Show($"✅ {selectedItems.Count} filer har raderats permanent.",
                         "Radering slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
-                    
+
                     UpdateDashboard();
                 }
                 catch (Exception ex)
@@ -1054,35 +1120,15 @@ namespace FilKollen
 
         #endregion
 
-        #region INotifyPropertyChanged
-
         public event PropertyChangedEventHandler PropertyChanged;
-        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        #endregion
     }
 
     #region Support Classes
-
-    // ViewModel för UI-binding
-    public class ScanResultViewModel : INotifyPropertyChanged
-    {
-        public bool IsSelected { get; set; }
-        public string ThreatLevel { get; set; } = "Medium";
-        public string FileName { get; set; } = "";
-        public string FilePath { get; set; } = "";
-        public string FormattedSize { get; set; } = "0 B";
-        public string Reason { get; set; } = "";
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
 
     // Wrapper för appsettings.json
     public class AppConfigWrapper

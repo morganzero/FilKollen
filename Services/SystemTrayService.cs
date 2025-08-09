@@ -6,6 +6,7 @@ using FilKollen.Models;
 using FilKollen.Services;
 using Serilog;
 using Application = System.Windows.Application;
+using FontStyle = System.Drawing.FontStyle;
 
 namespace FilKollen.Services
 {
@@ -65,7 +66,7 @@ namespace FilKollen.Services
                 {
                     g.FillEllipse(brush, 0, 0, 16, 16);
                 }
-                using (var font = new Font("Arial", 8, FontStyle.Bold))
+                using (var font = new Font(new FontFamily("Arial"), 8, FontStyle.Bold))
                 using (var brush = new SolidBrush(Color.White))
                 {
                     var size = g.MeasureString(text, font);

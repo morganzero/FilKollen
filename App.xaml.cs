@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Linq;
+using System.Threading.Tasks; // TILLAGD
 using FilKollen.Services;
 using FilKollen.Windows;
 using Serilog;
@@ -9,11 +10,10 @@ namespace FilKollen
 {
     public partial class App : System.Windows.Application
     {
-        private ILogger _logger;
-        private LicenseService _licenseService;
-        private BrandingService _brandingService;
-        private ThemeService _themeService;
-        
+        private ILogger? _logger;  // Gör nullable
+        private LicenseService? _licenseService;  // Gör nullable
+        private BrandingService? _brandingService;  // Gör nullable
+        private ThemeService? _themeService;  // Gör nullable
         protected override async void OnStartup(StartupEventArgs e)
         {
             // Förhindra multiple instances
@@ -128,20 +128,21 @@ namespace FilKollen
 
         private async Task ApplyBrandingAsync()
         {
+            await Task.Yield(); // TILLAGD för att fixa async warning
+            
             try
             {
-                var currentBranding = _brandingService.GetCurrentBranding();
-                _logger.Information($"Branding loaded: {currentBranding.CompanyName} - {currentBranding.ProductName}");
+                var currentBranding = _brandingService?.GetCurrentBranding();
+                _logger?.Information($"Branding loaded: {currentBranding?.CompanyName} - {currentBranding?.ProductName}");
                 
-                // Sätt applikation-titel
-                if (MainWindow != null)
+                if (MainWindow != null && currentBranding != null)
                 {
                     MainWindow.Title = $"{currentBranding.ProductName} - Modern Säkerhetsscanner";
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error($"Failed to load branding: {ex.Message}");
+                _logger?.Error($"Failed to load branding: {ex.Message}");
             }
         }
 
@@ -216,7 +217,7 @@ namespace FilKollen
                 "Vill du starta om som administratör för fullständig säkerhet?",
                 "Administratörsrättigheter Rekommenderade",
                 MessageBoxButton.YesNo,
-                MessageBoxImage.Shield);
+                MessageBoxImage.Question); // ÄNDRAT från Shield till Question
         }
 
         private bool IsRunningAsAdministrator()
@@ -239,7 +240,8 @@ namespace FilKollen
             {
                 var processInfo = new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = System.Reflection.Assembly.GetExecutingAssembly().Location,
+                    // FIX: Använd AppContext.BaseDirectory istället för Assembly.Location
+                    FileName = System.IO.Path.Combine(System.AppContext.BaseDirectory, "FilKollen.exe"),
                     UseShellExecute = true,
                     Verb = "runas",
                     Arguments = "--minimized"
@@ -257,7 +259,7 @@ namespace FilKollen
         protected override void OnExit(ExitEventArgs e)
         {
             _logger?.Information("FilKollen Real-time Security avslutas");
-            _logger?.Dispose();
+            // ÄNDRAT: ILogger har ingen Dispose - ta bort denna rad
             base.OnExit(e);
         }
     }

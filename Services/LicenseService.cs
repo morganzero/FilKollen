@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using FilKollen.Models;
 using Serilog;
+using System.Linq;
 
 namespace FilKollen.Services
 {
@@ -256,7 +257,7 @@ namespace FilKollen.Services
             // Format: FILK-XXXX-XXXX-XXXX-XXXX
             var parts = licenseKey.Split('-');
             return parts.Length == 5 && parts[0] == "FILK" && 
-                   parts.All(p => p.Length == 4 || p == "FILK");
+                   parts.All(p => p.Length == 4 || p == "FILK"); // All() finns nu
         }
 
         private License? DecryptLicenseKey(string licenseKey)

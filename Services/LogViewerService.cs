@@ -6,14 +6,15 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace FilKollen.Services
 {
-    public class LogViewerService : INotifyPropertyChanged
+    public class LogViewerService : INotifyPropertyChanged, IDisposable
     {
         private readonly string _logDirectory;
         private ObservableCollection<LogEntry> _logEntries;
-        private FileSystemWatcher _logWatcher = null!;
+        private FileSystemWatcher? _logWatcher;
 
         public ObservableCollection<LogEntry> LogEntries
         {
@@ -36,29 +37,44 @@ namespace FilKollen.Services
             }
 
             SetupFileWatcher();
-            LoadExistingLogs();
+            _ = Task.Run(LoadExistingLogsAsync);
         }
 
         private void SetupFileWatcher()
         {
-            _logWatcher = new FileSystemWatcher(_logDirectory, "*.log")
+            try
             {
-                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime,
-                EnableRaisingEvents = true
-            };
+                _logWatcher = new FileSystemWatcher(_logDirectory, "*.log")
+                {
+                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+                    EnableRaisingEvents = true
+                };
 
-            _logWatcher.Changed += OnLogFileChanged;
-            _logWatcher.Created += OnLogFileChanged;
+                _logWatcher.Changed += OnLogFileChanged;
+                _logWatcher.Created += OnLogFileChanged;
+            }
+            catch (Exception ex)
+            {
+                // Logga fel men fortsätt utan file watcher
+                System.Diagnostics.Debug.WriteLine($"Failed to setup log file watcher: {ex.Message}");
+            }
         }
 
         private async void OnLogFileChanged(object sender, FileSystemEventArgs e)
         {
-            // Vänta lite för att filen ska slutföras
-            await Task.Delay(100);
-            await LoadLogFileAsync(e.FullPath);
+            try
+            {
+                // Vänta lite för att filen ska slutföras
+                await Task.Delay(100);
+                await LoadLogFileAsync(e.FullPath);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error processing log file change: {ex.Message}");
+            }
         }
 
-        public async Task LoadExistingLogs()
+        public async Task LoadExistingLogsAsync()
         {
             try
             {
@@ -69,6 +85,13 @@ namespace FilKollen.Services
                 foreach (var logFile in logFiles)
                 {
                     await LoadLogFileAsync(logFile);
+                }
+                
+                // Lägg till välkomstmeddelande om inga loggar finns
+                if (!LogEntries.Any())
+                {
+                    AddLogEntry(LogLevel.Information, "FilKollen", "🛡️ FilKollen Real-time Security startad");
+                    AddLogEntry(LogLevel.Information, "System", "Systemkontroll genomförd - redo för säkerhetsskanning");
                 }
             }
             catch (Exception ex)
@@ -93,7 +116,7 @@ namespace FilKollen.Services
                     if (logEntry != null)
                     {
                         // Lägg till i början så senaste visas först
-                        App.Current?.Dispatcher.Invoke(() =>
+                        Application.Current?.Dispatcher.Invoke(() =>
                         {
                             LogEntries.Insert(0, logEntry);
                             
@@ -112,10 +135,10 @@ namespace FilKollen.Services
             }
         }
 
-        private LogEntry ParseLogLine(string line)
+        private LogEntry? ParseLogLine(string line)
         {
             if (string.IsNullOrWhiteSpace(line))
-                return string.Empty;
+                return null;
 
             try
             {
@@ -153,7 +176,7 @@ namespace FilKollen.Services
                 // Ignorera malformatterade rader
             }
 
-            return string.Empty;
+            return null;
         }
 
         private string ExtractSource(string message)
@@ -167,6 +190,16 @@ namespace FilKollen.Services
                 return "QuarantineManager";
             if (message.Contains("ScheduleManager"))
                 return "ScheduleManager";
+            if (message.Contains("RealTime"))
+                return "RealTime";
+            if (message.Contains("Protection"))
+                return "Protection";
+            if (message.Contains("Security"))
+                return "Security";
+            if (message.Contains("License"))
+                return "License";
+            if (message.Contains("Branding"))
+                return "Branding";
             
             return "FilKollen";
         }
@@ -181,31 +214,81 @@ namespace FilKollen.Services
                 Message = message
             };
 
-            App.Current?.Dispatcher.Invoke(() =>
+            try
             {
-                LogEntries.Insert(0, entry);
-                
-                while (LogEntries.Count > 200)
+                Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    LogEntries.RemoveAt(LogEntries.Count - 1);
-                }
-            });
+                    LogEntries.Insert(0, entry);
+                    
+                    while (LogEntries.Count > 200)
+                    {
+                        LogEntries.RemoveAt(LogEntries.Count - 1);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                // Fallback om Dispatcher inte är tillgängligt
+                System.Diagnostics.Debug.WriteLine($"Failed to add log entry: {ex.Message}");
+            }
         }
 
         public void ClearLogs()
         {
-            LogEntries.Clear();
+            try
+            {
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    LogEntries.Clear();
+                    AddLogEntry(LogLevel.Information, "System", "📝 Loggar rensade av användare");
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to clear logs: {ex.Message}");
+            }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+        public void ExportLogs(string filePath)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            try
+            {
+                var lines = new List<string>();
+                lines.Add($"FilKollen Security Log Export - {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                lines.Add("=".PadRight(60, '='));
+                lines.Add("");
+                
+                foreach (var entry in LogEntries.Reverse())
+                {
+                    lines.Add($"{entry.Timestamp:yyyy-MM-dd HH:mm:ss} [{entry.Level}] {entry.Source}: {entry.Message}");
+                }
+                
+                File.WriteAllLines(filePath, lines);
+                AddLogEntry(LogLevel.Information, "Export", $"📄 Loggar exporterade till: {Path.GetFileName(filePath)}");
+            }
+            catch (Exception ex)
+            {
+                AddLogEntry(LogLevel.Error, "Export", $"❌ Misslyckades exportera loggar: {ex.Message}");
+            }
         }
 
         public void Dispose()
         {
-            _logWatcher?.Dispose();
+            try
+            {
+                _logWatcher?.Dispose();
+                _logWatcher = null;
+            }
+            catch
+            {
+                // Ignorera fel vid disposal
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 

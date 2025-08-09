@@ -11,7 +11,7 @@ using Serilog;
 
 namespace FilKollen.Services
 {
-    public class RealTimeProtectionService
+    public class RealTimeProtectionService : IDisposable
     {
         private readonly FileScanner _fileScanner;
         private readonly QuarantineManager _quarantineManager;
@@ -57,7 +57,7 @@ namespace FilKollen.Services
                 StartPeriodicScanning();
                 
                 // Starta realtids file system monitoring
-                StartFileSystemWatching();
+                await StartFileSystemWatchingAsync();
                 
                 IsProtectionActive = true;
                 
@@ -68,7 +68,7 @@ namespace FilKollen.Services
                 ProtectionStatusChanged?.Invoke(this, new ProtectionStatusChangedEventArgs(true));
                 
                 // Kör första skanning direkt
-                await PerformBackgroundScanAsync();
+                _ = Task.Run(async () => await PerformBackgroundScanAsync());
             }
             catch (Exception ex)
             {
@@ -79,8 +79,6 @@ namespace FilKollen.Services
 
         public async Task StopProtectionAsync()
         {
-            await System.Threading.Tasks.Task.Yield();
-
             if (!IsProtectionActive) return;
 
             try
@@ -106,6 +104,8 @@ namespace FilKollen.Services
                     "⚠️ Real-time säkerhetsskydd INAKTIVERAT - systemet är nu oskyddat");
                 
                 ProtectionStatusChanged?.Invoke(this, new ProtectionStatusChangedEventArgs(false));
+                
+                await Task.Delay(100); // Yield
             }
             catch (Exception ex)
             {
@@ -125,24 +125,31 @@ namespace FilKollen.Services
                 "⏰ Periodisk säkerhetsskanning aktiverad (10-minuters intervall)");
         }
 
-        private void StartFileSystemWatching()
+        private async Task StartFileSystemWatchingAsync()
         {
+            await Task.Yield();
+            
             foreach (var path in _config.ScanPaths)
             {
                 try
                 {
                     var expandedPath = Environment.ExpandEnvironmentVariables(path);
-                    if (!Directory.Exists(expandedPath)) continue;
+                    if (!Directory.Exists(expandedPath))
+                    {
+                        _logger.Warning($"Sökväg finns inte för övervakning: {expandedPath}");
+                        continue;
+                    }
 
                     var watcher = new FileSystemWatcher(expandedPath)
                     {
-                        NotifyFilter = NotifyFilters.CreationTime | NotifyFilters.FileName,
+                        NotifyFilter = NotifyFilters.CreationTime | NotifyFilters.FileName | NotifyFilters.LastWrite,
                         IncludeSubdirectories = false,
                         EnableRaisingEvents = true
                     };
 
                     watcher.Created += OnFileCreated;
                     watcher.Renamed += OnFileRenamed;
+                    watcher.Changed += OnFileChanged;
                     
                     _fileWatchers.Add(watcher);
                     
@@ -152,44 +159,61 @@ namespace FilKollen.Services
                 catch (Exception ex)
                 {
                     _logger.Warning($"Kunde inte övervaka {path}: {ex.Message}");
+                    _logViewer.AddLogEntry(LogLevel.Warning, "Protection", 
+                        $"⚠️ Kunde inte övervaka: {path} - {ex.Message}");
                 }
             }
         }
 
         private async void OnFileCreated(object sender, FileSystemEventArgs e)
         {
-            await ProcessNewFile(e.FullPath);
+            await ProcessNewFile(e.FullPath, "skapad");
         }
 
         private async void OnFileRenamed(object sender, RenamedEventArgs e)
         {
-            await ProcessNewFile(e.FullPath);
+            await ProcessNewFile(e.FullPath, "omdöpt");
         }
 
-        private async Task ProcessNewFile(string filePath)
+        private async void OnFileChanged(object sender, FileSystemEventArgs e)
+        {
+            // Endast för nya filer eller betydande ändringar
+            if (File.Exists(e.FullPath))
+            {
+                var fileInfo = new FileInfo(e.FullPath);
+                if (DateTime.Now - fileInfo.CreationTime < TimeSpan.FromMinutes(5))
+                {
+                    await ProcessNewFile(e.FullPath, "ändrad");
+                }
+            }
+        }
+
+        private async Task ProcessNewFile(string filePath, string action)
         {
             try
             {
                 // Undvik duplicerad bearbetning
-                if (_recentlyProcessed.Contains(filePath)) return;
-                _recentlyProcessed.Add(filePath);
+                var key = $"{filePath}_{action}";
+                if (_recentlyProcessed.Contains(key)) return;
+                
+                _recentlyProcessed.Add(key);
                 
                 // Ta bort från cache efter 30 sekunder
-                _ = Task.Delay(30000).ContinueWith(t => _recentlyProcessed.Remove(filePath));
+                _ = Task.Delay(30000).ContinueWith(t => _recentlyProcessed.Remove(key));
                 
                 // Vänta lite för att filen ska skrivas klart
                 await Task.Delay(1000);
                 
                 if (!File.Exists(filePath)) return;
                 
-                _logViewer.AddLogEntry(LogLevel.Debug, "Protection", 
-                    $"🔍 Real-time analys: {Path.GetFileName(filePath)}");
+                _logViewer.AddLogEntry(LogLevel.Debug, "RealTime", 
+                    $"🔍 Real-time analys: {Path.GetFileName(filePath)} ({action})");
                 
                 // Analysera filen direkt
-                var scanResult = await AnalyzeFileRealTime(filePath);
+                var scanResult = await _fileScanner.ScanSingleFileAsync(filePath);
                 if (scanResult != null)
                 {
-                    await HandleThreatDetected(scanResult);
+                    await HandleThreatDetected(scanResult, isRealTime: true);
                 }
             }
             catch (Exception ex)
@@ -198,63 +222,9 @@ namespace FilKollen.Services
             }
         }
 
-        private async Task<ScanResult> AnalyzeFileRealTime(string filePath)
-        {
-            try
-            {
-                var fileInfo = new FileInfo(filePath);
-                var fileName = fileInfo.Name.ToLowerInvariant();
-                var extension = fileInfo.Extension.ToLowerInvariant();
-                
-                // Snabb hotanalys
-                var threatLevel = ThreatLevel.Low;
-                var reasons = new List<string>();
-                
-                // Kolla suspekta extensions
-                if (_config.SuspiciousExtensions.Contains(extension))
-                {
-                    threatLevel = ThreatLevel.Medium;
-                    reasons.Add($"Suspekt filtyp: {extension}");
-                }
-                
-                // Kolla kända hackerverktyg
-                var suspiciousNames = new[] { "nircmd", "psexec", "netcat", "nc", "mimikatz", "procdump" };
-                if (suspiciousNames.Any(name => fileName.Contains(name)))
-                {
-                    threatLevel = ThreatLevel.Critical;
-                    reasons.Add("Känt hackerverktyg");
-                }
-                
-                // Kolla dubbla extensions
-                if (fileName.Count(c => c == '.') > 1 && _config.SuspiciousExtensions.Contains(extension))
-                {
-                    threatLevel = ThreatLevel.High;
-                    reasons.Add("Dubbel fil-extension");
-                }
-                
-                if (!reasons.Any()) return string.Empty;
-                
-                return new ScanResult
-                {
-                    FilePath = filePath,
-                    FileSize = fileInfo.Length,
-                    CreatedDate = fileInfo.CreationTime,
-                    LastModified = fileInfo.LastWriteTime,
-                    FileType = extension,
-                    ThreatLevel = threatLevel,
-                    Reason = string.Join(", ", reasons),
-                    FileHash = "REALTIME_SCAN"
-                };
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
-
         private async Task PerformBackgroundScanAsync()
         {
-            if (_cancellationTokenSource.Token.IsCancellationRequested) return;
+            if (_cancellationTokenSource?.Token.IsCancellationRequested == true) return;
 
             try
             {
@@ -272,7 +242,7 @@ namespace FilKollen.Services
                     
                     foreach (var result in results)
                     {
-                        await HandleThreatDetected(result);
+                        await HandleThreatDetected(result, isRealTime: false);
                     }
                 }
                 else
@@ -289,14 +259,13 @@ namespace FilKollen.Services
             }
         }
 
-        private async Task HandleThreatDetected(ScanResult threat)
+        private async Task HandleThreatDetected(ScanResult threat, bool isRealTime)
         {
-            await System.Threading.Tasks.Task.Yield();
-
             TotalThreatsFound++;
             
+            var scanType = isRealTime ? "REAL-TIME" : "BAKGRUND";
             _logViewer.AddLogEntry(LogLevel.Warning, "Security", 
-                $"🚨 HOT IDENTIFIERAT: {Path.GetFileName(threat.FilePath)} ({threat.ThreatLevel})");
+                $"🚨 HOT IDENTIFIERAT ({scanType}): {Path.GetFileName(threat.FilePath)} ({threat.ThreatLevel})");
             
             // Notifiera användaren
             ThreatDetected?.Invoke(this, new ThreatDetectedEventArgs(threat, AutoCleanMode));
@@ -304,21 +273,28 @@ namespace FilKollen.Services
             // Hantera automatiskt om auto-läge är aktivt
             if (AutoCleanMode)
             {
-                await HandleThreatAutomatically(threat);
+                await HandleThreatAutomatically(threat, isRealTime);
+            }
+            else if (isRealTime && threat.ThreatLevel >= ThreatLevel.High)
+            {
+                // För kritiska real-time hot, föreslå omedelbar åtgärd
+                _logViewer.AddLogEntry(LogLevel.Error, "Critical", 
+                    $"🚨 KRITISKT HOT KRÄVER OMEDELBAR ÅTGÄRD: {Path.GetFileName(threat.FilePath)}");
             }
         }
 
-        private async Task HandleThreatAutomatically(ScanResult threat)
+        private async Task HandleThreatAutomatically(ScanResult threat, bool isRealTime)
         {
             try
             {
                 bool success = false;
                 string action = "";
                 
-                // Hantera baserat på hotnivå
-                if (threat.ThreatLevel >= ThreatLevel.High)
+                // Hantera baserat på hotnivå och typ
+                if (threat.ThreatLevel >= ThreatLevel.Critical || 
+                    (isRealTime && threat.ThreatLevel >= ThreatLevel.High))
                 {
-                    // Höga hot: Radera direkt
+                    // Kritiska hot: Radera direkt
                     success = await _quarantineManager.DeleteFileAsync(threat);
                     action = "RADERAT";
                 }
@@ -332,8 +308,9 @@ namespace FilKollen.Services
                 if (success)
                 {
                     TotalThreatsHandled++;
-                    _logViewer.AddLogEntry(LogLevel.Information, "AutoClean", 
-                        $"🤖 AUTO-RENSNING: {Path.GetFileName(threat.FilePath)} {action}");
+                    var source = isRealTime ? "RealTimeAuto" : "BackgroundAuto";
+                    _logViewer.AddLogEntry(LogLevel.Information, source, 
+                        $"🤖 AUTO-RENSNING: {Path.GetFileName(threat.FilePath)} {action} ({threat.ThreatLevel})");
                 }
                 else
                 {
@@ -362,10 +339,54 @@ namespace FilKollen.Services
             };
         }
 
+        // Manuell metod för att uppdatera auto-clean mode
+        public void SetAutoCleanMode(bool autoMode)
+        {
+            AutoCleanMode = autoMode;
+            _logViewer.AddLogEntry(LogLevel.Information, "Settings", 
+                $"🔧 Automatisk rensning {(autoMode ? "AKTIVERAD" : "INAKTIVERAD")}");
+        }
+
+        // Metod för att få detaljer om aktuell övervakning
+        public List<string> GetMonitoredPaths()
+        {
+            return _fileWatchers
+                .Where(w => w.EnableRaisingEvents)
+                .Select(w => w.Path)
+                .ToList();
+        }
+
+        // Metod för att manuellt trigga en skanning
+        public async Task TriggerManualScanAsync()
+        {
+            if (!IsProtectionActive)
+            {
+                _logViewer.AddLogEntry(LogLevel.Warning, "Manual", 
+                    "⚠️ Manuell skanning: Real-time skydd är inaktiverat");
+            }
+            
+            await PerformBackgroundScanAsync();
+        }
+
         public void Dispose()
         {
-            StopProtectionAsync().Wait();
-            _cancellationTokenSource?.Dispose();
+            try
+            {
+                StopProtectionAsync().Wait(5000);
+                _cancellationTokenSource?.Dispose();
+                
+                foreach (var watcher in _fileWatchers)
+                {
+                    watcher?.Dispose();
+                }
+                _fileWatchers.Clear();
+                
+                _scanTimer?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Fel vid dispose av RealTimeProtectionService: {ex.Message}");
+            }
         }
     }
 
@@ -373,21 +394,25 @@ namespace FilKollen.Services
     {
         public ScanResult Threat { get; }
         public bool WasHandledAutomatically { get; }
+        public DateTime DetectionTime { get; }
         
         public ThreatDetectedEventArgs(ScanResult threat, bool wasHandledAutomatically)
         {
             Threat = threat;
             WasHandledAutomatically = wasHandledAutomatically;
+            DetectionTime = DateTime.Now;
         }
     }
 
     public class ProtectionStatusChangedEventArgs : EventArgs
     {
         public bool IsActive { get; }
+        public DateTime StatusChangeTime { get; }
         
         public ProtectionStatusChangedEventArgs(bool isActive)
         {
             IsActive = isActive;
+            StatusChangeTime = DateTime.Now;
         }
     }
 
@@ -399,5 +424,10 @@ namespace FilKollen.Services
         public int TotalThreatsFound { get; set; }
         public int TotalThreatsHandled { get; set; }
         public int MonitoredPaths { get; set; }
+        
+        public double ThreatHandlingRate => TotalThreatsFound > 0 ? 
+            (double)TotalThreatsHandled / TotalThreatsFound * 100 : 0;
+            
+        public TimeSpan TimeSinceLastScan => DateTime.Now - LastScanTime;
     }
 }

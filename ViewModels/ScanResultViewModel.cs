@@ -49,14 +49,14 @@ namespace FilKollen.ViewModels
             _ => "⚪"
         };
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
         
-        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
         
-        // Factory method för att skapa från ScanResult
+        // TILLAGD: Factory method för att skapa från ScanResult
         public static ScanResultViewModel FromScanResult(ScanResult scanResult)
         {
             return new ScanResultViewModel

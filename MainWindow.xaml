@@ -210,32 +210,33 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20">
                         
-                        <!-- System Status Card -->
-                        <Border Style="{StaticResource ModernCard}" Margin="0,0,0,20">
-                            <StackPanel>
-                                <TextBlock Text="🛡️ System Status" 
-                                          FontSize="16" 
-                                          FontWeight="SemiBold" 
-                                          Margin="0,0,0,16"/>
-                                
-                                <StackPanel Spacing="8">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Fill="#4CAF50" Margin="0,0,8,0"/>
-                                        <TextBlock Text="Real-time skydd aktiv" FontSize="12"/>
-                                    </StackPanel>
-                                    
-                                    <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Fill="#2196F3" Margin="0,0,8,0"/>
-                                        <TextBlock x:Name="SidebarStatusText" Text="Redo för skanning" FontSize="12"/>
-                                    </StackPanel>
-                                    
-                                    <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Fill="#FF9800" Margin="0,0,8,0"/>
-                                        <TextBlock x:Name="SidebarNextScanText" Text="Senaste: Aldrig" FontSize="12"/>
-                                    </StackPanel>
-                                </StackPanel>
+                <!-- System Status Card -->
+                <Border Style="{StaticResource ModernCard}" Margin="0,0,0,20">
+                    <StackPanel>
+                        <TextBlock Text="🛡️ System Status" 
+                                  FontSize="16" 
+                                  FontWeight="SemiBold" 
+                                  Margin="0,0,0,16"/>
+                        
+                        <!-- KORRIGERAT: Använd Margin istället för Spacing -->
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Ellipse Width="8" Height="8" Fill="#4CAF50" Margin="0,0,8,0"/>
+                                <TextBlock Text="Real-time skydd aktiv" FontSize="12"/>
                             </StackPanel>
-                        </Border>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Ellipse Width="8" Height="8" Fill="#2196F3" Margin="0,0,8,0"/>
+                                <TextBlock x:Name="SidebarStatusText" Text="Redo för skanning" FontSize="12"/>
+                            </StackPanel>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                                <Ellipse Width="8" Height="8" Fill="#FF9800" Margin="0,0,8,0"/>
+                                <TextBlock x:Name="SidebarNextScanText" Text="Senaste: Aldrig" FontSize="12"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
 
                         <!-- Quick Actions -->
                         <TextBlock Text="Snabbåtgärder" 
