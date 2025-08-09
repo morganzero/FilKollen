@@ -1,476 +1,584 @@
+// Services/EnhancedTempFileScanner.cs
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using FilKollen.Models;
 using Serilog;
 
 namespace FilKollen.Services
 {
-    public class TempFileScanner
+    public class EnhancedTempFileScanner : TempFileScanner
     {
-        private readonly AppConfig _config;
-        private readonly ILogger _logger;
+        private readonly SemaphoreSlim _scanSemaphore;
+        private readonly ConcurrentDictionary<string, DateTime> _scanCache;
+        private readonly object _lockObject = new object();
         
-        // Utökad lista av suspekta filnamn och verktyg
-        private readonly HashSet<string> _suspiciousNames = new()
+        // Förbättrade malware signaturer baserat på ditt intrång
+        private readonly Dictionary<string, int> _malwareSignatures = new()
         {
+            // Telegram bot-specifika signaturer (HÖJD prioritet efter ditt intrång)
+            ["api.telegram.org/bot"] = 95,
+            ["sendDocument"] = 85,
+            ["savescreenshot"] = 90,
+            ["nircmd.exe"] = 88,
+            ["Screenshot_"] = 85,
+            ["ScreenshotLog.txt"] = 87,
+            ["Invoke-WebRequest"] = 75,
+            ["curl -F"] = 80,
+            ["chat_id="] = 82,
+            
             // Kända hackerverktyg
-            "nircmd.exe", "psexec.exe", "netcat.exe", "nc.exe", "ncat.exe",
-            "mimikatz.exe", "procdump.exe", "procmon.exe", "processhacker.exe",
-            "wireshark.exe", "tcpdump.exe", "nmap.exe", "metasploit.exe",
-            "burpsuite.exe", "sqlmap.exe", "aircrack.exe", "hashcat.exe",
-            "john.exe", "hydra.exe", "medusa.exe", "nikto.exe", "dirb.exe",
+            ["psexec.exe"] = 95,
+            ["mimikatz"] = 98,
+            ["netcat"] = 85,
+            ["nmap"] = 80,
+            ["metasploit"] = 95,
+            ["burpsuite"] = 78,
+            ["sqlmap"] = 85,
+            ["aircrack"] = 88,
+            ["hashcat"] = 82,
+            ["john.exe"] = 85,
             
-            // Remote access tools
-            "teamviewer.exe", "anydesk.exe", "vnc.exe", "rdp.exe", "ssh.exe",
-            "putty.exe", "winscp.exe", "filezilla.exe", "chrome_remote.exe",
-            
-            // System inspection tools
-            "sysinternals", "autoruns.exe", "accesschk.exe", "sigcheck.exe",
-            "strings.exe", "handle.exe", "listdlls.exe", "tcpview.exe",
-            
-            // Känd malware patterns
-            "svchost.exe", "csrss.exe", "winlogon.exe", "smss.exe", "lsass.exe",
-            "spoolsv.exe", "services.exe", "explorer.exe", "taskhost.exe",
-            
-            // Script engines som ofta missbrukas
-            "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe",
-            "regsvr32.exe", "powershell.exe", "cmd.exe", "bitsadmin.exe",
+            // Remote access verktyg
+            ["teamviewer"] = 70,
+            ["anydesk"] = 70,
+            ["vnc"] = 75,
+            ["putty"] = 60,
             
             // Cryptocurrency miners
-            "miner.exe", "cpuminer.exe", "cgminer.exe", "bitcoin.exe",
-            "monero.exe", "xmrig.exe", "ethminer.exe", "nicehash.exe"
+            ["xmrig"] = 92,
+            ["miner.exe"] = 88,
+            ["cpuminer"] = 85,
+            ["cgminer"] = 85,
+            ["nicehash"] = 90,
+            ["monero"] = 80,
+            ["stratum"] = 82,
+            
+            // Script patterns
+            ["powershell -enc"] = 85,
+            ["powershell -e"] = 85,
+            ["cmd /c"] = 70,
+            ["wscript"] = 75,
+            ["cscript"] = 75,
+            ["rundll32"] = 70,
+            ["regsvr32"] = 72,
+            ["mshta"] = 78,
+            
+            // Suspekta nätverks patterns
+            ["bit.ly/"] = 60,
+            ["tinyurl.com/"] = 60,
+            ["pastebin.com/"] = 65,
+            ["hastebin.com/"] = 65,
+            ["mega.nz/"] = 55,
+            ["discord.gg/"] = 50,
+            
+            // Obfuscation patterns
+            ["base64"] = 50,
+            ["FromBase64String"] = 70,
+            ["ToBase64String"] = 65,
+            ["[Convert]::"] = 65,
+            ["System.Text.Encoding"] = 60,
+            
+            // Persistence mechanisms
+            ["HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"] = 80,
+            ["HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"] = 75,
+            ["schtasks"] = 70,
+            ["at.exe"] = 75
         };
 
-        // Kända malware file signatures (MD5 hashes)
-        private readonly Dictionary<string, string> _knownMalwareHashes = new()
+        // Extensionlösa filer som ofta är malware
+        private readonly string[] _suspiciousExtensionlessPatterns = 
         {
-            {"5D41402ABC4B2A76B9719D911017C592", "WannaCry ransomware variant"},
-            {"098F6BCD4621D373CADE4E832627B4F6", "Conficker worm signature"},
-            {"E99A18C428CB38D5F260853678922E03", "Zeus banking trojan"},
-            {"AD57366865126E55649C17D13E772D90", "Emotet malware family"},
-            {"F2CA1BB6C7E907D06DAFE4687DAFE4687", "Generic trojan downloader"},
-            {"827CCB0EEA8A706C4C34A16891F84E7B", "Suspicious PowerShell script"},
-            {"D41D8CD98F00B204E9800998ECF8427E", "Empty file (placeholder attack)"}
+            @"^[a-f0-9]{8,32}$",  // Hex strings
+            @"^\d{8,}$",          // Long number strings
+            @"^[A-Za-z0-9+/=]{16,}$", // Base64-like
+            @"^temp\d+$",         // temp123 patterns
+            @"^[a-z]{1,3}\d{3,}$" // abc123 patterns
         };
 
-        // Suspekta URL patterns i filer
-        private readonly string[] _suspiciousUrlPatterns = 
+        public EnhancedTempFileScanner(AppConfig config, ILogger logger) 
+            : base(config, logger)
         {
-            @"http://\d+\.\d+\.\d+\.\d+", // IP-baserade URLs
-            @"\.tk/", @"\.ml/", @"\.ga/", @"\.cf/", // Fria TLD:er
-            @"bit\.ly/", @"tinyurl\.com/", @"t\.co/", // URL shorteners
-            @"pastebin\.com/", @"hastebin\.com/", // Paste sites
-            @"discord\.gg/", @"telegram\.me/", // Chat invites
-            @"mega\.nz/", @"mediafire\.com/", // File sharing
-            @"onion\."  // Tor hidden services
-        };
-
-        public TempFileScanner(AppConfig config, ILogger logger)
-        {
-            _config = config;
-            _logger = logger;
+            _scanSemaphore = new SemaphoreSlim(Environment.ProcessorCount, Environment.ProcessorCount);
+            _scanCache = new ConcurrentDictionary<string, DateTime>();
+            
+            // Starta cache cleanup timer
+            var cleanupTimer = new Timer(CleanupScanCache, null, 
+                TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
         }
-        public async Task<List<ScanResult>> ScanAsync()
-        {
-            return await ScanTempDirectoriesAsync();
-        }
 
-        public async Task<List<ScanResult>> ScanTempDirectoriesAsync()
+        public async Task<List<ScanResult>> ScanTempDirectoriesRobustAsync()
         {
             var results = new List<ScanResult>();
+            var failedPaths = new List<string>();
 
-            _logger.Information("🔍 Startar djup säkerhetsskanning av temp-kataloger...");
+            _logger.Information("🔍 Startar robust säkerhetsskanning av temp-kataloger...");
 
-            // Standard temp-sökvägar med utökad lista
-            var tempPaths = new List<string>
+            try
             {
-                Environment.GetEnvironmentVariable("TEMP") ?? "",
-                Environment.GetEnvironmentVariable("TMP") ?? "",
+                // Utökad lista av temp-sökvägar
+                var tempPaths = GetExtendedTempPaths();
+                var totalPaths = tempPaths.Count;
+                var completedPaths = 0;
+
+                // Parallell skanning med semaphore för att kontrollera resurser
+                var scanTasks = tempPaths.Select(async path =>
+                {
+                    await _scanSemaphore.WaitAsync();
+                    try
+                    {
+                        var pathResults = await ScanDirectoryRobustAsync(path);
+                        
+                        lock (_lockObject)
+                        {
+                            results.AddRange(pathResults);
+                            completedPaths++;
+                            
+                            if (completedPaths % 5 == 0) // Progress every 5 paths
+                            {
+                                _logger.Information($"📊 Skanning progress: {completedPaths}/{totalPaths} sökvägar");
+                            }
+                        }
+                        
+                        return pathResults;
+                    }
+                    catch (Exception ex)
+                    {
+                        lock (_lockObject)
+                        {
+                            failedPaths.Add(path);
+                            _logger.Warning($"❌ Misslyckades skanna {path}: {ex.Message}");
+                        }
+                        return new List<ScanResult>();
+                    }
+                    finally
+                    {
+                        _scanSemaphore.Release();
+                    }
+                });
+
+                // Vänta på alla scan tasks med timeout
+                var allTasks = Task.WhenAll(scanTasks);
+                var timeoutTask = Task.Delay(TimeSpan.FromMinutes(10));
+                
+                var completedTask = await Task.WhenAny(allTasks, timeoutTask);
+                
+                if (completedTask == timeoutTask)
+                {
+                    _logger.Warning("⏰ Skanning timeout - avbryter kvarvarande operationer");
+                }
+
+                _logger.Information($"✅ Robust skanning slutförd. Hittade {results.Count} suspekta filer.");
+                
+                if (failedPaths.Any())
+                {
+                    _logger.Warning($"⚠️ Kunde inte skanna {failedPaths.Count} sökvägar: {string.Join(", ", failedPaths)}");
+                }
+
+                return results.OrderByDescending(r => r.ThreatLevel)
+                             .ThenByDescending(r => GetThreatScore(r))
+                             .ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"❌ Kritiskt fel vid robust skanning: {ex.Message}");
+                return results;
+            }
+        }
+
+        private List<string> GetExtendedTempPaths()
+        {
+            var paths = new List<string>();
+            
+            // Standard temp-paths
+            var standardPaths = new[]
+            {
+                Environment.GetEnvironmentVariable("TEMP"),
+                Environment.GetEnvironmentVariable("TMP"),
                 @"C:\Windows\Temp",
-                @"C:\Windows\System32\config\systemprofile\AppData\Local\Temp",
-                @"C:\Users\Public\Desktop",
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Temp"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Temp"),
                 
-                // Vanliga malware-gömslen
-                @"C:\ProgramData",
+                // Användarspecifika downloads och desktop
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + @"\Downloads",
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                @"C:\Users\Public\Downloads",
+                @"C:\Users\Public\Desktop",
                 @"C:\Users\Public\Documents",
-                @"C:\Windows\SysWOW64",
-                @"C:\Windows\System32\drivers",
                 
-                // Browser temp folders
+                // System temp locations
+                @"C:\Windows\System32\config\systemprofile\AppData\Local\Temp",
+                @"C:\Windows\ServiceProfiles\LocalService\AppData\Local\Temp",
+                @"C:\Windows\ServiceProfiles\NetworkService\AppData\Local\Temp",
+                
+                // Browser temp/cache (ofta används för malware)
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     @"Google\Chrome\User Data\Default\Cache"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     @"Microsoft\Edge\User Data\Default\Cache"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    @"Mozilla\Firefox\Profiles"),
                 
-                // Adobe och Office temp
+                // Office och Adobe temp
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    @"Microsoft\Office\16.0\OfficeFileCache"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     @"Adobe\Acrobat\DC\Cache"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    @"Microsoft\Office\16.0\OfficeFileCache")
+                
+                // Vanliga malware-gömslen
+                @"C:\ProgramData",
+                @"C:\Windows\SysWOW64",
+                @"C:\Windows\System32\drivers",
+                @"C:\Users\All Users"
             };
 
-            // Lägg till konfigurerade sökvägar
-            tempPaths.AddRange(_config.ScanPaths.Select(Environment.ExpandEnvironmentVariables));
-
-            foreach (var path in tempPaths.Where(p => !string.IsNullOrEmpty(p) && Directory.Exists(p)))
+            paths.AddRange(standardPaths.Where(p => !string.IsNullOrEmpty(p) && Directory.Exists(p)));
+            
+            // Lägg till konfiguerade sökvägar
+            if (_config?.ScanPaths != null)
             {
-                _logger.Information($"📂 Skannar: {path}");
-                var pathResults = await ScanDirectoryDeepAsync(path);
-                results.AddRange(pathResults);
+                foreach (var configPath in _config.ScanPaths)
+                {
+                    var expandedPath = Environment.ExpandEnvironmentVariables(configPath);
+                    if (Directory.Exists(expandedPath) && !paths.Contains(expandedPath))
+                    {
+                        paths.Add(expandedPath);
+                    }
+                }
             }
 
-            _logger.Information($"✅ Djup skanning klar. Hittade {results.Count} suspekta filer.");
-            return results.OrderByDescending(r => r.ThreatLevel).ThenByDescending(r => r.FileSize).ToList();
+            return paths.Distinct().ToList();
         }
 
-private async Task<List<ScanResult>> ScanDirectoryDeepAsync(string path)
-{
-    var results = new List<ScanResult>();
-    
-    try
-    {
-        // FÖRBÄTTRING: Kontrollera åtkomsträttigheter först
-        if (!HasDirectoryAccess(path))
+        private async Task<List<ScanResult>> ScanDirectoryRobustAsync(string path)
         {
-            _logger.Warning($"🔒 Ingen åtkomst till: {path}");
+            var results = new List<ScanResult>();
+            const int MaxFilesPerDirectory = 500;
+            const int MaxSubdirectories = 10;
+            
+            try
+            {
+                if (!HasDirectoryAccessSafe(path))
+                {
+                    _logger.Debug($"🔒 Ingen åtkomst till: {path}");
+                    return results;
+                }
+
+                _logger.Debug($"📂 Skannar robust: {path}");
+
+                // Skanna huvudkatalog med begränsningar
+                var files = await GetFilesWithTimeoutSafeAsync(path, TimeSpan.FromSeconds(30));
+                
+                // Begränsa antalet filer för prestanda
+                if (files.Length > MaxFilesPerDirectory)
+                {
+                    _logger.Warning($"⚠️ Begränsar skanning till {MaxFilesPerDirectory} filer i {path}");
+                    files = files.Take(MaxFilesPerDirectory).ToArray();
+                }
+
+                var fileTasks = files.Select(async file =>
+                {
+                    try
+                    {
+                        // Kontrollera cache först
+                        var cacheKey = $"{file}_{File.GetLastWriteTime(file).Ticks}";
+                        if (_scanCache.ContainsKey(cacheKey))
+                        {
+                            return null; // Redan skannad
+                        }
+
+                        if (IsFileLocked(file) || IsSystemFile(file))
+                        {
+                            return null;
+                        }
+
+                        var result = await AnalyzeFileAdvancedRobustAsync(file);
+                        
+                        if (result != null)
+                        {
+                            _scanCache.TryAdd(cacheKey, DateTime.Now);
+                        }
+                        
+                        return result;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Debug($"Fel vid analys av {file}: {ex.Message}");
+                        return null;
+                    }
+                });
+
+                var fileResults = await Task.WhenAll(fileTasks);
+                results.AddRange(fileResults.Where(r => r != null)!);
+
+                // Skanna undermappar (begränsat)
+                try
+                {
+                    var subdirs = Directory.GetDirectories(path).Take(MaxSubdirectories);
+                    foreach (var subdir in subdirs)
+                    {
+                        if (!HasDirectoryAccessSafe(subdir)) continue;
+                        
+                        var subdirFiles = await GetFilesWithTimeoutSafeAsync(subdir, TimeSpan.FromSeconds(10));
+                        foreach (var file in subdirFiles.Take(50)) // Max 50 filer per undermapp
+                        {
+                            try
+                            {
+                                if (IsFileLocked(file) || IsSystemFile(file)) continue;
+                                
+                                var result = await AnalyzeFileAdvancedRobustAsync(file);
+                                if (result != null)
+                                {
+                                    results.Add(result);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Debug($"Fel vid undermapp-analys {file}: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Debug($"Fel vid undermapp-skanning i {path}: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"❌ Fel vid robust skanning av {path}: {ex.Message}");
+            }
+            
             return results;
         }
 
-        // Skanna huvudkatalog med timeout
-        var files = await GetFilesWithTimeoutAsync(path, TimeSpan.FromSeconds(30));
-        
-        foreach (var file in files)
+        private async Task<ScanResult?> AnalyzeFileAdvancedRobustAsync(string filePath)
         {
+            const int MaxAnalysisTimeSeconds = 10;
+            
             try
             {
-                // FÖRBÄTTRING: Skippa filer som används av andra processer
-                if (IsFileLocked(file))
-                {
-                    _logger.Debug($"Skippar låst fil: {file}");
-                    continue;
-                }
-
-                var result = await AnalyzeFileAdvancedAsync(file);
-                if (result != null)
-                {
-                    results.Add(result);
-                }
-            }
-            catch (UnauthorizedAccessException)
-            {
-                _logger.Debug($"Åtkomst nekad till fil: {file}");
-            }
-            catch (IOException ex) when (ex.Message.Contains("being used"))
-            {
-                _logger.Debug($"Fil används: {file}");
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning($"Kunde inte analysera fil {file}: {ex.Message}");
-            }
-        }
-
-        // FÖRBÄTTRING: Begränsa undermappar och filer för prestanda
-        var subdirs = Directory.GetDirectories(path);
-        foreach (var subdir in subdirs.Take(10)) // Max 10 undermappar
-        {
-            try
-            {
-                if (!HasDirectoryAccess(subdir)) continue;
+                using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(MaxAnalysisTimeSeconds));
                 
-                var subdirFiles = await GetFilesWithTimeoutAsync(subdir, TimeSpan.FromSeconds(10));
-                foreach (var file in subdirFiles.Take(50)) // Max 50 filer per undermapp
+                return await Task.Run(async () =>
                 {
-                    if (IsFileLocked(file)) continue;
+                    var fileInfo = new FileInfo(filePath);
+                    var fileName = fileInfo.Name.ToLowerInvariant();
+                    var extension = fileInfo.Extension.ToLowerInvariant();
                     
-                    var result = await AnalyzeFileAdvancedAsync(file);
-                    if (result != null)
+                    // Kolla mot whitelist först
+                    if (IsWhitelisted(filePath)) return null;
+                    
+                    // Undvik systemfiler och för stora filer
+                    if (IsSystemFile(filePath) || fileInfo.Length > 200 * 1024 * 1024) return null;
+                    
+                    var threatLevel = ThreatLevel.Low;
+                    var reasons = new List<string>();
+                    var confidence = 0;
+
+                    // 1. KRITISK: Kända malware signaturer i innehåll
+                    if (fileInfo.Length < 50 * 1024 * 1024) // Under 50MB för innehållsanalys
                     {
-                        results.Add(result);
+                        var contentScore = await AnalyzeContentForMalwareAsync(filePath, cancellationTokenSource.Token);
+                        confidence += contentScore.Score;
+                        reasons.AddRange(contentScore.Reasons);
+                        
+                        if (contentScore.Score >= 85)
+                        {
+                            threatLevel = ThreatLevel.Critical;
+                        }
+                        else if (contentScore.Score >= 65)
+                        {
+                            threatLevel = ThreatLevel.High;
+                        }
                     }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning($"Kunde inte skanna undermapp {subdir}: {ex.Message}");
-            }
-        }
-    }
-    catch (UnauthorizedAccessException)
-    {
-        _logger.Warning($"🔒 Åtkomst nekad till: {path}");
-    }
-    catch (DirectoryNotFoundException)
-    {
-        _logger.Warning($"📂 Katalog finns inte: {path}");
-    }
-    catch (Exception ex)
-    {
-        _logger.Error($"❌ Fel vid skanning av {path}: {ex.Message}");
-    }
-    
-    return results;
-}
 
-        private async Task<ScanResult?> AnalyzeFileAdvancedAsync(string filePath)
-        {
-            try
-            {
-                var fileInfo = new FileInfo(filePath);
-                var fileName = fileInfo.Name.ToLowerInvariant();
-                var extension = fileInfo.Extension.ToLowerInvariant();
-                
-                // Kolla mot whitelist först
-                if (IsWhitelisted(filePath)) return null;
-                
-                // Undvik systemfiler och stora filer (>100MB)
-                if (IsSystemFile(filePath) || fileInfo.Length > 100 * 1024 * 1024) return null;
-                
-                var threatLevel = ThreatLevel.Low;
-                var reasons = new List<string>();
-                var confidence = 0;
+                    // 2. KRITISK: Telegram bot patterns (höjd prioritet efter ditt intrång)
+                    if (await IsTelegramBotRelatedAsync(filePath, fileName, extension))
+                    {
+                        threatLevel = ThreatLevel.Critical;
+                        reasons.Add("🚨 TELEGRAM BOT MALWARE - Screenshot-stöld detekterat");
+                        confidence += 90;
+                    }
 
-                // 1. KRITISK: Kända hackerverktyg
-                if (_suspiciousNames.Any(name => fileName.Contains(name)))
-                {
-                    threatLevel = ThreatLevel.Critical;
-                    reasons.Add("🚨 KÄNT HACKERVERKTYG eller systemprocess i fel plats");
-                    confidence += 50;
-                }
+                    // 3. HÖG: Suspekta extensions i temp
+                    if (_config.SuspiciousExtensions.Contains(extension))
+                    {
+                        if (threatLevel < ThreatLevel.High) threatLevel = ThreatLevel.High;
+                        reasons.Add($"🔴 Exekverbar fil i temp-katalog ({extension})");
+                        confidence += 30;
+                    }
 
-                // 2. HÖG: Suspekta extensions i temp
-                if (_config.SuspiciousExtensions.Contains(extension))
-                {
-                    if (threatLevel < ThreatLevel.High) threatLevel = ThreatLevel.High;
-                    reasons.Add($"🔴 Exekverbar fil i temp-katalog ({extension})");
-                    confidence += 30;
-                }
+                    // 4. KRITISK: Extensionlösa executables med suspekta patterns
+                    if (string.IsNullOrEmpty(extension))
+                    {
+                        if (await IsExecutableFileAsync(filePath) || HasSuspiciousExtensionlessPattern(fileName))
+                        {
+                            threatLevel = ThreatLevel.Critical;
+                            reasons.Add("🚨 EXTENSIONLÖS EXECUTABLE - Klassisk malware-teknik");
+                            confidence += 85;
+                        }
+                    }
 
-                // 3. HÖG: Extensionlösa executables
-                if (string.IsNullOrEmpty(extension) && await IsPotentialExecutableAsync(filePath))
-                {
-                    threatLevel = ThreatLevel.High;
-                    reasons.Add("🔴 Extensionlös exekverbar fil (maskerat hot)");
-                    confidence += 35;
-                }
+                    // 5. KRITISK: Dubbla extensions
+                    if (HasDoubleExtension(fileName))
+                    {
+                        threatLevel = ThreatLevel.Critical;
+                        reasons.Add("🚨 DUBBEL EXTENSION - Social engineering attack");
+                        confidence += 90;
+                    }
 
-                // 4. KRITISK: Dubbla extensions (.pdf.exe, .txt.scr)
-                if (HasDoubleExtension(fileName))
-                {
-                    threatLevel = ThreatLevel.Critical;
-                    reasons.Add("🚨 DUBBEL EXTENSION - klassisk malware-teknik");
-                    confidence += 45;
-                }
+                    // 6. HÖG: Kända malware file hashes
+                    var hash = await GetFileHashSafeAsync(filePath);
+                    if (!string.IsNullOrEmpty(hash) && _knownMalwareHashes.ContainsKey(hash))
+                    {
+                        threatLevel = ThreatLevel.Critical;
+                        reasons.Add($"🚨 KÄND MALWARE HASH: {_knownMalwareHashes[hash]}");
+                        confidence += 95;
+                    }
 
-                // 5. MEDIUM: Suspekta filstorlekar
-                if (fileInfo.Length == 0)
-                {
-                    if (threatLevel < ThreatLevel.Low) threatLevel = ThreatLevel.Low;
-                    reasons.Add("⚠️ Tom fil i temp (placeholder attack?)");
-                    confidence += 10;
-                }
-                else if (fileInfo.Length < 1024) // Mycket små filer
-                {
-                    if (threatLevel < ThreatLevel.Medium) threatLevel = ThreatLevel.Medium;
-                    reasons.Add("🟠 Suspekt liten filstorlek för executable");
-                    confidence += 15;
-                }
-
-                // 6. MEDIUM: Nyligen skapade filer med suspekta egenskaper
-                if (fileInfo.CreationTime > DateTime.Now.AddHours(-2) && reasons.Any())
-                {
-                    if (threatLevel < ThreatLevel.Medium) threatLevel = ThreatLevel.Medium;
-                    reasons.Add("🟠 Nyligen skapad suspekt fil (aktivt hot?)");
-                    confidence += 20;
-                }
-
-                // 7. KRITISK: Kända malware-signaturer
-                var hash = await GetFileHashAsync(filePath);
-                if (_knownMalwareHashes.ContainsKey(hash))
-                {
-                    threatLevel = ThreatLevel.Critical;
-                    reasons.Add($"🚨 KÄND MALWARE: {_knownMalwareHashes[hash]}");
-                    confidence += 60;
-                }
-
-                // 8. HÖG: Suspekta filnamns-patterns
-                if (HasSuspiciousNamingPattern(fileName))
-                {
-                    if (threatLevel < ThreatLevel.High) threatLevel = ThreatLevel.High;
-                    reasons.Add("🔴 Suspekt filnamns-pattern (random chars/numbers)");
-                    confidence += 25;
-                }
-
-                // 9. MEDIUM: Innehåller suspekta URLs eller text
-                if (fileInfo.Length < 10 * 1024 * 1024) // Endast filer < 10MB
-                {
-                    var suspiciousContent = await CheckFileContentAsync(filePath);
-                    if (suspiciousContent.Any())
+                    // 7. MEDIUM: Suspekta filstorlekar och timestamps
+                    if (fileInfo.Length == 0)
+                    {
+                        if (threatLevel < ThreatLevel.Low) threatLevel = ThreatLevel.Low;
+                        reasons.Add("⚠️ Tom fil - möjlig placeholder attack");
+                        confidence += 10;
+                    }
+                    else if (fileInfo.Length < 1024 && _config.SuspiciousExtensions.Contains(extension))
                     {
                         if (threatLevel < ThreatLevel.Medium) threatLevel = ThreatLevel.Medium;
-                        reasons.AddRange(suspiciousContent);
-                        confidence += 20;
+                        reasons.Add("🟠 Extremt liten executable - trolig malware");
+                        confidence += 25;
                     }
-                }
 
-                // 10. HÖG: Filer dolda i system-undermappar
-                if (IsInSystemDirectory(filePath) && !IsLegitimateSystemFile(filePath))
-                {
-                    if (threatLevel < ThreatLevel.High) threatLevel = ThreatLevel.High;
-                    reasons.Add("🔴 Icke-system fil i systemkatalog");
-                    confidence += 30;
-                }
+                    // 8. HÖG: Nyligen skapade filer med högt hot-score
+                    if (fileInfo.CreationTime > DateTime.Now.AddHours(-6) && confidence >= 50)
+                    {
+                        if (threatLevel < ThreatLevel.High) threatLevel = ThreatLevel.High;
+                        reasons.Add("🔴 NYSKAPAT HOT - Aktivt intrång pågår");
+                        confidence += 30;
+                    }
 
-                // Om inget hot identifierat, returnera null
-                if (!reasons.Any() || confidence < 10) return null;
+                    // 9. HÖG: Suspekta filnamns-patterns
+                    if (HasAdvancedSuspiciousNaming(fileName))
+                    {
+                        if (threatLevel < ThreatLevel.High) threatLevel = ThreatLevel.High;
+                        reasons.Add("🔴 Avancerat suspekt filnamn-pattern");
+                        confidence += 35;
+                    }
 
-                return new ScanResult
-                {
-                    FilePath = filePath,
-                    FileSize = fileInfo.Length,
-                    CreatedDate = fileInfo.CreationTime,
-                    LastModified = fileInfo.LastWriteTime,
-                    FileType = extension,
-                    ThreatLevel = threatLevel,
-                    Reason = $"{string.Join(" | ", reasons)} [Säkerhet: {confidence}%]",
-                    FileHash = hash
-                };
+                    // 10. MEDIUM: Filer i systemkataloger där de inte hör hemma
+                    if (IsInSystemDirectory(filePath) && !IsLegitimateSystemFile(filePath))
+                    {
+                        if (threatLevel < ThreatLevel.High) threatLevel = ThreatLevel.High;
+                        reasons.Add("🔴 Icke-legitim fil i systemkatalog");
+                        confidence += 40;
+                    }
+
+                    // Om inget hot eller låg confidence, returnera null
+                    if (!reasons.Any() || confidence < 15) return null;
+
+                    return new ScanResult
+                    {
+                        FilePath = filePath,
+                        FileSize = fileInfo.Length,
+                        CreatedDate = fileInfo.CreationTime,
+                        LastModified = fileInfo.LastWriteTime,
+                        FileType = extension,
+                        ThreatLevel = threatLevel,
+                        Reason = $"{string.Join(" | ", reasons)} [Konfidiens: {confidence}%]",
+                        FileHash = hash ?? "UNAVAILABLE"
+                    };
+                    
+                }, cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Warning($"⏰ Analys timeout för fil: {filePath}");
+                return null;
             }
             catch (Exception ex)
             {
-                _logger.Warning($"Fel vid avancerad analys av {filePath}: {ex.Message}");
+                _logger.Debug($"Fel vid robust filanalys {filePath}: {ex.Message}");
                 return null;
             }
         }
 
-        private bool HasSuspiciousNamingPattern(string fileName)
+        private async Task<(int Score, List<string> Reasons)> AnalyzeContentForMalwareAsync(string filePath, CancellationToken cancellationToken)
         {
-            // Random characters (> 8 random chars)
-            if (Regex.IsMatch(fileName, @"^[a-f0-9]{8,}\.")) return true;
-            
-            // Många understreck eller bindestreck
-            if (fileName.Count(c => c == '_' || c == '-') > 4) return true;
-            
-            // Bara siffror som filnamn
-            if (Regex.IsMatch(fileName, @"^\d{4,}\.")) return true;
-            
-            // Base64-liknande naming
-            if (Regex.IsMatch(fileName, @"^[A-Za-z0-9+/]{10,}=*\.")) return true;
-            
-            return false;
-        }
-
-        private async Task<List<string>> CheckFileContentAsync(string filePath)
-        {
-            var suspiciousContent = new List<string>();
+            var score = 0;
+            var reasons = new List<string>();
             
             try
             {
-                var content = await File.ReadAllTextAsync(filePath);
+                var content = await File.ReadAllTextAsync(filePath, cancellationToken);
+                var contentLower = content.ToLowerInvariant();
                 
-                // Kolla suspekta URL patterns
-                foreach (var pattern in _suspiciousUrlPatterns)
+                // Analysera mot malware signaturer
+                foreach (var signature in _malwareSignatures)
                 {
-                    if (Regex.IsMatch(content, pattern, RegexOptions.IgnoreCase))
+                    if (contentLower.Contains(signature.Key.ToLowerInvariant()))
                     {
-                        suspiciousContent.Add($"🟠 Innehåller suspekt URL-pattern");
-                        break;
+                        score += signature.Value;
+                        reasons.Add($"Malware-signatur: {signature.Key} (Score: +{signature.Value})");
+                        
+                        // Stoppa vid mycket högt score för prestanda
+                        if (score >= 200) break;
                     }
                 }
                 
-                // Kolla efter script-kod
-                var scriptPatterns = new[]
-                {
-                    @"powershell", @"cmd\.exe", @"wscript", @"cscript",
-                    @"eval\(", @"exec\(", @"system\(", @"shell_exec",
-                    @"base64_decode", @"fromCharCode", @"unescape"
-                };
-                
-                foreach (var pattern in scriptPatterns)
-                {
-                    if (Regex.IsMatch(content, pattern, RegexOptions.IgnoreCase))
-                    {
-                        suspiciousContent.Add($"🟠 Innehåller potentiell script-kod");
-                        break;
-                    }
-                }
-                
-                // Kolla efter cryptocurrency-relaterat innehåll
-                var cryptoPatterns = new[] { @"bitcoin", @"monero", @"ethereum", @"mining", @"wallet", @"stratum" };
-                foreach (var pattern in cryptoPatterns)
-                {
-                    if (Regex.IsMatch(content, pattern, RegexOptions.IgnoreCase))
-                    {
-                        suspiciousContent.Add($"🟠 Cryptocurrency-relaterat innehåll");
-                        break;
-                    }
-                }
+                return (Math.Min(score, 100), reasons); // Cap at 100
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignorera fel vid text-läsning (binära filer etc.)
+                _logger.Debug($"Innehållsanalys misslyckades för {filePath}: {ex.Message}");
+                return (0, new List<string>());
             }
-            
-            return suspiciousContent;
         }
 
-        private bool IsInSystemDirectory(string filePath)
-        {
-            var systemDirs = new[]
-            {
-                @"C:\Windows\System32",
-                @"C:\Windows\SysWOW64", 
-                @"C:\Windows\System32\drivers",
-                @"C:\Program Files",
-                @"C:\Program Files (x86)"
-            };
-            
-            return systemDirs.Any(dir => filePath.StartsWith(dir, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private bool IsLegitimateSystemFile(string filePath)
-        {
-            // Kontrollera digital signatur
-            // Enkel implementation - kan utökas med faktisk signatur-validering
-            var fileName = Path.GetFileName(filePath).ToLowerInvariant();
-            
-            var legitimateFiles = new[]
-            {
-                "kernel32.dll", "ntdll.dll", "user32.dll", "advapi32.dll",
-                "msvcrt.dll", "shell32.dll", "ole32.dll", "wininet.dll"
-            };
-            
-            return legitimateFiles.Contains(fileName);
-        }
-
-        private bool IsWhitelisted(string filePath)
-        {
-            return _config.WhitelistPaths.Any(whitePath => 
-                filePath.StartsWith(Environment.ExpandEnvironmentVariables(whitePath), 
-                StringComparison.OrdinalIgnoreCase));
-        }
-
-        private bool IsSystemFile(string filePath)
+        private async Task<bool> IsTelegramBotRelatedAsync(string filePath, string fileName, string extension)
         {
             try
             {
-                var fileName = Path.GetFileName(filePath).ToLowerInvariant();
-                
-                var systemFiles = new[]
+                // Filnamns-check för Telegram bot patterns
+                var telegramBotFilePatterns = new[]
                 {
-                    "desktop.ini", "thumbs.db", ".ds_store", "icon\r", "autorun.inf", 
-                    "folder.jpg", "cvr", "fff", "tmp", "~tmp", "log", ".tmp",
-                    "$recycle.bin", "hiberfil.sys", "pagefile.sys", "swapfile.sys"
+                    "screenshot", "capture", "telegram", "bot", "send", "upload",
+                    "spy", "monitor", "nircmd", "desktop", "screen"
                 };
                 
-                return systemFiles.Any(sf => fileName.Contains(sf));
+                if (telegramBotFilePatterns.Any(pattern => fileName.Contains(pattern)))
+                {
+                    return true;
+                }
+                
+                // Innehålls-check för script-filer
+                if (new[] { ".bat", ".cmd", ".ps1", ".vbs" }.Contains(extension))
+                {
+                    var content = await File.ReadAllTextAsync(filePath);
+                    var contentLower = content.ToLowerInvariant();
+                    
+                    // Specifika patterns från ditt intrång-exempel
+                    var telegramBotSignatures = new[]
+                    {
+                        "api.telegram.org", "senddocument", "savescreenshot",
+                        "nircmd", "screenshot_", "screenshotlog.txt",
+                        "chat_id=", "bot", "telegram"
+                    };
+                    
+                    var matchCount = telegramBotSignatures.Count(sig => contentLower.Contains(sig));
+                    
+                    // Om 3+ signaturer matchar = troligt Telegram bot
+                    return matchCount >= 3;
+                }
+                
+                return false;
             }
             catch
             {
@@ -478,31 +586,131 @@ private async Task<List<ScanResult>> ScanDirectoryDeepAsync(string path)
             }
         }
 
-        private async Task<bool> IsPotentialExecutableAsync(string filePath)
+        private bool HasSuspiciousExtensionlessPattern(string fileName)
+        {
+            return _suspiciousExtensionlessPatterns.Any(pattern => 
+                Regex.IsMatch(fileName, pattern, RegexOptions.IgnoreCase));
+        }
+
+        private bool HasAdvancedSuspiciousNaming(string fileName)
+        {
+            // Random hex strings (8+ chars)
+            if (Regex.IsMatch(fileName, @"^[a-f0-9]{8,}$", RegexOptions.IgnoreCase)) return true;
+            
+            // Base64-like strings
+            if (Regex.IsMatch(fileName, @"^[A-Za-z0-9+/]{12,}=*$")) return true;
+            
+            // Många understreck/bindestreck
+            if (fileName.Count(c => c == '_' || c == '-') > 3) return true;
+            
+            // Endast siffror
+            if (Regex.IsMatch(fileName, @"^\d{6,}$")) return true;
+            
+            // Suspekta prefixes
+            var suspiciousPrefixes = new[] { "temp", "tmp", "cache", "~", "$", ".", "copy" };
+            if (suspiciousPrefixes.Any(prefix => fileName.StartsWith(prefix) && fileName.Length > prefix.Length + 3))
+                return true;
+            
+            return false;
+        }
+
+        private async Task<string?> GetFileHashSafeAsync(string filePath)
+        {
+            const int MaxHashSizeBytes = 50 * 1024 * 1024; // 50MB
+            const int HashTimeoutSeconds = 15;
+            
+            try
+            {
+                var fileInfo = new FileInfo(filePath);
+                if (fileInfo.Length > MaxHashSizeBytes) return null;
+                
+                using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(HashTimeoutSeconds));
+                using var sha256 = SHA256.Create();
+                using var stream = File.OpenRead(filePath);
+                
+                var hash = await sha256.ComputeHashAsync(stream, cancellationTokenSource.Token);
+                return Convert.ToHexString(hash);
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Hash-beräkning misslyckades för {filePath}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private bool HasDirectoryAccessSafe(string path)
+        {
+            try
+            {
+                return Directory.Exists(path) && Directory.EnumerateFileSystemEntries(path).Any();
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<string[]> GetFilesWithTimeoutSafeAsync(string path, TimeSpan timeout)
+        {
+            try
+            {
+                using var cancellationTokenSource = new CancellationTokenSource(timeout);
+                
+                return await Task.Run(() =>
+                {
+                    var files = new List<string>();
+                    
+                    foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.TopDirectoryOnly))
+                    {
+                        cancellationTokenSource.Token.ThrowIfCancellationRequested();
+                        
+                        if (!IsSystemFile(file) && !IsFileLocked(file))
+                        {
+                            files.Add(file);
+                        }
+                        
+                        if (files.Count >= 1000) break; // Säkerhetsgräns
+                    }
+                    
+                    return files.ToArray();
+                }, cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Warning($"Timeout vid fillistning: {path}");
+                return Array.Empty<string>();
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Fel vid säker fillistning {path}: {ex.Message}");
+                return Array.Empty<string>();
+            }
+        }
+
+        private async Task<bool> IsExecutableFileAsync(string filePath)
         {
             try
             {
                 using var fs = File.OpenRead(filePath);
-                var buffer = new byte[512]; // Läs mer för bättre detektering
+                var buffer = new byte[512];
                 
                 if (await fs.ReadAsync(buffer, 0, buffer.Length) >= 64)
                 {
-                    // PE header (MZ) - Windows executables
+                    // PE header check (MZ + PE signature)
                     if (buffer[0] == 0x4D && buffer[1] == 0x5A)
                     {
-                        // Kontrollera PE signature vid offset 60
                         var peOffset = BitConverter.ToInt32(buffer, 60);
                         if (peOffset < buffer.Length - 4)
                         {
                             fs.Seek(peOffset, SeekOrigin.Begin);
                             var peBuffer = new byte[4];
                             await fs.ReadAsync(peBuffer, 0, 4);
-                            return peBuffer[0] == 0x50 && peBuffer[1] == 0x45; // PE signature
+                            return peBuffer[0] == 0x50 && peBuffer[1] == 0x45;
                         }
                         return true;
                     }
                     
-                    // ELF header - Linux executables  
+                    // ELF header
                     if (buffer[0] == 0x7F && buffer[1] == 0x45 && buffer[2] == 0x4C && buffer[3] == 0x46)
                         return true;
                         
@@ -510,10 +718,6 @@ private async Task<List<ScanResult>> ScanDirectoryDeepAsync(string path)
                     var text = System.Text.Encoding.ASCII.GetString(buffer, 0, Math.Min(10, buffer.Length));
                     if (text.StartsWith("#!") || text.StartsWith("@echo") || text.StartsWith("REM"))
                         return true;
-                        
-                    // Java class files
-                    if (buffer[0] == 0xCA && buffer[1] == 0xFE && buffer[2] == 0xBA && buffer[3] == 0xBE)
-                        return true;
                 }
                 
                 return false;
@@ -524,221 +728,50 @@ private async Task<List<ScanResult>> ScanDirectoryDeepAsync(string path)
             }
         }
 
-        private bool HasDoubleExtension(string fileName)
+        private int GetThreatScore(ScanResult result)
         {
-            var parts = fileName.Split('.');
-            if (parts.Length <= 2) return false;
-            
-            // Kolla om sista extension är suspekt och det finns en till extension
-            var lastExt = $".{parts[^1]}";
-            var secondLastExt = $".{parts[^2]}";
-            
-            var commonExtensions = new[] { ".txt", ".pdf", ".doc", ".jpg", ".png", ".zip" };
-            
-            return _config.SuspiciousExtensions.Contains(lastExt) && 
-                   commonExtensions.Contains(secondLastExt);
+            return result.ThreatLevel switch
+            {
+                ThreatLevel.Critical => 1000,
+                ThreatLevel.High => 500,
+                ThreatLevel.Medium => 100,
+                ThreatLevel.Low => 10,
+                _ => 1
+            };
         }
 
-        private async Task<string> GetFileHashAsync(string filePath)
-        {
-            const int MaxFileSizeForHash = 100 * 1024 * 1024; // 100MB
-            const int BufferSize = 64 * 1024; // 64KB buffer
-            const int HashTimeoutSeconds = 30;
-            
-            try
-            {
-                var fileInfo = new FileInfo(filePath);
-                
-                // Skippa för stora filer
-                if (fileInfo.Length > MaxFileSizeForHash)
-                {
-                    _logger.Debug($"Skippar hash för stor fil: {filePath} ({fileInfo.Length} bytes)");
-                    return "LARGE_FILE_SKIPPED";
-                }
-                
-                using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(HashTimeoutSeconds));
-                using var sha256 = SHA256.Create();
-                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
-                
-                var buffer = new byte[BufferSize];
-                var totalBytesRead = 0L;
-                int bytesRead;
-                
-                while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationTokenSource.Token)) > 0)
-                {
-                    sha256.TransformBlock(buffer, 0, bytesRead, buffer, 0);
-                    totalBytesRead += bytesRead;
-                    
-                    // Kontrollera timeout
-                    cancellationTokenSource.Token.ThrowIfCancellationRequested();
-                }
-                
-                sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-                var hash = sha256.Hash;
-                
-                if (hash != null)
-                {
-                    return Convert.ToHexString(hash);
-                }
-                
-                return "HASH_ERROR";
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.Warning($"Hash-beräkning timeout för fil: {filePath}");
-                return "TIMEOUT";
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return "ACCESS_DENIED";
-            }
-            catch (IOException ex)
-            {
-                _logger.Debug($"IO-fel vid hash-beräkning för {filePath}: {ex.Message}");
-                return "IO_ERROR";
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning($"Oväntat fel vid hash-beräkning för {filePath}: {ex.Message}");
-                return "ERROR";
-            }
-        }
-    }
-}
-
-private bool HasDirectoryAccess(string path)
-{
-    try
-    {
-        var di = new DirectoryInfo(path);
-        return di.Exists && Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly).Any();
-    }
-    catch
-    {
-        return false;
-    }
-}
-
-        private bool IsFileLocked(string filePath)
+        private void CleanupScanCache(object? state)
         {
             try
             {
-                // Använd FileShare.ReadWrite för att testa låsning
-                using var fs = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                
-                // Försök läsa lite data för att säkerställa tillgänglighet
-                var buffer = new byte[1];
-                fs.ReadTimeout = 1000; // 1 sekund timeout
-                fs.Read(buffer, 0, 1);
-                
-                return false;
-            }
-            catch (IOException ex) when (ex.HResult == -2147024864) // File in use
-            {
-                return true;
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return true;
+                var cutoffTime = DateTime.Now.AddHours(-2);
+                var keysToRemove = _scanCache
+                    .Where(kvp => kvp.Value < cutoffTime)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+
+                foreach (var key in keysToRemove)
+                {
+                    _scanCache.TryRemove(key, out _);
+                }
+
+                if (keysToRemove.Any())
+                {
+                    _logger.Debug($"🧹 Rensade {keysToRemove.Count} gamla cache-entries");
+                }
             }
             catch (Exception ex)
             {
-                _logger.Debug($"Unexpected error checking file lock for {filePath}: {ex.Message}");
-                return true; // Anta att filen är låst för säkerhet
+                _logger.Warning($"Fel vid cache-rensning: {ex.Message}");
             }
         }
 
-        private async Task<string[]> GetFilesWithTimeoutAsync(string path, TimeSpan timeout)
+        protected override void Dispose(bool disposing)
         {
-            const int MaxRetries = 3;
-            const int RetryDelayMs = 1000;
-            
-            for (int attempt = 1; attempt <= MaxRetries; attempt++)
+            if (disposing)
             {
-                try
-                {
-                    var cancellationToken = new CancellationTokenSource(timeout).Token;
-                    
-                    var task = Task.Run(() => 
-                    {
-                        var files = new List<string>();
-                        try
-                        {
-                            // Använd EnumerateFiles för bättre prestanda och minnesanvändning
-                            foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.TopDirectoryOnly))
-                            {
-                                cancellationToken.ThrowIfCancellationRequested();
-                                
-                                // Skippa system-filer och filer som används
-                                if (!IsSystemFile(file) && !IsFileLocked(file))
-                                {
-                                    files.Add(file);
-                                }
-                                
-                                // Begränsa antalet filer för att undvika memory issues
-                                if (files.Count >= 1000)
-                                {
-                                    _logger.Warning($"Begränsar filskanning till 1000 filer i {path}");
-                                    break;
-                                }
-                            }
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            _logger.Warning($"Fillistning avbruten på grund av timeout: {path}");
-                            throw;
-                        }
-                        catch (UnauthorizedAccessException ex)
-                        {
-                            _logger.Warning($"Åtkomst nekad till {path}: {ex.Message}");
-                            return Array.Empty<string>();
-                        }
-                        catch (DirectoryNotFoundException)
-                        {
-                            _logger.Warning($"Katalog inte funnen: {path}");
-                            return Array.Empty<string>();
-                        }
-                        
-                        return files.ToArray();
-                    }, cancellationToken);
-                    
-                    return await task;
-                }
-                catch (OperationCanceledException) when (attempt < MaxRetries)
-                {
-                    _logger.Warning($"Timeout vid fillistning, försök {attempt}/{MaxRetries}: {path}");
-                    await Task.Delay(RetryDelayMs * attempt);
-                }
-                catch (Exception ex) when (attempt < MaxRetries)
-                {
-                    _logger.Warning($"Fel vid fillistning, försök {attempt}/{MaxRetries}: {path} - {ex.Message}");
-                    await Task.Delay(RetryDelayMs * attempt);
-                }
+                _scanSemaphore?.Dispose();
             }
-            
-            _logger.Error($"Misslyckades att lista filer efter {MaxRetries} försök: {path}");
-            return Array.Empty<string>();
-        }
-        public void AddToWhitelist(string path)
-        {
-            if (!_config.WhitelistPaths.Contains(path))
-            {
-                _config.WhitelistPaths.Add(path);
-                _logger.Information($"✅ Lade till i whitelist: {path}");
-            }
-        }
-
-        public void RemoveFromWhitelist(string path)
-        {
-            if (_config.WhitelistPaths.Remove(path))
-            {
-                _logger.Information($"❌ Tog bort från whitelist: {path}");
-            }
-        }
-
-        public async Task<ScanResult?> ScanSingleFileAsync(string filePath)
-        {
-            return await AnalyzeFileAdvancedAsync(filePath);
+            base.Dispose(disposing);
         }
     }
-}
