@@ -1,5 +1,5 @@
 // ViewModels/ScanResultViewModel.cs
-#nullable disable
+#nullable enable
 using System.ComponentModel;
 using FilKollen.Models;
 

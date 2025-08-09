@@ -92,6 +92,23 @@ namespace FilKollen.Services
             }
         }
 
+        // ÖVERLAGRAD METOD för string-baserad karantän
+        public async Task<QuarantineResult> QuarantineFileAsync(string filePath, string reason, ThreatLevel level)
+        {
+            var scanResult = new ScanResult
+            {
+                FilePath = filePath,
+                ThreatLevel = level,
+                Reason = reason,
+                FileSize = File.Exists(filePath) ? new FileInfo(filePath).Length : 0,
+                CreatedDate = File.Exists(filePath) ? File.GetCreationTime(filePath) : DateTime.Now,
+                LastModified = File.Exists(filePath) ? File.GetLastWriteTime(filePath) : DateTime.Now
+            };
+            
+            var success = await QuarantineFileAsync(scanResult);
+            return new QuarantineResult { Success = success };
+        }
+
         public async Task<bool> DeleteFileAsync(ScanResult scanResult)
         {
             try
@@ -170,7 +187,7 @@ namespace FilKollen.Services
                 var targetDirectory = Path.GetDirectoryName(item.OriginalPath);
                 if (!string.IsNullOrEmpty(targetDirectory) && !Directory.Exists(targetDirectory))
                 {
-                    Directory.CreateDirectory(targetDirectory);  // Nu är targetDirectory inte null
+                    Directory.CreateDirectory(targetDirectory);
                 }
 
                 // Återställ fil till original plats
@@ -441,26 +458,9 @@ namespace FilKollen.Services
             }
         }
     }
-    
-    // Lägg till i QuarantineManager.cs
-public async Task<QuarantineResult> QuarantineFileAsync(string filePath, string reason, ThreatLevel level)
-{
-    var scanResult = new ScanResult
-    {
-        FilePath = filePath,
-        ThreatLevel = level,
-        Reason = reason,
-        FileSize = File.Exists(filePath) ? new FileInfo(filePath).Length : 0,
-        CreatedDate = File.Exists(filePath) ? File.GetCreationTime(filePath) : DateTime.Now,
-        LastModified = File.Exists(filePath) ? File.GetLastWriteTime(filePath) : DateTime.Now
-    };
-    
-    var success = await QuarantineFileAsync(scanResult);
-    return new QuarantineResult { Success = success };
-}
 
-public class QuarantineResult
-{
-    public bool Success { get; set; }
-}
+    public class QuarantineResult
+    {
+        public bool Success { get; set; }
+    }
 }
