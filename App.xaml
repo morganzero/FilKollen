@@ -1,4 +1,4 @@
-<!-- App.xaml -->
+<!-- App.xaml - Moderniserad med tema-stöd -->
 <Application x:Class="FilKollen.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -8,18 +8,114 @@
 <Application.Resources>
     <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries>
-            <!-- Material Design -->
-            <materialDesign:BundledTheme BaseTheme="Light" PrimaryColor="Blue" SecondaryColor="Orange" />
+            <!-- Material Design med dynamisk tema-hantering -->
+            <materialDesign:BundledTheme x:Name="BundledTheme" 
+                                       BaseTheme="Inherit" 
+                                       PrimaryColor="Blue" 
+                                       SecondaryColor="Orange" />
             <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Defaults.xaml" />
         </ResourceDictionary.MergedDictionaries>
         
         <!-- Custom converters -->
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         
-        <!-- Custom resources -->
-        <SolidColorBrush x:Key="CustomWindowBackground" Color="#FAFAFA"/>
-        <SolidColorBrush x:Key="CustomCardBackground" Color="White"/>
-        <SolidColorBrush x:Key="CustomSidebarBackground" Color="#F5F5F5"/>
+        <!-- Modern tema-resurser -->
+        <SolidColorBrush x:Key="ModernWindowBackground" Color="#F8F9FA"/>
+        <SolidColorBrush x:Key="ModernWindowBackgroundDark" Color="#1E1E1E"/>
+        <SolidColorBrush x:Key="ModernCardBackground" Color="White"/>
+        <SolidColorBrush x:Key="ModernCardBackgroundDark" Color="#2D2D30"/>
+        <SolidColorBrush x:Key="ModernSidebarBackground" Color="#F5F5F5"/>
+        <SolidColorBrush x:Key="ModernSidebarBackgroundDark" Color="#252526"/>
+        <SolidColorBrush x:Key="ModernTextPrimary" Color="#212529"/>
+        <SolidColorBrush x:Key="ModernTextPrimaryDark" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="ModernTextSecondary" Color="#6C757D"/>
+        <SolidColorBrush x:Key="ModernTextSecondaryDark" Color="#CCCCCC"/>
+        
+        <!-- Glassmorphism effekter -->
+        <Style x:Key="GlassCard" TargetType="Border">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <SolidColorBrush Color="White" Opacity="0.85"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" 
+                                    Direction="270" 
+                                    ShadowDepth="4" 
+                                    BlurRadius="20" 
+                                    Opacity="0.1"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="GlassCardDark" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <SolidColorBrush Color="#2D2D30" Opacity="0.9"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#404040"/>
+        </Style>
+        
+        <!-- Modern knapp-stiler -->
+        <Style x:Key="ModernAccentButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="24,12"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" Direction="270" ShadowDepth="2" BlurRadius="10" Opacity="0.15"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#667eea" Offset="0"/>
+                        <GradientStop Color="#764ba2" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="ModernSecondaryButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="24,12"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+        
+        <!-- Moderna kort-stiler -->
+        <Style x:Key="ModernStatsCard" TargetType="Border">
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="Margin" Value="8"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="20" Opacity="0.08"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Animationer -->
+        <Storyboard x:Key="FadeInAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                           From="0" To="1" Duration="0:0:0.3"/>
+        </Storyboard>
+        
+        <Storyboard x:Key="SlideInFromLeft">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" 
+                           From="-50" To="0" Duration="0:0:0.4"/>
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                           From="0" To="1" Duration="0:0:0.4"/>
+        </Storyboard>
     </ResourceDictionary>
 </Application.Resources>
 </Application>

@@ -1,137 +1,210 @@
+// Services/ThemeService.cs
 using System;
 using System.ComponentModel;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
 using MaterialDesignThemes.Wpf;
+using Microsoft.Win32;
 
 namespace FilKollen.Services
 {
     public class ThemeService : INotifyPropertyChanged
     {
+        private const string ThemeConfigFile = "theme.json";
         private bool _isDarkTheme;
-        private readonly string _settingsFile;
+        private readonly object _lockObject = new object();
 
-        public bool IsDarkTheme
-        {
+        public bool IsDarkTheme 
+        { 
             get => _isDarkTheme;
-            set
+            private set
             {
                 if (_isDarkTheme != value)
                 {
                     _isDarkTheme = value;
-                    ApplyTheme();
-                    SaveThemeSettings();
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(ThemeDisplayName));
                 }
             }
         }
 
-        public string ThemeDisplayName => IsDarkTheme ? "Mörkt läge" : "Ljust läge";
-        public string ThemeIcon => IsDarkTheme ? "WeatherNight" : "WeatherSunny";
+        public string ThemeDisplayName => IsDarkTheme ? "Mörkt tema" : "Ljust tema";
 
         public ThemeService()
         {
-            _settingsFile = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "FilKollen", "theme-settings.json");
-                
-            LoadThemeSettings();
+            LoadThemeConfiguration();
             ApplyTheme();
         }
 
         public void ToggleTheme()
         {
-            IsDarkTheme = !IsDarkTheme;
+            lock (_lockObject)
+            {
+                IsDarkTheme = !IsDarkTheme;
+                ApplyTheme();
+                SaveThemeConfiguration();
+            }
+        }
+
+        public void SetTheme(bool isDarkTheme)
+        {
+            lock (_lockObject)
+            {
+                if (IsDarkTheme != isDarkTheme)
+                {
+                    IsDarkTheme = isDarkTheme;
+                    ApplyTheme();
+                    SaveThemeConfiguration();
+                }
+            }
+        }
+
+        public bool ShouldUseDarkTheme()
+        {
+            // Kontrollera om användaren har ställt in att följa systemets tema
+            try
+            {
+                // Läs Windows Registry för tema-inställning
+                using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+                var appsUseLightTheme = key?.GetValue("AppsUseLightTheme");
+                
+                if (appsUseLightTheme is int lightTheme)
+                {
+                    // Om systemet använder mörkt tema, returnera true
+                    return lightTheme == 0;
+                }
+            }
+            catch
+            {
+                // Om vi inte kan läsa registry, använd sparad inställning
+            }
+
+            // Fallback till sparad inställning
+            return IsDarkTheme;
         }
 
         private void ApplyTheme()
         {
-            var paletteHelper = new PaletteHelper();
-            var theme = paletteHelper.GetTheme();
-
-            // Sätt bas-tema
-            theme.SetBaseTheme(IsDarkTheme ? MaterialDesignThemes.Wpf.Theme.Dark : MaterialDesignThemes.Wpf.Theme.Light);
-
-            // Modern färgpalett
-            if (IsDarkTheme)
+            try
             {
-                // Modern mörk tema - inspirerat av bilden
-                theme.SetPrimaryColor(Color.FromRgb(99, 102, 241));    // Modern purple-blue
-                theme.SetSecondaryColor(Color.FromRgb(236, 72, 153));  // Modern pink accent
-                
-                // Custom background colors för cards
-                Application.Current.Resources["CustomCardBackground"] = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(30, 41, 59));   // Dark slate
-                Application.Current.Resources["CustomWindowBackground"] = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(15, 23, 42));   // Very dark slate
-                Application.Current.Resources["CustomSidebarBackground"] = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(51, 65, 85));   // Medium slate
-            }
-            else
-            {
-                // Modern ljus tema
-                theme.SetPrimaryColor(Color.FromRgb(59, 130, 246));    // Modern blue
-                theme.SetSecondaryColor(Color.FromRgb(168, 85, 247));  // Modern purple accent
-                
-                // Custom background colors för cards
-                Application.Current.Resources["CustomCardBackground"] = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(255, 255, 255)); // Pure white
-                Application.Current.Resources["CustomWindowBackground"] = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(248, 250, 252)); // Very light gray
-                Application.Current.Resources["CustomSidebarBackground"] = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(241, 245, 249)); // Light gray
-            }
+                // Använd Dispatcher för UI-thread säkerhet
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    var paletteHelper = new PaletteHelper();
+                    var theme = paletteHelper.GetTheme();
 
-            paletteHelper.SetTheme(theme);
+                    // Sätt bas-tema
+                    theme.SetBaseTheme(IsDarkTheme ? BaseTheme.Dark : BaseTheme.Light);
+
+                    // Anpassa färger för FilKollen
+                    if (IsDarkTheme)
+                    {
+                        // Mörka tema-färger
+                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(102, 126, 234)); // #667eea
+                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(255, 152, 0)); // #FF9800
+                        
+                        // Anpassa bakgrunder för glassmorphism
+                        Application.Current.Resources["ModernWindowBackground"] = new System.Windows.Media.SolidColorBrush(
+                            System.Windows.Media.Color.FromArgb(242, 30, 30, 30)); // #F21E1E1E - 95% opacity
+                        Application.Current.Resources["ModernCardBackground"] = new System.Windows.Media.SolidColorBrush(
+                            System.Windows.Media.Color.FromArgb(230, 45, 45, 48)); // #E62D2D30 - 90% opacity
+                        Application.Current.Resources["ModernSidebarBackground"] = new System.Windows.Media.SolidColorBrush(
+                            System.Windows.Media.Color.FromArgb(204, 37, 37, 38)); // #CC252526 - 80% opacity
+                    }
+                    else
+                    {
+                        // Ljusa tema-färger
+                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(33, 150, 243)); // #2196F3
+                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(255, 152, 0)); // #FF9800
+                        
+                        // Anpassa bakgrunder för glassmorphism
+                        Application.Current.Resources["ModernWindowBackground"] = new System.Windows.Media.SolidColorBrush(
+                            System.Windows.Media.Color.FromArgb(242, 248, 249, 250)); // #F2F8F9FA - 95% opacity
+                        Application.Current.Resources["ModernCardBackground"] = new System.Windows.Media.SolidColorBrush(
+                            System.Windows.Media.Color.FromArgb(230, 255, 255, 255)); // #E6FFFFFF - 90% opacity
+                        Application.Current.Resources["ModernSidebarBackground"] = new System.Windows.Media.SolidColorBrush(
+                            System.Windows.Media.Color.FromArgb(204, 248, 249, 250)); // #CCF8F9FA - 80% opacity
+                    }
+
+                    // Tillämpa tema
+                    paletteHelper.SetTheme(theme);
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log error men fortsätt ändå
+                System.Diagnostics.Debug.WriteLine($"Failed to apply theme: {ex.Message}");
+            }
         }
 
-        private void LoadThemeSettings()
+        private void LoadThemeConfiguration()
         {
             try
             {
-                if (File.Exists(_settingsFile))
+                if (File.Exists(ThemeConfigFile))
                 {
-                    var json = File.ReadAllText(_settingsFile);
-                    var settings = JsonSerializer.Deserialize<ThemeSettings>(json);
-                    _isDarkTheme = settings?.IsDarkTheme ?? false;
+                    var json = File.ReadAllText(ThemeConfigFile);
+                    var config = JsonSerializer.Deserialize<ThemeConfig>(json);
+                    
+                    if (config != null)
+                    {
+                        _isDarkTheme = config.IsDarkTheme;
+                    }
+                    else
+                    {
+                        // Om config är null, använd system-tema
+                        _isDarkTheme = ShouldUseDarkTheme();
+                    }
+                }
+                else
+                {
+                    // Om ingen config-fil finns, använd system-tema
+                    _isDarkTheme = ShouldUseDarkTheme();
                 }
             }
             catch
             {
-                _isDarkTheme = false; // Default till ljust tema
+                // Vid fel, använd ljust tema som standard
+                _isDarkTheme = false;
             }
         }
 
-        private void SaveThemeSettings()
+        private void SaveThemeConfiguration()
         {
             try
             {
-                var settingsDir = Path.GetDirectoryName(_settingsFile);
-                if (!Directory.Exists(settingsDir))
+                var config = new ThemeConfig
                 {
-                    Directory.CreateDirectory(settingsDir);
-                }
+                    IsDarkTheme = IsDarkTheme,
+                    LastUpdated = DateTime.UtcNow
+                };
 
-                var settings = new ThemeSettings { IsDarkTheme = _isDarkTheme };
-                var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_settingsFile, json);
+                var json = JsonSerializer.Serialize(config, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+
+                File.WriteAllText(ThemeConfigFile, json);
             }
             catch
             {
-                // Ignorera fel vid sparande
+                // Ignorera fel vid sparning - inte kritiskt
             }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 
-    public class ThemeSettings
+    // Configuration model för tema-inställningar
+    public class ThemeConfig
     {
         public bool IsDarkTheme { get; set; }
+        public DateTime LastUpdated { get; set; }
     }
 }

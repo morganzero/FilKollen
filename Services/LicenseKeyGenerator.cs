@@ -1,10 +1,3 @@
-// 1. Lägg till #nullable disable överst i MainWindow.xaml.cs (första raden)
-#nullable disable
-using System;
-// ... resten av using statements
-
-// 2. Skapa missing Services/LicenseKeyGenerator.cs (eftersom LicenseKeyInfo refereras)
-// Services/LicenseKeyGenerator.cs
 #nullable disable
 using System;
 using System.Linq;

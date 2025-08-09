@@ -5,6 +5,7 @@
     <TargetFramework>net6.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
     <AssemblyTitle>FilKollen Real-time Security</AssemblyTitle>
     <AssemblyDescription>Real-time säkerhetsscanner för Windows med kontinuerligt skydd</AssemblyDescription>
     <AssemblyCompany>FilKollen Security</AssemblyCompany>
@@ -12,29 +13,100 @@
     <AssemblyCopyright>© 2025 FilKollen Security</AssemblyCopyright>
     <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <FileVersion>2.0.0.0</FileVersion>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\Icons\filkollen.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <Optimize>true</Optimize>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <Optimize>false</Optimize>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Core Dependencies -->
+    <!-- Core UI Dependencies -->
     <PackageReference Include="MaterialDesignThemes" Version="4.9.0" />
+    <PackageReference Include="MaterialDesignColors" Version="2.1.4" />
+    
+    <!-- Logging -->
     <PackageReference Include="Serilog" Version="3.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     
-    <!-- För licenssystem och branding -->
+    <!-- JSON och Serialization -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    
+    <!-- System och Security -->
     <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
     <PackageReference Include="System.Security.Cryptography.Algorithms" Version="4.3.1" />
+    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
     
-    <!-- Real-time File System Monitoring -->
+    <!-- File System Monitoring -->
     <PackageReference Include="System.IO.FileSystem.Watcher" Version="4.3.0" />
+    
+    <!-- Collections och LINQ -->
+    <PackageReference Include="System.Collections" Version="4.3.0" />
+    <PackageReference Include="System.Linq" Version="4.3.0" />
+    
+    <!-- Threading -->
+    <PackageReference Include="System.Threading.Tasks" Version="4.3.0" />
+    <PackageReference Include="System.Threading.Timer" Version="4.3.0" />
   </ItemGroup>
 
-  <!-- Ta bort FrameworkReference eftersom den inte behövs för .NET 6 Windows -->
+  <ItemGroup>
+    <!-- Embedded Resources -->
+    <EmbeddedResource Include="Resources\Branding\default-logo.png" />
+    <EmbeddedResource Include="Resources\Icons\filkollen.ico" />
+    
+    <!-- Content files som ska kopieras -->
+    <Content Include="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="branding.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- Build scripts -->
+    <None Include="build.ps1" />
+    <None Include="README.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Skapa output-mappar -->
+    <Folder Include="logs\" />
+    <Folder Include="Resources\Branding\" />
+    <Folder Include="Resources\Icons\" />
+    <Folder Include="Services\" />
+    <Folder Include="Models\" />
+    <Folder Include="ViewModels\" />
+    <Folder Include="Windows\" />
+  </ItemGroup>
+
+  <!-- Post-build events -->
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="echo FilKollen build completed successfully!" />
+  </Target>
+
+  <!-- Publish settings -->
+  <PropertyGroup>
+    <PublishDir>publish\</PublishDir>
+    <PublishUrl>publish\</PublishUrl>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
 
 </Project>
