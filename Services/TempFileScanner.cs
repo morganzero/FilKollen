@@ -130,64 +130,94 @@ namespace FilKollen.Services
             return results.OrderByDescending(r => r.ThreatLevel).ThenByDescending(r => r.FileSize).ToList();
         }
 
-        private async Task<List<ScanResult>> ScanDirectoryDeepAsync(string path)
+private async Task<List<ScanResult>> ScanDirectoryDeepAsync(string path)
+{
+    var results = new List<ScanResult>();
+    
+    try
+    {
+        // FÖRBÄTTRING: Kontrollera åtkomsträttigheter först
+        if (!HasDirectoryAccess(path))
         {
-            var results = new List<ScanResult>();
-            
+            _logger.Warning($"🔒 Ingen åtkomst till: {path}");
+            return results;
+        }
+
+        // Skanna huvudkatalog med timeout
+        var files = await GetFilesWithTimeoutAsync(path, TimeSpan.FromSeconds(30));
+        
+        foreach (var file in files)
+        {
             try
             {
-                // Skanna huvudkatalog
-                var files = Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly);
-                
-                foreach (var file in files)
+                // FÖRBÄTTRING: Skippa filer som används av andra processer
+                if (IsFileLocked(file))
                 {
-                    try
-                    {
-                        var result = await AnalyzeFileAdvancedAsync(file);
-                        if (result != null)
-                        {
-                            results.Add(result);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Warning($"Kunde inte analysera fil {file}: {ex.Message}");
-                    }
+                    _logger.Debug($"Skippar låst fil: {file}");
+                    continue;
                 }
 
-                // Skanna undermappar (begränsat djup för prestanda)
-                var subdirs = Directory.GetDirectories(path);
-                foreach (var subdir in subdirs.Take(10)) // Max 10 undermappar
+                var result = await AnalyzeFileAdvancedAsync(file);
+                if (result != null)
                 {
-                    try
-                    {
-                        var subdirFiles = Directory.GetFiles(subdir, "*", SearchOption.TopDirectoryOnly);
-                        foreach (var file in subdirFiles.Take(50)) // Max 50 filer per undermapp
-                        {
-                            var result = await AnalyzeFileAdvancedAsync(file);
-                            if (result != null)
-                            {
-                                results.Add(result);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Warning($"Kunde inte skanna undermapp {subdir}: {ex.Message}");
-                    }
+                    results.Add(result);
                 }
             }
             catch (UnauthorizedAccessException)
             {
-                _logger.Warning($"🔒 Åtkomst nekad till: {path}");
+                _logger.Debug($"Åtkomst nekad till fil: {file}");
+            }
+            catch (IOException ex) when (ex.Message.Contains("being used"))
+            {
+                _logger.Debug($"Fil används: {file}");
             }
             catch (Exception ex)
             {
-                _logger.Error($"❌ Fel vid skanning av {path}: {ex.Message}");
+                _logger.Warning($"Kunde inte analysera fil {file}: {ex.Message}");
             }
-            
-            return results;
         }
+
+        // FÖRBÄTTRING: Begränsa undermappar och filer för prestanda
+        var subdirs = Directory.GetDirectories(path);
+        foreach (var subdir in subdirs.Take(10)) // Max 10 undermappar
+        {
+            try
+            {
+                if (!HasDirectoryAccess(subdir)) continue;
+                
+                var subdirFiles = await GetFilesWithTimeoutAsync(subdir, TimeSpan.FromSeconds(10));
+                foreach (var file in subdirFiles.Take(50)) // Max 50 filer per undermapp
+                {
+                    if (IsFileLocked(file)) continue;
+                    
+                    var result = await AnalyzeFileAdvancedAsync(file);
+                    if (result != null)
+                    {
+                        results.Add(result);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Kunde inte skanna undermapp {subdir}: {ex.Message}");
+            }
+        }
+    }
+    catch (UnauthorizedAccessException)
+    {
+        _logger.Warning($"🔒 Åtkomst nekad till: {path}");
+    }
+    catch (DirectoryNotFoundException)
+    {
+        _logger.Warning($"📂 Katalog finns inte: {path}");
+    }
+    catch (Exception ex)
+    {
+        _logger.Error($"❌ Fel vid skanning av {path}: {ex.Message}");
+    }
+    
+    return results;
+}
 
         private async Task<ScanResult?> AnalyzeFileAdvancedAsync(string filePath)
         {
@@ -509,20 +539,103 @@ namespace FilKollen.Services
                    commonExtensions.Contains(secondLastExt);
         }
 
-        private async Task<string> GetFileHashAsync(string filePath)
+private async Task<string> GetFileHashAsync(string filePath)
+{
+    try
+    {
+        var fileInfo = new FileInfo(filePath);
+        
+        // Skippa mycket stora filer för prestanda
+        if (fileInfo.Length > 50 * 1024 * 1024) // 50MB
         {
-            try
-            {
-                using var sha256 = SHA256.Create();
-                using var stream = File.OpenRead(filePath);
-                var hash = await Task.Run(() => sha256.ComputeHash(stream));
-                return Convert.ToHexString(hash);
-            }
-            catch
-            {
-                return "UNAVAILABLE";
-            }
+            return "SKIPPED_LARGE_FILE";
         }
+
+        using var sha256 = SHA256.Create();
+        using var stream = File.OpenRead(filePath);
+        
+        // Timeout för hash-beräkning
+        var hashTask = Task.Run(() => sha256.ComputeHash(stream));
+        var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
+        
+        if (await Task.WhenAny(hashTask, timeoutTask) == hashTask)
+        {
+            var hash = await hashTask;
+            return Convert.ToHexString(hash);
+        }
+        else
+        {
+            _logger.Warning($"Hash timeout för fil: {filePath}");
+            return "TIMEOUT";
+        }
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return "ACCESS_DENIED";
+    }
+    catch (IOException)
+    {
+        return "IO_ERROR";
+    }
+    catch (Exception ex)
+    {
+        _logger.Debug($"Hash error för {filePath}: {ex.Message}");
+        return "ERROR";
+    }
+}
+
+private bool HasDirectoryAccess(string path)
+{
+    try
+    {
+        var di = new DirectoryInfo(path);
+        return di.Exists && Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly).Any();
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+private bool IsFileLocked(string filePath)
+{
+    try
+    {
+        using var fs = File.OpenRead(filePath);
+        return false;
+    }
+    catch (IOException)
+    {
+        return true;
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+private async Task<string[]> GetFilesWithTimeoutAsync(string path, TimeSpan timeout)
+{
+    try
+    {
+        var task = Task.Run(() => Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly));
+        
+        if (await Task.WhenAny(task, Task.Delay(timeout)) == task)
+        {
+            return await task;
+        }
+        else
+        {
+            _logger.Warning($"Timeout vid fillistning: {path}");
+            return Array.Empty<string>();
+        }
+    }
+    catch (Exception ex)
+    {
+        _logger.Warning($"Fel vid fillistning {path}: {ex.Message}");
+        return Array.Empty<string>();
+    }
+}
 
         public void AddToWhitelist(string path)
         {

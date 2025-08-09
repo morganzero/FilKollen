@@ -45,16 +45,16 @@ namespace FilKollen
         public bool IsIDSActive { get; set; }
         public int TotalThreatsFound { get; set; }
         public int TotalThreatsHandled { get; set; }
+
+        // Commands för UI
+        public ICommand QuarantineCommand { get; private set; } = null!;
+        public ICommand ShowInExplorerCommand { get; private set; } = null!;
+        public ICommand AddToWhitelistCommand { get; private set; } = null!;
         #endregion
 
         #region Constructor
         public MainWindow(LicenseService licenseService, BrandingService brandingService, ThemeService themeService)
         {
-            // Commands för UI
-        public ICommand QuarantineCommand { get; private set; } = null!;
-        public ICommand ShowInExplorerCommand { get; private set; } = null!;
-        public ICommand AddToWhitelistCommand { get; private set; } = null!;
-
             _licenseService = licenseService;
             _brandingService = brandingService;
             _themeService = themeService;
@@ -91,33 +91,6 @@ namespace FilKollen
             ActivityLogListView.ItemsSource = ActivityLog;
         }
 
-        // I MainWindow.xaml.cs - lägg till proper disposal
-        protected override void OnClosed(EventArgs e)
-        {
-            try
-            {
-                // Cleanup services
-                _protectionService?.StopProtectionAsync().Wait(5000);
-                _intrusionDetection?.StopMonitoringAsync().Wait(5000);
-                _trayService?.Dispose();
-                _logViewer?.Dispose();
-
-                // Unregister events
-                if (_protectionService != null)
-                {
-                    _protectionService.ProtectionStatusChanged -= OnProtectionStatusChanged;
-                    _protectionService.ThreatDetected -= OnThreatDetected;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.Warning($"Error during cleanup: {ex.Message}");
-            }
-            finally
-            {
-                base.OnClosed(e);
-            }
-        }
         private void InitializeServices()
         {
             try
@@ -143,42 +116,43 @@ namespace FilKollen
                 MessageBox.Show($"Kritiskt fel vid start av säkerhetstjänster:\n\n{ex.Message}",
                     "Startfel", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-            
         }
-private void InitializeCommands()
-{
-    QuarantineCommand = new RelayCommand<ThreatItemViewModel>(async (threat) => 
-    {
-        if (threat != null)
+
+        private void InitializeCommands()
         {
-            var scanResult = new ScanResult
+            QuarantineCommand = new RelayCommand<ThreatItemViewModel>(async (threat) => 
             {
-                FilePath = threat.FilePath,
-                ThreatLevel = Enum.Parse<ThreatLevel>(threat.ThreatLevel),
-                Reason = threat.Reason
-            };
-            await _quarantineManager.QuarantineFileAsync(scanResult);
-            ActiveThreats.Remove(threat);
-        }
-    });
+                if (threat != null)
+                {
+                    var scanResult = new ScanResult
+                    {
+                        FilePath = threat.FilePath,
+                        ThreatLevel = Enum.Parse<ThreatLevel>(threat.ThreatLevel),
+                        Reason = threat.Reason
+                    };
+                    await _quarantineManager.QuarantineFileAsync(scanResult);
+                    ActiveThreats.Remove(threat);
+                }
+            });
 
-    ShowInExplorerCommand = new RelayCommand<ThreatItemViewModel>((threat) => 
-    {
-        if (threat != null && File.Exists(threat.FilePath))
-        {
-            Process.Start("explorer.exe", $"/select,\"{threat.FilePath}\"");
-        }
-    });
+            ShowInExplorerCommand = new RelayCommand<ThreatItemViewModel>((threat) => 
+            {
+                if (threat != null && File.Exists(threat.FilePath))
+                {
+                    Process.Start("explorer.exe", $"/select,\"{threat.FilePath}\"");
+                }
+            });
 
-    AddToWhitelistCommand = new RelayCommand<ThreatItemViewModel>((threat) => 
-    {
-        if (threat != null)
-        {
-            _tempFileScanner.AddToWhitelist(threat.FilePath);
-            ActiveThreats.Remove(threat);
+            AddToWhitelistCommand = new RelayCommand<ThreatItemViewModel>((threat) => 
+            {
+                if (threat != null)
+                {
+                    _tempFileScanner.AddToWhitelist(threat.FilePath);
+                    ActiveThreats.Remove(threat);
+                }
+            });
         }
-    });
-}
+
         private void SetupEventHandlers()
         {
             // Protection service events
@@ -210,516 +184,7 @@ private void InitializeCommands()
         }
         #endregion
 
-        #region Event Handlers - Protection
-        private void ProtectionToggle_Checked(object sender, RoutedEventArgs e)
-        {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _protectionService.StartProtectionAsync();
-                    Dispatcher.Invoke(() => UpdateProtectionStatus());
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error($"Fel vid aktivering av real-time skydd: {ex.Message}");
-                    Dispatcher.Invoke(() => ProtectionToggle.IsChecked = false);
-                }
-            });
-        }
-
-        private void ProtectionToggle_Unchecked(object sender, RoutedEventArgs e)
-        {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _protectionService.StopProtectionAsync();
-                    Dispatcher.Invoke(() => UpdateProtectionStatus());
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error($"Fel vid inaktivering av real-time skydd: {ex.Message}");
-                    Dispatcher.Invoke(() => ProtectionToggle.IsChecked = true);
-                }
-            });
-        }
-
-        private void IDSToggle_Checked(object sender, RoutedEventArgs e)
-        {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _intrusionDetection.StartMonitoringAsync();
-                    Dispatcher.Invoke(() => UpdateIDSStatus());
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error($"Fel vid aktivering av intrusion detection: {ex.Message}");
-                    Dispatcher.Invoke(() => IDSToggle.IsChecked = false);
-                }
-            });
-        }
-
-        private void IDSToggle_Unchecked(object sender, RoutedEventArgs e)
-        {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _intrusionDetection.StopMonitoringAsync();
-                    Dispatcher.Invoke(() => UpdateIDSStatus());
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error($"Fel vid inaktivering av intrusion detection: {ex.Message}");
-                    Dispatcher.Invoke(() => IDSToggle.IsChecked = true);
-                }
-            });
-        }
-
-        private void ModeRadio_Checked(object sender, RoutedEventArgs e)
-        {
-            if (_protectionService != null)
-            {
-                bool autoMode = AutoModeRadio?.IsChecked ?? false;
-                _protectionService.SetAutoCleanMode(autoMode);
-                
-                var mode = autoMode ? "Automatisk" : "Manuell";
-                ProtectionModeText.Text = $"{mode} hantering";
-                
-                _logger.Information($"🔧 Hanteringsläge ändrat till: {mode}");
-            }
-        }
-        #endregion
-
-        #region Event Handlers - Scanning
-        private async void TempScanButton_Click(object sender, RoutedEventArgs e)
-        {
-            await PerformTempScanAsync();
-        }
-
-        private async void EmergencyScanButton_Click(object sender, RoutedEventArgs e)
-        {
-            var result = MessageBox.Show(
-                "🚨 AKUTSKANNING\n\n" +
-                "Detta kommer att:\n" +
-                "• Genomföra djup skanning av alla temp-kataloger\n" +
-                "• Analysera alla aktiva processer\n" +
-                "• Kontrollera nätverksanslutningar\n" +
-                "• Sätta kritiska hot i karantän automatiskt\n\n" +
-                "Fortsätt med akutskanning?",
-                "Bekräfta akutskanning",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                await PerformEmergencyScanAsync();
-            }
-        }
-
-        private async Task PerformTempScanAsync()
-        {
-            try
-            {
-                SetScanningState(true);
-                _logViewer.AddLogEntry(LogLevel.Information, "TempScan", "🔍 Startar temp-katalog säkerhetsskanning...");
-
-                var results = await _tempFileScanner.ScanTempDirectoriesAsync();
-                
-                // Rensa gamla hot och lägg till nya
-                ActiveThreats.Clear();
-                foreach (var result in results)
-                {
-                    var threatVM = new ThreatItemViewModel(result);
-                    ActiveThreats.Add(threatVM);
-                }
-
-                UpdateThreatCounts();
-                UpdateNoThreatsVisibility();
-
-                var threatCount = results.Count;
-                var criticalCount = results.Count(r => r.ThreatLevel == ThreatLevel.Critical);
-                
-                _logViewer.AddLogEntry(LogLevel.Information, "TempScan", 
-                    $"✅ Temp-skanning slutförd: {threatCount} hot funna ({criticalCount} kritiska)");
-
-                if (threatCount > 0)
-                {
-                    _trayService?.ShowNotification("Säkerhetshot upptäckta", 
-                        $"{threatCount} hot funna i temp-kataloger", 
-                        System.Windows.Forms.ToolTipIcon.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Temp-skanning misslyckades: {ex.Message}");
-                _logViewer.AddLogEntry(LogLevel.Error, "TempScan", $"❌ Fel vid temp-skanning: {ex.Message}");
-                MessageBox.Show($"Fel vid temp-skanning:\n\n{ex.Message}", "Skanningsfel", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                SetScanningState(false);
-            }
-        }
-
-        private async Task PerformEmergencyScanAsync()
-        {
-            try
-            {
-                SetScanningState(true);
-                _logViewer.AddLogEntry(LogLevel.Information, "Emergency", "🚨 AKUTSKANNING STARTAD - fullständig säkerhetsanalys");
-
-                var tasks = new[]
-                {
-                    PerformTempScanAsync(),
-                    PerformProcessAnalysisAsync(),
-                    PerformNetworkAnalysisAsync()
-                };
-
-                await Task.WhenAll(tasks);
-
-                // Auto-hantera kritiska hot
-                await HandleCriticalThreatsAutomaticallyAsync();
-
-                _logViewer.AddLogEntry(LogLevel.Information, "Emergency", "✅ AKUTSKANNING SLUTFÖRD - systemet säkert");
-                
-                MessageBox.Show(
-                    $"🛡️ AKUTSKANNING SLUTFÖRD\n\n" +
-                    $"Resultat:\n" +
-                    $"• {ActiveThreats.Count} hot identifierade\n" +
-                    $"• {ActiveThreats.Count(t => t.ThreatLevel == "Critical")} kritiska hot\n" +
-                    $"• Alla kritiska hot hanterade automatiskt\n\n" +
-                    $"Ditt system är nu säkert!",
-                    "Akutskanning slutförd",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Akutskanning misslyckades: {ex.Message}");
-                MessageBox.Show($"Fel vid akutskanning:\n\n{ex.Message}", "Akutskanningsfel", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                SetScanningState(false);
-            }
-        }
-
-        private async Task PerformProcessAnalysisAsync()
-        {
-            // Trigger manual IDS scan om det inte är aktivt
-            if (_intrusionDetection != null && !_intrusionDetection.IsMonitoringActive)
-            {
-                _logViewer.AddLogEntry(LogLevel.Information, "Emergency", "🔍 Analyserar aktiva processer...");
-                // Implementera manuell processanalys här
-                await Task.Delay(2000); // Simulera processanalys
-            }
-        }
-
-        private async Task PerformNetworkAnalysisAsync()
-        {
-            _logViewer.AddLogEntry(LogLevel.Information, "Emergency", "🌐 Analyserar nätverksanslutningar...");
-            // Implementera nätverksanalys här
-            await Task.Delay(1500); // Simulera nätverksanalys
-        }
-
-        private async Task HandleCriticalThreatsAutomaticallyAsync()
-        {
-            var criticalThreats = ActiveThreats.Where(t => t.ThreatLevel == "Critical").ToList();
-            
-            foreach (var threat in criticalThreats)
-            {
-                try
-                {
-                    var scanResult = new ScanResult
-                    {
-                        FilePath = threat.FilePath,
-                        ThreatLevel = ThreatLevel.Critical,
-                        Reason = threat.Reason
-                    };
-
-                    await _quarantineManager.QuarantineFileAsync(scanResult);
-                    
-                    ActiveThreats.Remove(threat);
-                    TotalThreatsHandled++;
-                    
-                    _logViewer.AddLogEntry(LogLevel.Information, "Emergency", 
-                        $"🔒 KRITISKT HOT HANTERAT: {Path.GetFileName(threat.FilePath)}");
-                }
-                catch (Exception ex)
-                {
-                    _logger.Warning($"Kunde inte hantera kritiskt hot {threat.FilePath}: {ex.Message}");
-                }
-            }
-            
-            UpdateThreatCounts();
-            UpdateNoThreatsVisibility();
-        }
-        #endregion
-
-        #region Event Handlers - Browser Cleaning
-        private async void BrowserCleanButton_Click(object sender, RoutedEventArgs e)
-        {
-            var result = MessageBox.Show(
-                "🌐 AVANCERAD WEBBLÄSARE SÄKERHETSRENSNING\n\n" +
-                "Detta kommer att:\n" +
-                "• Stänga alla webbläsare\n" +
-                "• Ta bort malware-notifieringar\n" +
-                "• Analysera och ta bort suspekta extensions\n" +
-                "• Rensa all browsing data\n" +
-                "• Sätta maximala säkerhetsinställningar\n" +
-                "• Blockera kända malware-domäner\n\n" +
-                "Fortsätt med djuprensning?",
-                "Bekräfta webbläsare säkerhetsrensning",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                await PerformBrowserSecurityCleaningAsync();
-            }
-        }
-
-        private async Task PerformBrowserSecurityCleaningAsync()
-        {
-            try
-            {
-                SetScanningState(true);
-                _logViewer.AddLogEntry(LogLevel.Information, "BrowserClean", "🌐 Startar avancerad webbläsare säkerhetsrensning...");
-
-                var cleanResult = await _browserCleaner.DeepCleanAllBrowsersAsync();
-
-                if (cleanResult.Success)
-                {
-                    var message = $"✅ WEBBLÄSARE SÄKERHETSRENSNING SLUTFÖRD!\n\n" +
-                                $"Resultat:\n" +
-                                $"• {cleanResult.TotalProfilesCleaned} webbläsarprofiler rensade\n" +
-                                $"• {cleanResult.MalwareNotificationsRemoved} malware-notifieringar borttagna\n" +
-                                $"• {cleanResult.SuspiciousExtensionsRemoved} suspekta extensions borttagna\n" +
-                                $"• Maximala säkerhetsinställningar tillämpade\n" +
-                                $"• Malware-domäner blockerade via hosts-fil\n\n" +
-                                $"Dina webbläsare är nu säkra!";
-
-                    MessageBox.Show(message, "Säkerhetsrensning slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
-                    
-                    _logViewer.AddLogEntry(LogLevel.Information, "BrowserClean", 
-                        $"✅ Webbläsare säkerhetsrensning slutförd: {cleanResult.TotalProfilesCleaned} profiler, {cleanResult.MalwareNotificationsRemoved} malware-notiser");
-                }
-                else
-                {
-                    MessageBox.Show("❌ Webbläsare säkerhetsrensning misslyckades delvis. Se aktivitetsloggen för detaljer.",
-                        "Rensningsfel", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Webbläsare säkerhetsrensning misslyckades: {ex.Message}");
-                MessageBox.Show($"Fel vid webbläsare säkerhetsrensning:\n\n{ex.Message}", 
-                    "Rensningsfel", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                SetScanningState(false);
-            }
-        }
-        #endregion
-
-        #region Event Handlers - Threat Management
-        private async void HandleAllThreatsButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (!ActiveThreats.Any())
-            {
-                MessageBox.Show("Inga aktiva hot att hantera.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var result = MessageBox.Show(
-                $"🧹 HANTERA ALLA HOT\n\n" +
-                $"Detta kommer att sätta alla {ActiveThreats.Count} identifierade hot i karantän.\n\n" +
-                $"Fördelning:\n" +
-                $"• {ActiveThreats.Count(t => t.ThreatLevel == "Critical")} Kritiska\n" +
-                $"• {ActiveThreats.Count(t => t.ThreatLevel == "High")} Höga\n" +
-                $"• {ActiveThreats.Count(t => t.ThreatLevel == "Medium")} Medium\n\n" +
-                $"Fortsätt med automatisk hantering?",
-                "Bekräfta hantering av alla hot",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                await HandleAllThreatsAsync();
-            }
-        }
-
-        private async Task HandleAllThreatsAsync()
-        {
-            try
-            {
-                SetScanningState(true);
-                var threatList = ActiveThreats.ToList(); // Skapa kopia för iteration
-                int handledCount = 0;
-
-                foreach (var threat in threatList)
-                {
-                    try
-                    {
-                        var threatLevel = Enum.Parse<ThreatLevel>(threat.ThreatLevel);
-                        var scanResult = new ScanResult
-                        {
-                            FilePath = threat.FilePath,
-                            ThreatLevel = threatLevel,
-                            Reason = threat.Reason
-                        };
-
-                        await _quarantineManager.QuarantineFileAsync(scanResult);
-                        
-                        ActiveThreats.Remove(threat);
-                        handledCount++;
-                        TotalThreatsHandled++;
-
-                        _logViewer.AddLogEntry(LogLevel.Information, "ThreatMgmt", 
-                            $"🔒 Hot hanterat: {Path.GetFileName(threat.FilePath)}");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Warning($"Kunde inte hantera hot {threat.FilePath}: {ex.Message}");
-                    }
-                }
-
-                UpdateThreatCounts();
-                UpdateNoThreatsVisibility();
-
-                MessageBox.Show(
-                    $"✅ HOTHANTERING SLUTFÖRD\n\n" +
-                    $"{handledCount} av {threatList.Count} hot hanterade framgångsrikt.\n" +
-                    $"Alla filer är säkert placerade i karantän.\n\n" +
-                    $"Ditt system är nu säkert!",
-                    "Hothantering slutförd",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-
-                _logViewer.AddLogEntry(LogLevel.Information, "ThreatMgmt", 
-                    $"✅ Hothantering slutförd: {handledCount}/{threatList.Count} hot hanterade");
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Fel vid hothantering: {ex.Message}");
-                MessageBox.Show($"Fel vid hantering av hot:\n\n{ex.Message}", 
-                    "Hothanteringsfel", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                SetScanningState(false);
-            }
-        }
-
-        private void RefreshThreatsButton_Click(object sender, RoutedEventArgs e)
-        {
-            _ = Task.Run(PerformTempScanAsync);
-        }
-        #endregion
-
-        #region Event Handlers - Other
-        private void QuarantineManagerButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                // Visa enkel karantän-information för nu
-                var quarantineInfo = GetQuarantineInfoAsync();
-                MessageBox.Show(quarantineInfo.Result, "Karantän-hantering", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Fel vid visning av karantän-hantering: {ex.Message}");
-                MessageBox.Show($"Fel vid åtkomst till karantän:\n\n{ex.Message}", "Fel", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private async Task<string> GetQuarantineInfoAsync()
-        {
-            try
-            {
-                var quarantinedFiles = await _quarantineManager.GetQuarantinedFilesAsync();
-                var stats = await _quarantineManager.GetQuarantineStatsAsync();
-
-                return $"🏥 KARANTÄN-INFORMATION\n\n" +
-                       $"Karantänerade filer: {quarantinedFiles.Count}\n" +
-                       $"Total storlek: {stats.FormattedTotalSize}\n" +
-                       $"Äldsta fil: {(stats.OldestDate != DateTime.MaxValue ? stats.OldestDate.ToString("yyyy-MM-dd") : "Ingen")}\n" +
-                       $"Senaste fil: {(stats.NewestDate != DateTime.MinValue ? stats.NewestDate.ToString("yyyy-MM-dd") : "Ingen")}\n\n" +
-                       $"Karantänkatalog:\n{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FilKollen", "Quarantine")}\n\n" +
-                       $"Avancerad karantän-hantering kommer i nästa version.";
-            }
-            catch (Exception ex)
-            {
-                return $"Fel vid hämtning av karantän-information: {ex.Message}";
-            }
-        }
-
-        private void SystemInfoButton_Click(object sender, RoutedEventArgs e)
-        {
-            // Växla till System Information tab
-            var tabControl = this.FindVisualChild<TabControl>();
-            tabControl?.SetCurrentValue(TabControl.SelectedIndexProperty, 2);
-        }
-
-        private void SettingsButton_Click(object sender, RoutedEventArgs e)
-        {
-            // Implementera settings-menyn som tidigare
-            ShowSettingsMenu();
-        }
-
-        private void ClearLogsButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                ActivityLog.Clear();
-                _logViewer?.ClearLogs();
-                _logger.Information("📝 Aktivitetsloggar rensade av användare");
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Fel vid rensning av loggar: {ex.Message}");
-            }
-        }
-
-        private void ExportLogsButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var saveFileDialog = new SaveFileDialog
-                {
-                    Title = "Exportera aktivitetsloggar",
-                    Filter = "Text-filer (*.txt)|*.txt|Alla filer (*.*)|*.*",
-                    FileName = $"FilKollen_ActivityLog_{DateTime.Now:yyyyMMdd_HHmmss}.txt"
-                };
-
-                if (saveFileDialog.ShowDialog() == true)
-                {
-                    _logViewer?.ExportLogs(saveFileDialog.FileName);
-                    MessageBox.Show($"Aktivitetsloggar exporterade till:\n{saveFileDialog.FileName}",
-                        "Export slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Fel vid export av loggar: {ex.Message}");
-                MessageBox.Show($"Fel vid export av loggar:\n\n{ex.Message}", 
-                    "Exportfel", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void LogLevelFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            // Implementera log-filtrering
-            UpdateLogFilter();
-        }
-        #endregion
-
-        #region Service Event Handlers
+        #region Event Handlers
         private void OnProtectionStatusChanged(object? sender, ProtectionStatusChangedEventArgs e)
         {
             Dispatcher.Invoke(() => UpdateProtectionStatus());
@@ -755,8 +220,6 @@ private void InitializeCommands()
                         $"Process {e.ProcessName} har blockerats automatiskt", 
                         System.Windows.Forms.ToolTipIcon.Error);
                 }
-
-                UpdateIDSStats();
             });
         }
 
@@ -816,6 +279,7 @@ private void InitializeCommands()
             UpdateThreatCounts();
             UpdateSystemInformation();
             UpdateLicenseStatus();
+            UpdateActivityLog();
         }
 
         private void UpdateProtectionStatus()
@@ -833,11 +297,6 @@ private void InitializeCommands()
                     ProtectionStatusText.Foreground = System.Windows.Media.Brushes.Green;
                     ProtectionIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.Shield;
                     ProtectionIcon.Foreground = System.Windows.Media.Brushes.Green;
-                    
-                    StatusIndicator.Fill = System.Windows.Media.Brushes.Green;
-                    SystemStatusText.Text = "SYSTEM SKYDDAT";
-                    SecurityRealtimeText.Text = "AKTIVERAT";
-                    SecurityRealtimeText.Foreground = System.Windows.Media.Brushes.Green;
                 }
                 else
                 {
@@ -845,11 +304,6 @@ private void InitializeCommands()
                     ProtectionStatusText.Foreground = System.Windows.Media.Brushes.Red;
                     ProtectionIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.ShieldOff;
                     ProtectionIcon.Foreground = System.Windows.Media.Brushes.Red;
-                    
-                    StatusIndicator.Fill = System.Windows.Media.Brushes.Red;
-                    SystemStatusText.Text = "SYSTEM OSKYDDAT";
-                    SecurityRealtimeText.Text = "INAKTIVERAT";
-                    SecurityRealtimeText.Foreground = System.Windows.Media.Brushes.Red;
                 }
 
                 var mode = stats.AutoCleanMode ? "Automatisk" : "Manuell";
@@ -859,78 +313,6 @@ private void InitializeCommands()
                 {
                     LastScanText.Text = $"Senaste skanning: {stats.LastScanTime:HH:mm}";
                 }
-            }
-        }
-
-        private void UpdateIDSStatus()
-        {
-            if (_intrusionDetection != null)
-            {
-                IsIDSActive = _intrusionDetection.IsMonitoringActive;
-                IDSToggle.IsChecked = IsIDSActive;
-
-                if (IsIDSActive)
-                {
-                    IDSStatusText.Text = "AKTIVERAT";
-                    IDSStatusText.Foreground = System.Windows.Media.Brushes.Green;
-                    IDSDetailsText.Text = "Avancerat hotskydd aktivt";
-                    IDSIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.Radar;
-                    IDSIcon.Foreground = System.Windows.Media.Brushes.Green;
-                    SecurityIDSText.Text = "AKTIVERAT";
-                    SecurityIDSText.Foreground = System.Windows.Media.Brushes.Green;
-                }
-                else
-                {
-                    IDSStatusText.Text = "INAKTIVERAT";
-                    IDSStatusText.Foreground = System.Windows.Media.Brushes.Red;
-                    IDSDetailsText.Text = "Avancerat hotskydd avstängt";
-                    IDSIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.RadarOff;
-                    IDSIcon.Foreground = System.Windows.Media.Brushes.Red;
-                    SecurityIDSText.Text = "INAKTIVERAT";
-                    SecurityIDSText.Foreground = System.Windows.Media.Brushes.Red;
-                }
-
-                UpdateIDSStats();
-            }
-        }
-
-        private void UpdateIDSStats()
-        {
-            if (_intrusionDetection != null)
-            {
-                IDSThreatsText.Text = $"{_intrusionDetection.TotalThreatsBlocked} hot blockerade";
-                
-                if (_intrusionDetection.LastThreatTime != default)
-                {
-                    IDSLastEventText.Text = $"Senaste: {_intrusionDetection.LastThreatTime:HH:mm}";
-                }
-                else
-                {
-                    IDSLastEventText.Text = "Senaste: Aldrig";
-                }
-            }
-        }
-
-        private void UpdateSystemStatus()
-        {
-            // Uppdatera övergripande systemstatus baserat på alla tjänster
-            bool isFullyProtected = IsProtectionActive && IsIDSActive;
-            bool hasActiveThreats = ActiveThreats.Any();
-
-            if (hasActiveThreats)
-            {
-                StatusIndicator.Fill = System.Windows.Media.Brushes.Orange;
-                SystemStatusText.Text = "HOT UPPTÄCKTA";
-            }
-            else if (isFullyProtected)
-            {
-                StatusIndicator.Fill = System.Windows.Media.Brushes.Green;
-                SystemStatusText.Text = "SYSTEM SKYDDAT";
-            }
-            else
-            {
-                StatusIndicator.Fill = System.Windows.Media.Brushes.Red;
-                SystemStatusText.Text = "SYSTEM OSKYDDAT";
             }
         }
 
@@ -950,6 +332,27 @@ private void InitializeCommands()
             ThreatsList.Visibility = ActiveThreats.Any() ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        private void UpdateSystemStatus()
+        {
+            bool hasActiveThreats = ActiveThreats.Any();
+
+            if (hasActiveThreats)
+            {
+                StatusIndicator.Fill = System.Windows.Media.Brushes.Orange;
+                SystemStatusText.Text = "HOT UPPTÄCKTA";
+            }
+            else if (IsProtectionActive && IsIDSActive)
+            {
+                StatusIndicator.Fill = System.Windows.Media.Brushes.Green;
+                SystemStatusText.Text = "SYSTEM SKYDDAT";
+            }
+            else
+            {
+                StatusIndicator.Fill = System.Windows.Media.Brushes.Red;
+                SystemStatusText.Text = "SYSTEM OSKYDDAT";
+            }
+        }
+
         private void UpdateSystemInformation()
         {
             try
@@ -958,12 +361,10 @@ private void InitializeCommands()
                 ComputerNameText.Text = Environment.MachineName;
                 UserNameText.Text = Environment.UserName;
                 
-                // Kontrollera admin-status
                 var isAdmin = IsRunningAsAdministrator();
                 AdminStatusText.Text = isAdmin ? "Ja" : "Nej";
                 AdminStatusText.Foreground = isAdmin ? System.Windows.Media.Brushes.Green : System.Windows.Media.Brushes.Red;
 
-                // Uppdatera karantän-count
                 _ = Task.Run(async () =>
                 {
                     try
@@ -976,16 +377,6 @@ private void InitializeCommands()
                         });
                     }
                     catch { }
-                });
-
-                // Kontrollera Windows Defender
-                _ = Task.Run(async () =>
-                {
-                    var defenderStatus = await CheckWindowsDefenderStatusAsync();
-                    Dispatcher.Invoke(() =>
-                    {
-                        SecurityDefenderText.Text = defenderStatus;
-                    });
                 });
             }
             catch (Exception ex)
@@ -1033,7 +424,7 @@ private void InitializeCommands()
                 ActivityLog.Clear();
                 if (_logViewer?.LogEntries != null)
                 {
-                    foreach (var entry in _logViewer.LogEntries.Take(100)) // Visa senaste 100
+                    foreach (var entry in _logViewer.LogEntries.Take(100))
                     {
                         var logVM = new LogEntryViewModel
                         {
@@ -1055,21 +446,468 @@ private void InitializeCommands()
             }
         }
 
-        private void UpdateLogFilter()
+        private void UpdateIDSStatus()
         {
-            // Implementera log-filtrering baserat på vald nivå
+            if (_intrusionDetection != null)
+            {
+                IsIDSActive = _intrusionDetection.IsMonitoringActive;
+                IDSToggle.IsChecked = IsIDSActive;
+
+                if (IsIDSActive)
+                {
+                    IDSStatusText.Text = "AKTIVERAT";
+                    IDSStatusText.Foreground = System.Windows.Media.Brushes.Green;
+                    IDSIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.Radar;
+                    IDSIcon.Foreground = System.Windows.Media.Brushes.Green;
+                    SecurityIDSText.Text = "AKTIVERAT";
+                    SecurityIDSText.Foreground = System.Windows.Media.Brushes.Green;
+                }
+                else
+                {
+                    IDSStatusText.Text = "INAKTIVERAT";
+                    IDSStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                    IDSIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.RadarOff;
+                    IDSIcon.Foreground = System.Windows.Media.Brushes.Red;
+                    SecurityIDSText.Text = "INAKTIVERAT";
+                    SecurityIDSText.Foreground = System.Windows.Media.Brushes.Red;
+                }
+
+                IDSThreatsText.Text = $"{_intrusionDetection.TotalThreatsBlocked} hot blockerade";
+                
+                if (_intrusionDetection.LastThreatTime != default)
+                {
+                    IDSLastEventText.Text = $"Senaste: {_intrusionDetection.LastThreatTime:HH:mm}";
+                }
+                else
+                {
+                    IDSLastEventText.Text = "Senaste: Aldrig";
+                }
+            }
+        }
+        #endregion
+
+        #region Button Event Handlers
+        private async void ProtectionToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _protectionService.StartProtectionAsync();
+                    Dispatcher.Invoke(() => UpdateProtectionStatus());
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Fel vid aktivering av real-time skydd: {ex.Message}");
+                    Dispatcher.Invoke(() => ProtectionToggle.IsChecked = false);
+                }
+            });
+        }
+
+        private async void ProtectionToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _protectionService.StopProtectionAsync();
+                    Dispatcher.Invoke(() => UpdateProtectionStatus());
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Fel vid inaktivering av real-time skydd: {ex.Message}");
+                    Dispatcher.Invoke(() => ProtectionToggle.IsChecked = true);
+                }
+            });
+        }
+
+        private async void IDSToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _intrusionDetection.StartMonitoringAsync();
+                    Dispatcher.Invoke(() => UpdateIDSStatus());
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Fel vid aktivering av intrusion detection: {ex.Message}");
+                    Dispatcher.Invoke(() => IDSToggle.IsChecked = false);
+                }
+            });
+        }
+
+        private async void IDSToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _intrusionDetection.StopMonitoringAsync();
+                    Dispatcher.Invoke(() => UpdateIDSStatus());
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Fel vid inaktivering av intrusion detection: {ex.Message}");
+                    Dispatcher.Invoke(() => IDSToggle.IsChecked = true);
+                }
+            });
+        }
+
+        private void ModeRadio_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_protectionService != null)
+            {
+                bool autoMode = AutoModeRadio?.IsChecked ?? false;
+                _protectionService.SetAutoCleanMode(autoMode);
+                
+                var mode = autoMode ? "Automatisk" : "Manuell";
+                ProtectionModeText.Text = $"{mode} hantering";
+                
+                _logger.Information($"🔧 Hanteringsläge ändrat till: {mode}");
+            }
+        }
+
+        private async void TempScanButton_Click(object sender, RoutedEventArgs e)
+        {
+            await PerformTempScanAsync();
+        }
+
+        private async void EmergencyScanButton_Click(object sender, RoutedEventArgs e)
+        {
+            var result = MessageBox.Show(
+                "🚨 AKUTSKANNING\n\n" +
+                "Detta kommer att genomföra djup säkerhetsanalys och automatiskt hantera kritiska hot.\n\n" +
+                "Fortsätt med akutskanning?",
+                "Bekräfta akutskanning",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                await PerformEmergencyScanAsync();
+            }
+        }
+
+        private async void BrowserCleanButton_Click(object sender, RoutedEventArgs e)
+        {
+            var result = MessageBox.Show(
+                "🌐 AVANCERAD WEBBLÄSARE SÄKERHETSRENSNING\n\n" +
+                "Detta kommer att rensa malware, blockera suspekta domäner och sätta maximala säkerhetsinställningar.\n\n" +
+                "Fortsätt med djuprensning?",
+                "Bekräfta webbläsare säkerhetsrensning",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                await PerformBrowserSecurityCleaningAsync();
+            }
+        }
+
+        private async void HandleAllThreatsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ActiveThreats.Any())
+            {
+                MessageBox.Show("Inga aktiva hot att hantera.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"🧹 HANTERA ALLA HOT\n\n" +
+                $"Detta kommer att sätta alla {ActiveThreats.Count} identifierade hot i karantän.\n\n" +
+                $"Fortsätt med automatisk hantering?",
+                "Bekräfta hantering av alla hot",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                await HandleAllThreatsAsync();
+            }
+        }
+
+        private void RefreshThreatsButton_Click(object sender, RoutedEventArgs e)
+        {
+            _ = Task.Run(PerformTempScanAsync);
+        }
+
+        private void SettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowSettingsMenu();
+        }
+
+        private void ClearLogsButton_Click(object sender, RoutedEventArgs e)
+        {
             try
             {
-                if (LogLevelFilter?.SelectedIndex >= 0)
+                ActivityLog.Clear();
+                _logViewer?.ClearLogs();
+                _logger.Information("📝 Aktivitetsloggar rensade av användare");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Fel vid rensning av loggar: {ex.Message}");
+            }
+        }
+
+        private void ExportLogsButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var saveFileDialog = new SaveFileDialog
                 {
-                    // Filtrera ActivityLog baserat på vald nivå
-                    UpdateActivityLog();
+                    Title = "Exportera aktivitetsloggar",
+                    Filter = "Text-filer (*.txt)|*.txt|Alla filer (*.*)|*.*",
+                    FileName = $"FilKollen_ActivityLog_{DateTime.Now:yyyyMMdd_HHmmss}.txt"
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    _logViewer?.ExportLogs(saveFileDialog.FileName);
+                    MessageBox.Show($"Aktivitetsloggar exporterade till:\n{saveFileDialog.FileName}",
+                        "Export slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
             {
-                _logger.Warning($"Fel vid uppdatering av log-filter: {ex.Message}");
+                _logger.Error($"Fel vid export av loggar: {ex.Message}");
+                MessageBox.Show($"Fel vid export av loggar:\n\n{ex.Message}", 
+                    "Exportfel", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void LogLevelFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateLogFilter();
+        }
+
+        private void QuarantineManagerButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var quarantineInfo = GetQuarantineInfoAsync();
+                MessageBox.Show(quarantineInfo.Result, "Karantän-hantering", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Fel vid visning av karantän-hantering: {ex.Message}");
+                MessageBox.Show($"Fel vid åtkomst till karantän:\n\n{ex.Message}", "Fel", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void SystemInfoButton_Click(object sender, RoutedEventArgs e)
+        {
+            var tabControl = this.FindVisualChild<TabControl>();
+            tabControl?.SetCurrentValue(TabControl.SelectedIndexProperty, 2);
+        }
+        #endregion
+
+        #region Scanning Methods
+        private async Task PerformTempScanAsync()
+        {
+            try
+            {
+                SetScanningState(true);
+                _logViewer.AddLogEntry(LogLevel.Information, "TempScan", "🔍 Startar temp-katalog säkerhetsskanning...");
+
+                var results = await _tempFileScanner.ScanTempDirectoriesAsync();
+                
+                ActiveThreats.Clear();
+                foreach (var result in results)
+                {
+                    var threatVM = new ThreatItemViewModel(result);
+                    ActiveThreats.Add(threatVM);
+                }
+
+                UpdateThreatCounts();
+                UpdateNoThreatsVisibility();
+
+                var threatCount = results.Count;
+                var criticalCount = results.Count(r => r.ThreatLevel == ThreatLevel.Critical);
+                
+                _logViewer.AddLogEntry(LogLevel.Information, "TempScan", 
+                    $"✅ Temp-skanning slutförd: {threatCount} hot funna ({criticalCount} kritiska)");
+
+                if (threatCount > 0)
+                {
+                    _trayService?.ShowNotification("Säkerhetshot upptäckta", 
+                        $"{threatCount} hot funna i temp-kataloger", 
+                        System.Windows.Forms.ToolTipIcon.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Temp-skanning misslyckades: {ex.Message}");
+                _logViewer.AddLogEntry(LogLevel.Error, "TempScan", $"❌ Fel vid temp-skanning: {ex.Message}");
+                MessageBox.Show($"Fel vid temp-skanning:\n\n{ex.Message}", "Skanningsfel", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                SetScanningState(false);
+            }
+        }
+
+        private async Task PerformEmergencyScanAsync()
+        {
+            try
+            {
+                SetScanningState(true);
+                _logViewer.AddLogEntry(LogLevel.Information, "Emergency", "🚨 AKUTSKANNING STARTAD - fullständig säkerhetsanalys");
+
+                await PerformTempScanAsync();
+                await HandleCriticalThreatsAutomaticallyAsync();
+
+                _logViewer.AddLogEntry(LogLevel.Information, "Emergency", "✅ AKUTSKANNING SLUTFÖRD - systemet säkert");
+                
+                MessageBox.Show(
+                    $"🛡️ AKUTSKANNING SLUTFÖRD\n\n" +
+                    $"Resultat:\n" +
+                    $"• {ActiveThreats.Count} hot identifierade\n" +
+                    $"• Alla kritiska hot hanterade automatiskt\n\n" +
+                    $"Ditt system är nu säkert!",
+                    "Akutskanning slutförd",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Akutskanning misslyckades: {ex.Message}");
+                MessageBox.Show($"Fel vid akutskanning:\n\n{ex.Message}", "Akutskanningsfel", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                SetScanningState(false);
+            }
+        }
+
+        private async Task PerformBrowserSecurityCleaningAsync()
+        {
+            try
+            {
+                SetScanningState(true);
+                _logViewer.AddLogEntry(LogLevel.Information, "BrowserClean", "🌐 Startar avancerad webbläsare säkerhetsrensning...");
+
+                var cleanResult = await _browserCleaner.DeepCleanAllBrowsersAsync();
+
+                if (cleanResult.Success)
+                {
+                    var message = $"✅ WEBBLÄSARE SÄKERHETSRENSNING SLUTFÖRD!\n\n" +
+                                $"Resultat:\n" +
+                                $"• {cleanResult.TotalProfilesCleaned} webbläsarprofiler rensade\n" +
+                                $"• {cleanResult.MalwareNotificationsRemoved} malware-notifieringar borttagna\n" +
+                                $"• {cleanResult.SuspiciousExtensionsRemoved} suspekta extensions borttagna\n" +
+                                $"• Maximala säkerhetsinställningar tillämpade\n\n" +
+                                $"Dina webbläsare är nu säkra!";
+
+                    MessageBox.Show(message, "Säkerhetsrensning slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show("❌ Webbläsare säkerhetsrensning misslyckades delvis. Se aktivitetsloggen för detaljer.",
+                        "Rensningsfel", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Webbläsare säkerhetsrensning misslyckades: {ex.Message}");
+                MessageBox.Show($"Fel vid webbläsare säkerhetsrensning:\n\n{ex.Message}", 
+                    "Rensningsfel", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                SetScanningState(false);
+            }
+        }
+
+        private async Task HandleAllThreatsAsync()
+        {
+            try
+            {
+                SetScanningState(true);
+                var threatList = ActiveThreats.ToList();
+                int handledCount = 0;
+
+                foreach (var threat in threatList)
+                {
+                    try
+                    {
+                        var threatLevel = Enum.Parse<ThreatLevel>(threat.ThreatLevel);
+                        var scanResult = new ScanResult
+                        {
+                            FilePath = threat.FilePath,
+                            ThreatLevel = threatLevel,
+                            Reason = threat.Reason
+                        };
+
+                        await _quarantineManager.QuarantineFileAsync(scanResult);
+                        
+                        ActiveThreats.Remove(threat);
+                        handledCount++;
+                        TotalThreatsHandled++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warning($"Kunde inte hantera hot {threat.FilePath}: {ex.Message}");
+                    }
+                }
+
+                UpdateThreatCounts();
+                UpdateNoThreatsVisibility();
+
+                MessageBox.Show(
+                    $"✅ HOTHANTERING SLUTFÖRD\n\n" +
+                    $"{handledCount} av {threatList.Count} hot hanterade framgångsrikt.\n" +
+                    $"Alla filer är säkert placerade i karantän.\n\n" +
+                    $"Ditt system är nu säkert!",
+                    "Hothantering slutförd",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Fel vid hothantering: {ex.Message}");
+                MessageBox.Show($"Fel vid hantering av hot:\n\n{ex.Message}", 
+                    "Hothanteringsfel", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                SetScanningState(false);
+            }
+        }
+
+        private async Task HandleCriticalThreatsAutomaticallyAsync()
+        {
+            var criticalThreats = ActiveThreats.Where(t => t.ThreatLevel == "Critical").ToList();
+            
+            foreach (var threat in criticalThreats)
+            {
+                try
+                {
+                    var scanResult = new ScanResult
+                    {
+                        FilePath = threat.FilePath,
+                        ThreatLevel = ThreatLevel.Critical,
+                        Reason = threat.Reason
+                    };
+
+                    await _quarantineManager.QuarantineFileAsync(scanResult);
+                    
+                    ActiveThreats.Remove(threat);
+                    TotalThreatsHandled++;
+                    
+                    _logViewer.AddLogEntry(LogLevel.Information, "Emergency", 
+                        $"🔒 KRITISKT HOT HANTERAT: {Path.GetFileName(threat.FilePath)}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning($"Kunde inte hantera kritiskt hot {threat.FilePath}: {ex.Message}");
+                }
+            }
+            
+            UpdateThreatCounts();
+            UpdateNoThreatsVisibility();
         }
         #endregion
 
@@ -1089,7 +927,7 @@ private void InitializeCommands()
             }
             else
             {
-                UpdateLicenseStatus(); // Återställ status text
+                UpdateLicenseStatus();
             }
             
             OnPropertyChanged(nameof(IsScanning));
@@ -1106,20 +944,6 @@ private void InitializeCommands()
             catch
             {
                 return false;
-            }
-        }
-
-        private async Task<string> CheckWindowsDefenderStatusAsync()
-        {
-            try
-            {
-                // Förenklad implementation - skulle kunna utökas med riktiga WMI-anrop
-                await Task.Delay(100);
-                return "Aktiv (verifieras ej)";
-            }
-            catch
-            {
-                return "Kunde inte kontrollera";
             }
         }
 
@@ -1191,7 +1015,7 @@ private void InitializeCommands()
 
         private void ShowSettingsMenu()
         {
-            var settingsMenu = new System.Windows.Controls.ContextMenu();
+            var settingsMenu = new ContextMenu();
 
             var licenseMenuItem = new MenuItem { Header = "🔑 Licenshantering" };
             licenseMenuItem.Click += (s, e) => ShowLicenseManagement();
@@ -1294,9 +1118,70 @@ private void InitializeCommands()
             MessageBox.Show(aboutMessage, $"Om {branding.ProductName}",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
+
+        private async Task<string> GetQuarantineInfoAsync()
+        {
+            try
+            {
+                var quarantinedFiles = await _quarantineManager.GetQuarantinedFilesAsync();
+                var stats = await _quarantineManager.GetQuarantineStatsAsync();
+
+                return $"🏥 KARANTÄN-INFORMATION\n\n" +
+                       $"Karantänerade filer: {quarantinedFiles.Count}\n" +
+                       $"Total storlek: {stats.FormattedTotalSize}\n" +
+                       $"Äldsta fil: {(stats.OldestDate != DateTime.MaxValue ? stats.OldestDate.ToString("yyyy-MM-dd") : "Ingen")}\n" +
+                       $"Senaste fil: {(stats.NewestDate != DateTime.MinValue ? stats.NewestDate.ToString("yyyy-MM-dd") : "Ingen")}\n\n" +
+                       $"Karantänkatalog:\n{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FilKollen", "Quarantine")}\n\n" +
+                       $"Avancerad karantän-hantering kommer i nästa version.";
+            }
+            catch (Exception ex)
+            {
+                return $"Fel vid hämtning av karantän-information: {ex.Message}";
+            }
+        }
+
+        private void UpdateLogFilter()
+        {
+            try
+            {
+                if (LogLevelFilter?.SelectedIndex >= 0)
+                {
+                    UpdateActivityLog();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Fel vid uppdatering av log-filter: {ex.Message}");
+            }
+        }
         #endregion
 
         #region Cleanup
+        protected override void OnClosed(EventArgs e)
+        {
+            try
+            {
+                _protectionService?.StopProtectionAsync().Wait(5000);
+                _intrusionDetection?.StopMonitoringAsync().Wait(5000);
+                _trayService?.Dispose();
+                _logViewer?.Dispose();
+
+                if (_protectionService != null)
+                {
+                    _protectionService.ProtectionStatusChanged -= OnProtectionStatusChanged;
+                    _protectionService.ThreatDetected -= OnThreatDetected;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warning($"Error during cleanup: {ex.Message}");
+            }
+            finally
+            {
+                base.OnClosed(e);
+            }
+        }
+
         protected override void OnClosing(CancelEventArgs e)
         {
             e.Cancel = true;

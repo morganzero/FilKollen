@@ -13,7 +13,7 @@ namespace FilKollen.Services
 {
     public class RealTimeProtectionService : IDisposable
     {
-        private readonly FileScanner _fileScanner;
+        private readonly TempFileScanner _tempFileScanner; // KORRIGERAT från FileScanner
         private readonly QuarantineManager _quarantineManager;
         private readonly LogViewerService _logViewer;
         private readonly ILogger _logger;
@@ -33,10 +33,10 @@ namespace FilKollen.Services
         public event EventHandler<ThreatDetectedEventArgs>? ThreatDetected;
         public event EventHandler<ProtectionStatusChangedEventArgs>? ProtectionStatusChanged;
 
-        public RealTimeProtectionService(FileScanner fileScanner, QuarantineManager quarantineManager, 
+        public RealTimeProtectionService(TempFileScanner tempFileScanner, QuarantineManager quarantineManager, 
             LogViewerService logViewer, ILogger logger, AppConfig config)
         {
-            _tempFileScanner = tempFileScanner;
+            _tempFileScanner = tempFileScanner; // KORRIGERAT
             _quarantineManager = quarantineManager;
             _logViewer = logViewer;
             _logger = logger;
@@ -76,6 +76,78 @@ namespace FilKollen.Services
                 throw;
             }
         }
+
+        private async Task PerformBackgroundScanAsync()
+        {
+            if (_cancellationTokenSource?.Token.IsCancellationRequested == true) return;
+
+            try
+            {
+                LastScanTime = DateTime.Now;
+                
+                _logViewer.AddLogEntry(LogLevel.Information, "Protection", 
+                    "🔍 Startar bakgrundssäkerhetsskanning...");
+                
+                var results = await _tempFileScanner.ScanTempDirectoriesAsync(); // KORRIGERAT metod namn
+                
+                if (results.Any())
+                {
+                    _logViewer.AddLogEntry(LogLevel.Warning, "Protection", 
+                        $"⚠️ Bakgrundsskanning: {results.Count} hot identifierade");
+                    
+                    foreach (var result in results)
+                    {
+                        await HandleThreatDetected(result, isRealTime: false);
+                    }
+                }
+                else
+                {
+                    _logViewer.AddLogEntry(LogLevel.Information, "Protection", 
+                        "✅ Bakgrundsskanning: Inga hot funna - systemet säkert");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Fel vid bakgrundsskanning: {ex.Message}");
+                _logViewer.AddLogEntry(LogLevel.Error, "Protection", 
+                    $"❌ Fel vid bakgrundsskanning: {ex.Message}");
+            }
+        }
+
+        private async Task ProcessNewFile(string filePath, string action)
+        {
+            try
+            {
+                // Undvik duplicerad bearbetning
+                var key = $"{filePath}_{action}";
+                if (_recentlyProcessed.Contains(key)) return;
+                
+                _recentlyProcessed.Add(key);
+                
+                // Ta bort från cache efter 30 sekunder
+                _ = Task.Delay(30000).ContinueWith(t => _recentlyProcessed.Remove(key));
+                
+                // Vänta lite för att filen ska skrivas klart
+                await Task.Delay(1000);
+                
+                if (!File.Exists(filePath)) return;
+                
+                _logViewer.AddLogEntry(LogLevel.Debug, "RealTime", 
+                    $"🔍 Real-time analys: {Path.GetFileName(filePath)} ({action})");
+                
+                // Analysera filen direkt
+                var scanResult = await _tempFileScanner.ScanSingleFileAsync(filePath); // KORRIGERAT
+                if (scanResult != null)
+                {
+                    await HandleThreatDetected(scanResult, isRealTime: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Fel vid real-time analys av {filePath}: {ex.Message}");
+            }
+        }
+
 
         public async Task StopProtectionAsync()
         {
