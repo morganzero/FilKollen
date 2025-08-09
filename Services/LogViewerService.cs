@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
+using FilKollen.Models;
 using Timer = System.Timers.Timer;
 using System.Collections.Concurrent;
 using System.Threading;
@@ -92,11 +93,7 @@ namespace FilKollen.Services
             }
         }
     }
-
-    public class LogEntry
-    {
-        public DateTime Timestamp { get; set; }
-        public LogLevel Level { get; set; }
+public LogLevel Level { get; set; }
         public string Source { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public int ThreadId { get; set; }
@@ -113,7 +110,7 @@ namespace FilKollen.Services
         };
     }
 
-    public class LogViewerService : INotifyPropertyChanged, IDisposable
+    public partial class LogViewerService : INotifyPropertyChanged, IDisposable
     {
         private readonly string _logDirectory;
         private ObservableCollection<LogEntry> _logEntries;
@@ -394,11 +391,7 @@ namespace FilKollen.Services
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
-
-    public class LogEntry
-    {
-        public DateTime Timestamp { get; set; }
-        public LogLevel Level { get; set; }
+public LogLevel Level { get; set; }
         public string Source { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         
@@ -423,14 +416,5 @@ namespace FilKollen.Services
             LogLevel.Fatal => "#6F42C1",
             _ => "#000000"
         };
-    }
-
-    public enum LogLevel
-    {
-        Debug,
-        Information,
-        Warning,
-        Error,
-        Fatal
     }
 }

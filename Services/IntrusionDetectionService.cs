@@ -1183,7 +1183,7 @@ namespace FilKollen.Services
             try
             {
                 _logViewer.AddLogEntry(LogLevel.Information, "IDS",
-                    "🔍 Genomför periodisk säkerhetskontroll...");
+                    "🔍 Genomför periodisk säkerhetskontroll");
 
                 // 1. Snabb temp-fil scan
                 var tempResults = await _fileScanner.ScanTempDirectoriesAsync();

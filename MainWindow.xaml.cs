@@ -133,7 +133,7 @@ public event PropertyChangedEventHandler? PropertyChanged;
 
             try
             {
-                _logger.Information("🔍 Startar robust säkerhetsskanning...");
+                _logger.Information("🔍 Startar robust säkerhetsskanning");
 
                 // Få alla sökvägar som ska skannas
                 var scanPaths = GetScanPaths();
