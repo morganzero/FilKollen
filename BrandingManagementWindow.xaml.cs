@@ -492,11 +492,12 @@ namespace FilKollen.Windows
             };
         }
 
-        private void RestartApplication()
+private void RestartApplication()
         {
             try
             {
-                var currentExecutable = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                // KORRIGERAT: Använd AppContext.BaseDirectory istället för Assembly.Location
+                var currentExecutable = System.IO.Path.Combine(System.AppContext.BaseDirectory, "FilKollen.exe");
                 System.Diagnostics.Process.Start(currentExecutable);
                 Application.Current.Shutdown();
             }

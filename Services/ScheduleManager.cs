@@ -16,7 +16,7 @@ namespace FilKollen.Services
             _logger = logger;
         }
 
-        public async Task<bool> CreateScheduledTaskAsync(AppConfig config)
+public async Task<bool> CreateScheduledTaskAsync(AppConfig config)
         {
             try
             {
@@ -33,7 +33,9 @@ namespace FilKollen.Services
                 };
 
                 var time = config.ScheduledTime.ToString(@"HH\:mm");
-                var execPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                
+                // KORRIGERAT: Använd AppContext.BaseDirectory istället för Assembly.Location
+                var execPath = System.IO.Path.Combine(System.AppContext.BaseDirectory, "FilKollen.exe");
                 
                 // Skapa scheduled task med Windows schtasks
                 var args = $"/Create /TN \"{TaskName}\" /TR \"\\\"{execPath}\\\" --scheduled\" " +

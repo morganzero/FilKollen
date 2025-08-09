@@ -1,7 +1,7 @@
 using System;
 using System.Windows;
 using System.Linq;
-using System.Threading.Tasks; // TILLAGD
+using System.Threading.Tasks;
 using FilKollen.Services;
 using FilKollen.Windows;
 using Serilog;
@@ -10,10 +10,11 @@ namespace FilKollen
 {
     public partial class App : System.Windows.Application
     {
-        private ILogger? _logger;  // Gör nullable
-        private LicenseService? _licenseService;  // Gör nullable
-        private BrandingService? _brandingService;  // Gör nullable
-        private ThemeService? _themeService;  // Gör nullable
+        private ILogger? _logger;
+        private LicenseService? _licenseService;
+        private BrandingService? _brandingService;
+        private ThemeService? _themeService;
+
         protected override async void OnStartup(StartupEventArgs e)
         {
             // Förhindra multiple instances
@@ -84,7 +85,7 @@ namespace FilKollen
             }
             catch (Exception ex)
             {
-                _logger.Error($"Startup error: {ex.Message}");
+                _logger?.Error($"Startup error: {ex.Message}");
                 MessageBox.Show($"❌ Startfel:\n\n{ex.Message}", 
                     "FilKollen Startfel", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
@@ -105,7 +106,7 @@ namespace FilKollen
             try
             {
                 // Följ systemets tema-inställning
-                var isDarkTheme = _themeService.ShouldUseDarkTheme();
+                var isDarkTheme = _themeService?.ShouldUseDarkTheme() ?? false;
                 
                 var bundledTheme = Resources.MergedDictionaries
                     .OfType<MaterialDesignThemes.Wpf.BundledTheme>()
@@ -118,18 +119,16 @@ namespace FilKollen
                         MaterialDesignThemes.Wpf.BaseTheme.Light;
                 }
                 
-                _logger.Information($"Theme applied: {(isDarkTheme ? "Dark" : "Light")}");
+                _logger?.Information($"Theme applied: {(isDarkTheme ? "Dark" : "Light")}");
             }
             catch (Exception ex)
             {
-                _logger.Warning($"Failed to apply system theme: {ex.Message}");
+                _logger?.Warning($"Failed to apply system theme: {ex.Message}");
             }
         }
 
         private async Task ApplyBrandingAsync()
         {
-            await Task.Yield(); // TILLAGD för att fixa async warning
-            
             try
             {
                 var currentBranding = _brandingService?.GetCurrentBranding();
@@ -144,12 +143,19 @@ namespace FilKollen
             {
                 _logger?.Error($"Failed to load branding: {ex.Message}");
             }
+            await Task.CompletedTask;
         }
 
         private void StartMainApplication()
         {
             try
             {
+                // KORRIGERAT: Null-kontroller för säkerhet
+                if (_licenseService == null || _brandingService == null || _themeService == null)
+                {
+                    throw new InvalidOperationException("Services not properly initialized");
+                }
+
                 // Skapa huvudfönster med alla tre services
                 var mainWindow = new MainWindow(_licenseService, _brandingService, _themeService);
                 
@@ -168,11 +174,11 @@ namespace FilKollen
                 }
 
                 MainWindow = mainWindow;
-                _logger.Information("Main application window created and shown");
+                _logger?.Information("Main application window created and shown");
             }
             catch (Exception ex)
             {
-                _logger.Error($"Failed to start main application: {ex.Message}");
+                _logger?.Error($"Failed to start main application: {ex.Message}");
                 MessageBox.Show($"❌ Kunde inte starta FilKollen:\n\n{ex.Message}",
                     "Startfel", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
@@ -183,6 +189,12 @@ namespace FilKollen
         {
             try
             {
+                // KORRIGERAT: Null-kontroller
+                if (_licenseService == null || _logger == null)
+                {
+                    throw new InvalidOperationException("Services not properly initialized");
+                }
+
                 var licenseWindow = new LicenseRegistrationWindow(_licenseService, _logger);
                 var result = licenseWindow.ShowDialog();
                 
@@ -198,7 +210,7 @@ namespace FilKollen
             }
             catch (Exception ex)
             {
-                _logger.Error($"Failed to show license registration: {ex.Message}");
+                _logger?.Error($"Failed to show license registration: {ex.Message}");
                 MessageBox.Show($"❌ Kunde inte visa licensregistrering:\n\n{ex.Message}",
                     "Licensfel", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
@@ -217,7 +229,7 @@ namespace FilKollen
                 "Vill du starta om som administratör för fullständig säkerhet?",
                 "Administratörsrättigheter Rekommenderade",
                 MessageBoxButton.YesNo,
-                MessageBoxImage.Question); // ÄNDRAT från Shield till Question
+                MessageBoxImage.Question);
         }
 
         private bool IsRunningAsAdministrator()
@@ -240,7 +252,7 @@ namespace FilKollen
             {
                 var processInfo = new System.Diagnostics.ProcessStartInfo
                 {
-                    // FIX: Använd AppContext.BaseDirectory istället för Assembly.Location
+                    // KORRIGERAT: Använd AppContext.BaseDirectory istället för Assembly.Location
                     FileName = System.IO.Path.Combine(System.AppContext.BaseDirectory, "FilKollen.exe"),
                     UseShellExecute = true,
                     Verb = "runas",
@@ -259,7 +271,6 @@ namespace FilKollen
         protected override void OnExit(ExitEventArgs e)
         {
             _logger?.Information("FilKollen Real-time Security avslutas");
-            // ÄNDRAT: ILogger har ingen Dispose - ta bort denna rad
             base.OnExit(e);
         }
     }

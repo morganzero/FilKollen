@@ -92,7 +92,7 @@ namespace FilKollen.Windows
             return formatted;
         }
 
-        private async void ValidateLicenseKeyAsync(string licenseKey)
+private async void ValidateLicenseKeyAsync(string licenseKey)
         {
             try
             {
@@ -104,6 +104,9 @@ namespace FilKollen.Windows
                 {
                     return;
                 }
+
+                // KORRIGERAT: Lägg till await för Task.Yield() för att uppfylla async contract
+                await Task.Yield();
 
                 // Validera licensnyckel
                 var isValid = _keyGenerator.ValidateLicenseKey(licenseKey);

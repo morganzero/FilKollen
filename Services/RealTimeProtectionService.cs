@@ -13,7 +13,7 @@ namespace FilKollen.Services
 {
     public class RealTimeProtectionService : IDisposable
     {
-        private readonly TempFileScanner _tempFileScanner; // KORRIGERAT från FileScanner
+        private readonly TempFileScanner _fileScanner; // KORRIGERAT namn
         private readonly QuarantineManager _quarantineManager;
         private readonly LogViewerService _logViewer;
         private readonly ILogger _logger;
@@ -33,10 +33,10 @@ namespace FilKollen.Services
         public event EventHandler<ThreatDetectedEventArgs>? ThreatDetected;
         public event EventHandler<ProtectionStatusChangedEventArgs>? ProtectionStatusChanged;
 
-        public RealTimeProtectionService(TempFileScanner tempFileScanner, QuarantineManager quarantineManager, 
+        public RealTimeProtectionService(TempFileScanner fileScanner, QuarantineManager quarantineManager, 
             LogViewerService logViewer, ILogger logger, AppConfig config)
         {
-            _tempFileScanner = tempFileScanner; // KORRIGERAT
+            _fileScanner = fileScanner; // KORRIGERAT namn
             _quarantineManager = quarantineManager;
             _logViewer = logViewer;
             _logger = logger;
@@ -88,7 +88,7 @@ namespace FilKollen.Services
                 _logViewer.AddLogEntry(LogLevel.Information, "Protection", 
                     "🔍 Startar bakgrundssäkerhetsskanning...");
                 
-                var results = await _tempFileScanner.ScanTempDirectoriesAsync(); // KORRIGERAT metod namn
+                var results = await _fileScanner.ScanTempDirectoriesAsync(); // KORRIGERAT metod namn
                 
                 if (results.Any())
                 {

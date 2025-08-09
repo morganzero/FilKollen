@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using FilKollen.Models;
 using FilKollen.Services;
 using FilKollen.ViewModels;
@@ -36,8 +37,8 @@ namespace FilKollen
         private SystemTrayService _trayService = null!;
 
         // UI Collections
-        public ObservableCollection<ThreatItemViewModel> ActiveThreats { get; set; }
-        public ObservableCollection<LogEntryViewModel> ActivityLog { get; set; }
+        public ObservableCollection<ThreatItemViewModel> ActiveThreats { get; set; } = new();
+        public ObservableCollection<LogEntryViewModel> ActivityLog { get; set; } = new();
 
         // Properties för databinding
         public bool IsScanning { get; set; }
@@ -294,16 +295,16 @@ namespace FilKollen
                 if (stats.IsActive)
                 {
                     ProtectionStatusText.Text = "AKTIVERAT";
-                    ProtectionStatusText.Foreground = System.Windows.Media.Brushes.Green;
+                    ProtectionStatusText.Foreground = Brushes.Green;
                     ProtectionIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.Shield;
-                    ProtectionIcon.Foreground = System.Windows.Media.Brushes.Green;
+                    ProtectionIcon.Foreground = Brushes.Green;
                 }
                 else
                 {
                     ProtectionStatusText.Text = "INAKTIVERAT";
-                    ProtectionStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                    ProtectionStatusText.Foreground = Brushes.Red;
                     ProtectionIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.ShieldOff;
-                    ProtectionIcon.Foreground = System.Windows.Media.Brushes.Red;
+                    ProtectionIcon.Foreground = Brushes.Red;
                 }
 
                 var mode = stats.AutoCleanMode ? "Automatisk" : "Manuell";
@@ -338,17 +339,17 @@ namespace FilKollen
 
             if (hasActiveThreats)
             {
-                StatusIndicator.Fill = System.Windows.Media.Brushes.Orange;
+                StatusIndicator.Fill = Brushes.Orange;
                 SystemStatusText.Text = "HOT UPPTÄCKTA";
             }
             else if (IsProtectionActive && IsIDSActive)
             {
-                StatusIndicator.Fill = System.Windows.Media.Brushes.Green;
+                StatusIndicator.Fill = Brushes.Green;
                 SystemStatusText.Text = "SYSTEM SKYDDAT";
             }
             else
             {
-                StatusIndicator.Fill = System.Windows.Media.Brushes.Red;
+                StatusIndicator.Fill = Brushes.Red;
                 SystemStatusText.Text = "SYSTEM OSKYDDAT";
             }
         }
@@ -363,7 +364,7 @@ namespace FilKollen
                 
                 var isAdmin = IsRunningAsAdministrator();
                 AdminStatusText.Text = isAdmin ? "Ja" : "Nej";
-                AdminStatusText.Foreground = isAdmin ? System.Windows.Media.Brushes.Green : System.Windows.Media.Brushes.Red;
+                AdminStatusText.Foreground = isAdmin ? Brushes.Green : Brushes.Red;
 
                 _ = Task.Run(async () =>
                 {
@@ -456,20 +457,20 @@ namespace FilKollen
                 if (IsIDSActive)
                 {
                     IDSStatusText.Text = "AKTIVERAT";
-                    IDSStatusText.Foreground = System.Windows.Media.Brushes.Green;
+                    IDSStatusText.Foreground = Brushes.Green;
                     IDSIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.Radar;
-                    IDSIcon.Foreground = System.Windows.Media.Brushes.Green;
+                    IDSIcon.Foreground = Brushes.Green;
                     SecurityIDSText.Text = "AKTIVERAT";
-                    SecurityIDSText.Foreground = System.Windows.Media.Brushes.Green;
+                    SecurityIDSText.Foreground = Brushes.Green;
                 }
                 else
                 {
                     IDSStatusText.Text = "INAKTIVERAT";
-                    IDSStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                    IDSStatusText.Foreground = Brushes.Red;
                     IDSIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.RadarOff;
-                    IDSIcon.Foreground = System.Windows.Media.Brushes.Red;
+                    IDSIcon.Foreground = Brushes.Red;
                     SecurityIDSText.Text = "INAKTIVERAT";
-                    SecurityIDSText.Foreground = System.Windows.Media.Brushes.Red;
+                    SecurityIDSText.Foreground = Brushes.Red;
                 }
 
                 IDSThreatsText.Text = $"{_intrusionDetection.TotalThreatsBlocked} hot blockerade";
@@ -1229,6 +1230,10 @@ namespace FilKollen
         public DateTime CreatedDate { get; set; }
         public string ThreatLevelColor { get; set; } = string.Empty;
 
+        public ThreatItemViewModel()
+        {
+        }
+
         public ThreatItemViewModel(ScanResult scanResult)
         {
             FileName = scanResult.FileName;
@@ -1282,9 +1287,9 @@ public static class VisualTreeHelpers
 {
     public static T? FindVisualChild<T>(this DependencyObject obj) where T : DependencyObject
     {
-        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
+        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(obj); i++)
         {
-            DependencyObject child = VisualTreeHelper.GetChild(obj, i);
+            DependencyObject child = System.Windows.Media.VisualTreeHelper.GetChild(obj, i);
             if (child != null && child is T)
                 return (T)child;
             else

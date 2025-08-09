@@ -603,22 +603,27 @@ namespace FilKollen.Services
         }
 
         // Placeholder-metoder för att undvika compilation errors
-        private async Task<int> RemoveMalwareNotificationsAdvancedAsync(string profilePath, string browserName)
-        {
-            await Task.Delay(100);
-            return 0;
-        }
+private async Task<int> RemoveMalwareNotificationsAdvancedAsync(string profilePath, string browserName)
+{
+    await Task.Yield(); // TILLAGD för att uppfylla async contract
+    
+    // Placeholder implementation - ersätt med riktig logik
+    return 0;
+}
 
-        private async Task<int> AnalyzeAndRemoveMaliciousExtensionsAsync(string profilePath, string browserName)
-        {
-            await Task.Delay(100);
-            return 0;
-        }
-
-        private async Task NukeAllBrowsingDataAsync(string profilePath, string browserName)
-        {
-            await Task.Delay(100);
-        }
+private async Task<int> AnalyzeAndRemoveMaliciousExtensionsAsync(string profilePath, string browserName)
+{
+    await Task.Yield(); // TILLAGD för att uppfylla async contract
+    
+    // Placeholder implementation - ersätt med riktig logik
+    return 0;
+}
+private async Task NukeAllBrowsingDataAsync(string profilePath, string browserName)
+{
+    await Task.Yield(); // TILLAGD för att uppfylla async contract
+    
+    // Placeholder implementation - ersätt med riktig logik
+}
 
         private async Task ApplyMaxSecuritySettingsAsync(string profilePath, string browserName)
         {

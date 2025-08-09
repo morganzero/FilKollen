@@ -79,39 +79,39 @@ namespace FilKollen.Services
             return IsDarkTheme;
         }
 
-private void ApplyTheme()
-{
-    try
-    {
-        Application.Current?.Dispatcher.Invoke(() =>
+        private void ApplyTheme()
         {
-            var paletteHelper = new PaletteHelper();
-            var theme = paletteHelper.GetTheme();
-
-            // Korrekt MaterialDesign v4 syntax
-            var baseTheme = IsDarkTheme ? BaseTheme.Dark : BaseTheme.Light;
-            theme.SetBaseTheme(baseTheme);
-
-            // Anpassa färger för FilKollen
-            if (IsDarkTheme)
+            try
             {
-                theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(102, 126, 234));
-                theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(255, 152, 0));
-            }
-            else
-            {
-                theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(33, 150, 243));
-                theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(255, 152, 0));
-            }
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    var paletteHelper = new PaletteHelper();
+                    var theme = paletteHelper.GetTheme();
 
-            paletteHelper.SetTheme(theme);
-        });
-    }
-    catch (Exception ex)
-    {
-        System.Diagnostics.Debug.WriteLine($"Failed to apply theme: {ex.Message}");
-    }
-}
+                    // KORRIGERAT: Använd korrekt MaterialDesign v4 syntax
+                    var baseTheme = IsDarkTheme ? BaseTheme.Dark : BaseTheme.Light;
+                    theme.SetBaseTheme(baseTheme);
+
+                    // Anpassa färger för FilKollen
+                    if (IsDarkTheme)
+                    {
+                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(102, 126, 234));
+                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(255, 152, 0));
+                    }
+                    else
+                    {
+                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(33, 150, 243));
+                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(255, 152, 0));
+                    }
+
+                    paletteHelper.SetTheme(theme);
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to apply theme: {ex.Message}");
+            }
+        }
 
         private void LoadThemeConfiguration()
         {

@@ -16,7 +16,7 @@ namespace FilKollen.Services
     {
         private readonly ILogger _logger;
         private readonly LogViewerService _logViewer;
-        private readonly TempFileScanner _fileScanner;
+        private readonly TempFileScanner _fileScanner; // KORRIGERAT namn
         private readonly QuarantineManager _quarantineManager;
         
         private System.Timers.Timer _monitoringTimer = null!;
@@ -77,7 +77,7 @@ namespace FilKollen.Services
         {
             _logger = logger;
             _logViewer = logViewer;
-            _tempFileScanner = tempFileScanner;
+            _fileScanner = fileScanner; // KORRIGERAT namn från _tempFileScanner
             _quarantineManager = quarantineManager;
             
             _fileWatchers = new List<FileSystemWatcher>();
@@ -197,31 +197,32 @@ namespace FilKollen.Services
             }
         }
 
-        private async Task StartProcessMonitoringAsync()
+private async Task StartProcessMonitoringAsync()
+{
+    _ = Task.Run(async () =>
+    {
+        while (!_cancellationTokenSource.Token.IsCancellationRequested)
         {
-            _ = Task.Run(async () =>
+            try
             {
-                while (!_cancellationTokenSource.Token.IsCancellationRequested)
-                {
-                    try
-                    {
-                        await MonitorRunningProcessesAsync();
-                        await Task.Delay(5000, _cancellationTokenSource.Token); // Kolla var 5:e sekund
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Warning($"Process monitoring error: {ex.Message}");
-                        await Task.Delay(10000, _cancellationTokenSource.Token);
-                    }
-                }
-            });
-            
-            _logViewer.AddLogEntry(LogLevel.Information, "IDS", "🔍 Process-övervakning aktiverad");
+                await MonitorRunningProcessesAsync();
+                await Task.Delay(5000, _cancellationTokenSource.Token); // Kolla var 5:e sekund
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Process monitoring error: {ex.Message}");
+                await Task.Delay(10000, _cancellationTokenSource.Token);
+            }
         }
+    });
+    
+    _logViewer.AddLogEntry(LogLevel.Information, "IDS", "🔍 Process-övervakning aktiverad");
+    await Task.Yield(); // TILLAGD för att uppfylla async contract
+}
 
         private async Task StartNetworkMonitoringAsync()
         {
@@ -245,18 +246,20 @@ namespace FilKollen.Services
                     }
                 }
             });
-            
+
             _logViewer.AddLogEntry(LogLevel.Information, "IDS", "🌐 Nätverks-övervakning aktiverad");
+            await Task.Yield(); // TILLAGD för att uppfylla async contract
         }
 
-        private async Task StartRegistryMonitoringAsync()
-        {
-            await Task.Yield();
-            // Registry monitoring är komplex och kräver WMI eller Registry notification API
-            // För MVP implementerar vi en periodisk kontroll istället
-            
-            _logViewer.AddLogEntry(LogLevel.Information, "IDS", "📋 Registry-övervakning aktiverad");
-        }
+private async Task StartRegistryMonitoringAsync()
+{
+    await Task.Yield(); // TILLAGD för att uppfylla async contract
+    
+    // Registry monitoring är komplex och kräver WMI eller Registry notification API
+    // För MVP implementerar vi en periodisk kontroll istället
+    
+    _logViewer.AddLogEntry(LogLevel.Information, "IDS", "📋 Registry-övervakning aktiverad");
+}
 
         private void StartPeriodicSystemCheck()
         {
@@ -451,179 +454,180 @@ namespace FilKollen.Services
                 return false;
             }
         }
-private readonly HashSet<string> _telegramBotIndicators = new()
-{
-    "api.telegram.org",
-    "sendDocument",
-    "savescreenshot", 
-    "nircmd.exe",
-    "Screenshot_",
-    "ScreenshotLog.txt",
-    "Invoke-WebRequest",
-    "Expand-Archive",
-    "bot[0-9]+:",
-    "chat_id=",
-    "/sendDocument"
-};
 
-private readonly HashSet<string> _suspiciousScreenshotPatterns = new()
-{
-    "savescreenshot",
-    "screenshot_",
-    "capture_screen",
-    "desktop_capture",
-    "screen_grab",
-    "printscreen"
-};
-
-private async Task<bool> DetectTelegramBotActivityAsync(string filePath)
-{
-    try
-    {
-        if (!File.Exists(filePath)) return false;
-        
-        var content = await File.ReadAllTextAsync(filePath);
-        var suspiciousCount = 0;
-        var detectedPatterns = new List<string>();
-        
-        // Kontrollera för Telegram bot-aktivitet
-        foreach (var indicator in _telegramBotIndicators)
+        private readonly HashSet<string> _telegramBotIndicators = new()
         {
-            if (content.Contains(indicator, StringComparison.OrdinalIgnoreCase))
+            "api.telegram.org",
+            "sendDocument",
+            "savescreenshot", 
+            "nircmd.exe",
+            "Screenshot_",
+            "ScreenshotLog.txt",
+            "Invoke-WebRequest",
+            "Expand-Archive",
+            "bot[0-9]+:",
+            "chat_id=",
+            "/sendDocument"
+        };
+
+        private readonly HashSet<string> _suspiciousScreenshotPatterns = new()
+        {
+            "savescreenshot",
+            "screenshot_",
+            "capture_screen",
+            "desktop_capture",
+            "screen_grab",
+            "printscreen"
+        };
+
+        private async Task<bool> DetectTelegramBotActivityAsync(string filePath)
+        {
+            try
             {
-                suspiciousCount++;
-                detectedPatterns.Add(indicator);
+                if (!File.Exists(filePath)) return false;
+                
+                var content = await File.ReadAllTextAsync(filePath);
+                var suspiciousCount = 0;
+                var detectedPatterns = new List<string>();
+                
+                // Kontrollera för Telegram bot-aktivitet
+                foreach (var indicator in _telegramBotIndicators)
+                {
+                    if (content.Contains(indicator, StringComparison.OrdinalIgnoreCase))
+                    {
+                        suspiciousCount++;
+                        detectedPatterns.Add(indicator);
+                    }
+                }
+                
+                // Kontrollera för screenshot-aktivitet 
+                foreach (var pattern in _suspiciousScreenshotPatterns)
+                {
+                    if (content.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        suspiciousCount++;
+                        detectedPatterns.Add($"screenshot:{pattern}");
+                    }
+                }
+                
+                // Om vi hittar 3+ indicators = troligt Telegram bot attack
+                if (suspiciousCount >= 3)
+                {
+                    var securityEvent = new SecurityEvent
+                    {
+                        EventType = "TELEGRAM_BOT_SPYWARE_DETECTED",
+                        Severity = SecuritySeverity.Critical,
+                        Description = $"🚨 TELEGRAM BOT SPYWARE: {Path.GetFileName(filePath)} - Skickar screenshots till Telegram",
+                        FilePath = filePath,
+                        ProcessName = "Telegram Bot Script",
+                        Timestamp = DateTime.Now
+                    };
+                    
+                    RecordSecurityEvent(securityEvent);
+                    
+                    // Omedelbar blockering och karantän
+                    await BlockTelegramBotThreatAsync(filePath, detectedPatterns);
+                    
+                    return true;
+                }
+                
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Error detecting Telegram bot activity in {filePath}: {ex.Message}");
+                return false;
             }
         }
-        
-        // Kontrollera för screenshot-aktivitet 
-        foreach (var pattern in _suspiciousScreenshotPatterns)
+
+        private async Task BlockTelegramBotThreatAsync(string filePath, List<string> detectedPatterns)
         {
-            if (content.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            try
             {
-                suspiciousCount++;
-                detectedPatterns.Add($"screenshot:{pattern}");
+                _logViewer.AddLogEntry(LogLevel.Error, "CRITICAL", 
+                    $"🚨 KRITISKT: TELEGRAM BOT SPYWARE DETEKTERAT - {Path.GetFileName(filePath)}");
+                
+                // 1. Sätt filen i karantän omedelbart
+                var scanResult = new ScanResult
+                {
+                    FilePath = filePath,
+                    ThreatLevel = ThreatLevel.Critical,
+                    Reason = $"Telegram Bot Spyware - Detekterade patterns: {string.Join(", ", detectedPatterns)}",
+                    FileSize = File.Exists(filePath) ? new FileInfo(filePath).Length : 0,
+                    CreatedDate = File.Exists(filePath) ? File.GetCreationTime(filePath) : DateTime.Now
+                };
+                
+                var quarantineResult = await _quarantineManager.QuarantineFileAsync(scanResult);
+                
+                if (quarantineResult)
+                {
+                    _logViewer.AddLogEntry(LogLevel.Information, "CRITICAL", 
+                        $"✅ Telegram bot spyware satt i karantän: {Path.GetFileName(filePath)}");
+                }
+                
+                // 2. Blockera nätverksanslutningar till Telegram (via hosts)
+                await BlockTelegramDomainsAsync();
+                
+                // 3. Sök efter relaterade filer (nircmd.exe, temp screenshots etc)
+                await CleanupTelegramBotArtifactsAsync();
+                
+                // 4. Trigger kritisk säkerhetsvarning
+                var alertArgs = new SecurityAlertEventArgs
+                {
+                    AlertType = "TELEGRAM_BOT_SPYWARE_BLOCKED",
+                    Message = "KRITISKT: Telegram Bot Spyware blockerat - skickar screenshots till attackerare",
+                    Severity = SecuritySeverity.Critical,
+                    ProcessName = "Telegram Bot Script",
+                    ProcessPath = filePath,
+                    ActionTaken = "Fil karantänerad, nätverksaccess blockerad, relaterade filer rensade"
+                };
+                
+                SecurityAlert?.Invoke(this, alertArgs);
+                
+                TotalThreatsBlocked++;
+                
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Fel vid blockering av Telegram bot threat: {ex.Message}");
             }
         }
-        
-        // Om vi hittar 3+ indicators = troligt Telegram bot attack
-        if (suspiciousCount >= 3)
-        {
-            var securityEvent = new SecurityEvent
-            {
-                EventType = "TELEGRAM_BOT_SPYWARE_DETECTED",
-                Severity = SecuritySeverity.Critical,
-                Description = $"🚨 TELEGRAM BOT SPYWARE: {Path.GetFileName(filePath)} - Skickar screenshots till Telegram",
-                FilePath = filePath,
-                ProcessName = "Telegram Bot Script",
-                Timestamp = DateTime.Now
-            };
-            
-            RecordSecurityEvent(securityEvent);
-            
-            // Omedelbar blockering och karantän
-            await BlockTelegramBotThreatAsync(filePath, detectedPatterns);
-            
-            return true;
-        }
-        
-        return false;
-    }
-    catch (Exception ex)
-    {
-        _logger.Warning($"Error detecting Telegram bot activity in {filePath}: {ex.Message}");
-        return false;
-    }
-}
 
-private async Task BlockTelegramBotThreatAsync(string filePath, List<string> detectedPatterns)
-{
-    try
-    {
-        _logViewer.AddLogEntry(LogLevel.Error, "CRITICAL", 
-            $"🚨 KRITISKT: TELEGRAM BOT SPYWARE DETEKTERAT - {Path.GetFileName(filePath)}");
-        
-        // 1. Sätt filen i karantän omedelbart
-        var scanResult = new ScanResult
+        private async Task BlockTelegramDomainsAsync()
         {
-            FilePath = filePath,
-            ThreatLevel = ThreatLevel.Critical,
-            Reason = $"Telegram Bot Spyware - Detekterade patterns: {string.Join(", ", detectedPatterns)}",
-            FileSize = File.Exists(filePath) ? new FileInfo(filePath).Length : 0,
-            CreatedDate = File.Exists(filePath) ? File.GetCreationTime(filePath) : DateTime.Now
-        };
-        
-        var quarantineResult = await _quarantineManager.QuarantineFileAsync(scanResult);
-        
-        if (quarantineResult)
-        {
-            _logViewer.AddLogEntry(LogLevel.Information, "CRITICAL", 
-                $"✅ Telegram bot spyware satt i karantän: {Path.GetFileName(filePath)}");
-        }
-        
-        // 2. Blockera nätverksanslutningar till Telegram (via hosts)
-        await BlockTelegramDomainsAsync();
-        
-        // 3. Sök efter relaterade filer (nircmd.exe, temp screenshots etc)
-        await CleanupTelegramBotArtifactsAsync();
-        
-        // 4. Trigger kritisk säkerhetsvarning
-        var alertArgs = new SecurityAlertEventArgs
-        {
-            AlertType = "TELEGRAM_BOT_SPYWARE_BLOCKED",
-            Message = "KRITISKT: Telegram Bot Spyware blockerat - skickar screenshots till attackerare",
-            Severity = SecuritySeverity.Critical,
-            ProcessName = "Telegram Bot Script",
-            ProcessPath = filePath,
-            ActionTaken = "Fil karantänerad, nätverksaccess blockerad, relaterade filer rensade"
-        };
-        
-        SecurityAlert?.Invoke(this, alertArgs);
-        
-        TotalThreatsBlocked++;
-        
-    }
-    catch (Exception ex)
-    {
-        _logger.Error($"Fel vid blockering av Telegram bot threat: {ex.Message}");
-    }
-}
-
-private async Task BlockTelegramDomainsAsync()
-{
-    try
-    {
-        var hostsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), 
-            "drivers", "etc", "hosts");
-        
-        if (!File.Exists(hostsPath)) return;
-        
-        var hostsContent = await File.ReadAllTextAsync(hostsPath);
-        
-        // Lägg till Telegram-blockering om den inte redan finns
-        if (!hostsContent.Contains("# FilKollen Telegram Bot Block"))
-        {
-            var telegramBlocks = new[]
+            try
             {
-                "\n# FilKollen Telegram Bot Block - START",
-                "0.0.0.0 api.telegram.org",
-                "0.0.0.0 telegram.org", 
-                "0.0.0.0 web.telegram.org",
-                "0.0.0.0 t.me",
-                "# FilKollen Telegram Bot Block - END\n"
-            };
-            
-            await File.AppendAllTextAsync(hostsPath, string.Join('\n', telegramBlocks));
-            
-            _logViewer.AddLogEntry(LogLevel.Information, "CRITICAL", 
-                "🛡️ Telegram-domäner blockerade via hosts-fil");
+                var hostsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), 
+                    "drivers", "etc", "hosts");
+                
+                if (!File.Exists(hostsPath)) return;
+                
+                var hostsContent = await File.ReadAllTextAsync(hostsPath);
+                
+                // Lägg till Telegram-blockering om den inte redan finns
+                if (!hostsContent.Contains("# FilKollen Telegram Bot Block"))
+                {
+                    var telegramBlocks = new[]
+                    {
+                        "\n# FilKollen Telegram Bot Block - START",
+                        "0.0.0.0 api.telegram.org",
+                        "0.0.0.0 telegram.org", 
+                        "0.0.0.0 web.telegram.org",
+                        "0.0.0.0 t.me",
+                        "# FilKollen Telegram Bot Block - END\n"
+                    };
+                    
+                    await File.AppendAllTextAsync(hostsPath, string.Join('\n', telegramBlocks));
+                    
+                    _logViewer.AddLogEntry(LogLevel.Information, "CRITICAL", 
+                        "🛡️ Telegram-domäner blockerade via hosts-fil");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Kunde inte blockera Telegram-domäner: {ex.Message}");
+            }
         }
-    }
-    catch (Exception ex)
-    {
-        _logger.Warning($"Kunde inte blockera Telegram-domäner: {ex.Message}");
-    }
-}
 
         private async Task CleanupTelegramBotArtifactsAsync()
         {
@@ -631,10 +635,10 @@ private async Task BlockTelegramDomainsAsync()
             {
                 var tempPaths = new[]
                 {
-            Environment.GetEnvironmentVariable("TEMP"),
-            Environment.GetEnvironmentVariable("TMP"),
-            @"C:\Windows\Temp"
-        };
+                    Environment.GetEnvironmentVariable("TEMP"),
+                    Environment.GetEnvironmentVariable("TMP"),
+                    @"C:\Windows\Temp"
+                };
 
                 var suspiciousFiles = new List<string>();
 
@@ -695,17 +699,6 @@ private async Task BlockTelegramDomainsAsync()
             }
         }
 
-        private readonly HashSet<string> _malwareNetworkIndicators = new()
-{
-    "api.telegram.org",
-    "t.me/",
-    "discord.com/api/webhooks",
-    "pastebin.com/raw/",
-    "nircmd.exe",
-    "savescreenshot",
-    "Invoke-WebRequest",
-    "/sendDocument"
-};
         private bool IsInSuspiciousLocation(string filePath)
         {
             var suspiciousLocations = new[]
@@ -976,23 +969,23 @@ private async Task BlockTelegramDomainsAsync()
                     "🔍 Genomför periodisk säkerhetskontroll...");
                 
                 // 1. Snabb temp-fil scan
-        var tempResults = await _tempFileScanner.ScanTempDirectoriesAsync();
-        var threats = tempResults.Where(r => r.ThreatLevel >= ThreatLevel.Medium).ToList();
+                var tempResults = await _fileScanner.ScanTempDirectoriesAsync();
+                var threats = tempResults.Where(r => r.ThreatLevel >= ThreatLevel.Medium).ToList();
                 
-        foreach (var threat in threats.ToList())
-        {
-            var isTelegramBot = await DetectTelegramBotActivityAsync(threat.FilePath);
-            if (isTelegramBot)
-            {
-                // Telegram bot-hot hanteras redan i DetectTelegramBotActivityAsync
-                threats.Remove(threat);
-            }
-        }
+                foreach (var threat in threats.ToList())
+                {
+                    var isTelegramBot = await DetectTelegramBotActivityAsync(threat.FilePath);
+                    if (isTelegramBot)
+                    {
+                        // Telegram bot-hot hanteras redan i DetectTelegramBotActivityAsync
+                        threats.Remove(threat);
+                    }
+                }
                 
-        foreach (var threat in threats)
-        {
-            await HandleSecurityThreatAsync(threat, "PERIODIC_SCAN", "Periodisk säkerhetskontroll");
-        }
+                foreach (var threat in threats)
+                {
+                    await HandleSecurityThreatAsync(threat, "PERIODIC_SCAN", "Periodisk säkerhetskontroll");
+                }
 
                 // 2. Kontrollera registry för nya startup-poster
                 await CheckRegistryStartupChangesAsync();
