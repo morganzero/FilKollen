@@ -22,7 +22,7 @@ namespace FilKollen.Services
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "FilKollen", "Quarantine");
             _metadataFile = Path.Combine(_quarantinePath, "metadata.json");
-            
+
             EnsureQuarantineDirectoryExists();
         }
 
@@ -55,20 +55,20 @@ namespace FilKollen.Services
 
                 var quarantineId = Guid.NewGuid().ToString();
                 var quarantinedFilePath = Path.Combine(_quarantinePath, $"{quarantineId}.quarantine");
-                
+
                 // Kopiera fil till karantän först (säkrare än move)
                 File.Copy(scanResult.FilePath, quarantinedFilePath, overwrite: true);
-                
+
                 // Verifiera att kopieringen lyckades
                 if (!File.Exists(quarantinedFilePath))
                 {
                     _logger.Error($"Kopiering till karantän misslyckades: {scanResult.FilePath}");
                     return false;
                 }
-                
+
                 // Ta bort originalfilen EFTER framgångsrik kopiering
                 await SecureDeleteAsync(scanResult.FilePath);
-                
+
                 // Spara metadata
                 var metadata = await LoadMetadataAsync();
                 metadata[quarantineId] = new QuarantineItem
@@ -79,9 +79,9 @@ namespace FilKollen.Services
                     ScanResult = scanResult,
                     QuarantinedFilePath = quarantinedFilePath
                 };
-                
+
                 await SaveMetadataAsync(metadata);
-                
+
                 _logger.Information($"Fil karantänerad: {scanResult.FilePath} -> {quarantineId}");
                 return true;
             }
@@ -104,7 +104,7 @@ namespace FilKollen.Services
 
                 // Säker borttagning - skriv över med random data först
                 await SecureDeleteAsync(scanResult.FilePath);
-                
+
                 _logger.Information($"Fil säkert raderad: {scanResult.FilePath}");
                 return true;
             }
@@ -125,7 +125,7 @@ namespace FilKollen.Services
                 foreach (var kvp in metadata)
                 {
                     var item = kvp.Value;
-                    
+
                     // Kontrollera att karantänfilen fortfarande finns
                     if (File.Exists(item.QuarantinedFilePath))
                     {
@@ -158,7 +158,7 @@ namespace FilKollen.Services
                 }
 
                 var item = metadata[quarantineId];
-                
+
                 // Kontrollera att karantänfilen finns
                 if (!File.Exists(item.QuarantinedFilePath))
                 {
@@ -175,11 +175,11 @@ namespace FilKollen.Services
 
                 // Återställ fil till original plats
                 File.Move(item.QuarantinedFilePath, item.OriginalPath, overwrite: true);
-                
+
                 // Ta bort från metadata
                 metadata.Remove(quarantineId);
                 await SaveMetadataAsync(metadata);
-                
+
                 _logger.Information($"Fil återställd från karantän: {item.OriginalPath}");
                 return true;
             }
@@ -197,7 +197,7 @@ namespace FilKollen.Services
                 var metadata = await LoadMetadataAsync();
                 var expiredItems = new List<string>();
                 var cutoffDate = DateTime.UtcNow.AddDays(-retentionDays);
-                
+
                 foreach (var kvp in metadata)
                 {
                     if (kvp.Value.QuarantineDate < cutoffDate)
@@ -205,7 +205,7 @@ namespace FilKollen.Services
                         expiredItems.Add(kvp.Key);
                     }
                 }
-                
+
                 foreach (var id in expiredItems)
                 {
                     await DeleteQuarantinedFileAsync(id);
@@ -232,17 +232,17 @@ namespace FilKollen.Services
                 }
 
                 var item = metadata[quarantineId];
-                
+
                 // Radera karantänfilen säkert
                 if (File.Exists(item.QuarantinedFilePath))
                 {
                     await SecureDeleteAsync(item.QuarantinedFilePath);
                 }
-                
+
                 // Ta bort från metadata
                 metadata.Remove(quarantineId);
                 await SaveMetadataAsync(metadata);
-                
+
                 _logger.Information($"Karantänfil permanent raderad: {quarantineId}");
                 return true;
             }
@@ -262,17 +262,17 @@ namespace FilKollen.Services
 
                 var fileInfo = new FileInfo(filePath);
                 var fileSize = fileInfo.Length;
-                
+
                 // Skriv över med random data 3 gånger
                 using (var fs = File.OpenWrite(filePath))
                 {
                     var buffer = new byte[4096];
-                    
+
                     for (int pass = 0; pass < 3; pass++)
                     {
                         fs.Seek(0, SeekOrigin.Begin);
                         var random = new Random();
-                        
+
                         for (long written = 0; written < fileSize; written += buffer.Length)
                         {
                             var bytesToWrite = (int)Math.Min(buffer.Length, fileSize - written);
@@ -282,7 +282,7 @@ namespace FilKollen.Services
                         await fs.FlushAsync();
                     }
                 }
-                
+
                 // Radera filen efter överskrivning
                 File.Delete(filePath);
             }
@@ -307,7 +307,7 @@ namespace FilKollen.Services
             {
                 return new Dictionary<string, QuarantineItem>();
             }
-                
+
             try
             {
                 var json = await File.ReadAllTextAsync(_metadataFile);
@@ -317,7 +317,7 @@ namespace FilKollen.Services
             catch (Exception ex)
             {
                 _logger.Warning($"Kunde inte läsa karantän-metadata: {ex.Message}");
-                
+
                 // Backup corrupted metadata
                 var backupFile = _metadataFile + ".backup." + DateTime.Now.Ticks;
                 try
@@ -326,7 +326,7 @@ namespace FilKollen.Services
                     _logger.Information($"Korrupt metadata säkerhetskopierad till: {backupFile}");
                 }
                 catch { }
-                
+
                 return new Dictionary<string, QuarantineItem>();
             }
         }
@@ -335,15 +335,15 @@ namespace FilKollen.Services
         {
             try
             {
-                var json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions 
-                { 
-                    WriteIndented = true 
+                var json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions
+                {
+                    WriteIndented = true
                 });
-                
+
                 // Atomisk skrivning - skriv till temp-fil först
                 var tempFile = _metadataFile + ".temp";
                 await File.WriteAllTextAsync(tempFile, json);
-                
+
                 // Ersätt originalfilen atomiskt
                 File.Move(tempFile, _metadataFile, overwrite: true);
             }
@@ -399,11 +399,11 @@ namespace FilKollen.Services
         public string QuarantinedFilePath { get; set; } = string.Empty;
         public DateTime QuarantineDate { get; set; }
         public ScanResult ScanResult { get; set; } = new();
-        
+
         public string FormattedSize => FormatFileSize(ScanResult.FileSize);
         public string FormattedDate => QuarantineDate.ToString("yyyy-MM-dd HH:mm");
         public int DaysInQuarantine => (int)(DateTime.UtcNow - QuarantineDate).TotalDays;
-        
+
         private string FormatFileSize(long bytes)
         {
             string[] sizes = { "B", "KB", "MB", "GB" };
@@ -424,7 +424,7 @@ namespace FilKollen.Services
         public long TotalSizeBytes { get; set; }
         public DateTime OldestDate { get; set; }
         public DateTime NewestDate { get; set; }
-        
+
         public string FormattedTotalSize
         {
             get
@@ -441,4 +441,26 @@ namespace FilKollen.Services
             }
         }
     }
+    
+    // Lägg till i QuarantineManager.cs
+public async Task<QuarantineResult> QuarantineFileAsync(string filePath, string reason, ThreatLevel level)
+{
+    var scanResult = new ScanResult
+    {
+        FilePath = filePath,
+        ThreatLevel = level,
+        Reason = reason,
+        FileSize = File.Exists(filePath) ? new FileInfo(filePath).Length : 0,
+        CreatedDate = File.Exists(filePath) ? File.GetCreationTime(filePath) : DateTime.Now,
+        LastModified = File.Exists(filePath) ? File.GetLastWriteTime(filePath) : DateTime.Now
+    };
+    
+    var success = await QuarantineFileAsync(scanResult);
+    return new QuarantineResult { Success = success };
+}
+
+public class QuarantineResult
+{
+    public bool Success { get; set; }
+}
 }

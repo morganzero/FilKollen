@@ -14,7 +14,8 @@
     <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <FileVersion>2.0.0.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Resources\Icons\filkollen.ico</ApplicationIcon>
+    <!-- Kommenterar ut icon tills filen skapas -->
+    <!-- <ApplicationIcon>Resources\Icons\filkollen.ico</ApplicationIcon> -->
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -64,10 +65,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Embedded Resources -->
-    <EmbeddedResource Include="Resources\Branding\default-logo.png" />
-    <EmbeddedResource Include="Resources\Icons\filkollen.ico" />
-    
     <!-- Content files som ska kopieras -->
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
