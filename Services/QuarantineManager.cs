@@ -1,153 +1,115 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq; // <-- för SequenceEqual
 using System.Security.Cryptography;
-using System.Text.Json;
-using System.Threading.Tasks;
-using FilKollen.Models;
-using Serilog;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FilKollen.Models;
+using Serilog;
 
 namespace FilKollen.Services
 {
-    
-        public partial class QuarantineManager
+    public class QuarantineManager
     {
+        private readonly ILogger _logger;
+        private readonly string _quarantinePath;
+        private readonly string _metadataFile;
+
         private readonly SemaphoreSlim _operationSemaphore = new(1, 1);
-        private readonly object _metadataLock = new object();
-        
-        // FÖRBÄTTRING: Thread-safe quarantine operations med atomic updates
-        public async Task<QuarantineResult> QuarantineFileAtomicAsync(string filePath, string reason, ThreatLevel level)
+
+        public QuarantineManager(ILogger logger)
+        {
+            _logger = logger;
+            _quarantinePath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "FilKollen", "Quarantine");
+            Directory.CreateDirectory(_quarantinePath);
+            _metadataFile = Path.Combine(_quarantinePath, "metadata.json");
+            if (!File.Exists(_metadataFile)) File.WriteAllText(_metadataFile, "{}");
+        }
+
+        // === Publika API:er som övrig kod baserar sig på (bool-retur) ===
+
+        public Task<bool> DeleteFileAsync(ScanResult scan) =>
+            DeleteFileAsync(scan.FilePath);
+
+        public async Task<bool> DeleteFileAsync(string filePath)
+        {
+            try { await SecureDeleteAsync(filePath); return true; }
+            catch (Exception ex) { _logger.Warning("DeleteFileAsync misslyckades: {Msg}", ex.Message); return false; }
+        }
+
+        public Task<bool> QuarantineFileAsync(ScanResult scan)
+            => QuarantineFileAsync(scan.FilePath, scan.Reason, scan.ThreatLevel);
+
+        public Task<bool> QuarantineFileAsync(string filePath, string reason, SecuritySeverity severity)
+            => QuarantineFileAsync(filePath, reason, MapSeverity(severity));
+
+        public async Task<bool> QuarantineFileAsync(string filePath, string reason, ThreatLevel level)
+        {
+            var result = await QuarantineFileWithResultAsync(filePath, reason, level);
+            return result.Success;
+        }
+
+        // === Detaljerat resultat (används internt) ===
+        public async Task<QuarantineResult> QuarantineFileWithResultAsync(string filePath, string reason, ThreatLevel level)
         {
             if (!File.Exists(filePath))
-            {
-                return new QuarantineResult 
-                { 
-                    Success = false, 
-                    ErrorMessage = "Fil finns inte",
-                    FilePath = filePath 
-                };
-            }
+                return new QuarantineResult { Success = false, ErrorMessage = "Fil finns inte", FilePath = filePath };
 
             await _operationSemaphore.WaitAsync();
-            
             try
             {
-                var quarantineId = Guid.NewGuid().ToString();
-                var quarantinedFilePath = Path.Combine(_quarantinePath, $"{quarantineId}.quarantine");
-                var tempMetadataPath = _metadataFile + ".tmp";
-                
-                // Steg 1: Skapa backup av metadata
-                var backupMetadataPath = _metadataFile + $".backup.{DateTime.Now:yyyyMMddHHmmss}";
-                if (File.Exists(_metadataFile))
+                var id = Guid.NewGuid().ToString();
+                var dest = Path.Combine(_quarantinePath, $"{id}.quarantine");
+
+                var copy = await SafeCopyFileAsync(filePath, dest);
+                if (!copy.Success)
+                    return new QuarantineResult { Success = false, ErrorMessage = copy.ErrorMessage ?? copy.Error, FilePath = filePath };
+
+                if (!await VerifyFileCopyAsync(filePath, dest))
                 {
-                    File.Copy(_metadataFile, backupMetadataPath, true);
+                    TryDelete(dest);
+                    return new QuarantineResult { Success = false, ErrorMessage = "Filkopiering misslyckades verifiering", FilePath = filePath };
                 }
-                
-                try
+
+                var scan = new ScanResult
                 {
-                    // Steg 2: Säkert kopiera fil till karantän
-                    var copyResult = await SafeCopyFileAsync(filePath, quarantinedFilePath);
-                    if (!copyResult.Success)
-                    {
-                        return new QuarantineResult 
-                        { 
-                            Success = false, 
-                            ErrorMessage = copyResult.ErrorMessage,
-                            FilePath = filePath 
-                        };
-                    }
-                    
-                    // Steg 3: Verifiera kopia
-                    if (!await VerifyFileCopyAsync(filePath, quarantinedFilePath))
-                    {
-                        File.Delete(quarantinedFilePath);
-                        return new QuarantineResult 
-                        { 
-                            Success = false, 
-                            ErrorMessage = "Filkopiering misslyckades verifiering",
-                            FilePath = filePath 
-                        };
-                    }
-                    
-                    // Steg 4: Uppdatera metadata atomiskt
-                    var scanResult = new ScanResult
-                    {
-                        FilePath = filePath,
-                        ThreatLevel = level,
-                        Reason = reason,
-                        FileSize = new FileInfo(filePath).Length,
-                        CreatedDate = File.GetCreationTime(filePath),
-                        LastModified = File.GetLastWriteTime(filePath)
-                    };
-                    
-                    var metadata = await LoadMetadataAsync();
-                    metadata[quarantineId] = new QuarantineItem
-                    {
-                        Id = quarantineId,
-                        OriginalPath = filePath,
-                        QuarantineDate = DateTime.UtcNow,
-                        ScanResult = scanResult,
-                        QuarantinedFilePath = quarantinedFilePath
-                    };
-                    
-                    // Skriv till temp-fil först
-                    await SaveMetadataToFileAsync(metadata, tempMetadataPath);
-                    
-                    // Atomisk ersättning
-                    File.Move(tempMetadataPath, _metadataFile, true);
-                    
-                    // Steg 5: Ta bort originalfil EFTER framgångsrik metadata-uppdatering
-                    await SecureDeleteAsync(filePath);
-                    
-                    // Rensa backup
-                    File.Delete(backupMetadataPath);
-                    
-                    _logger.Information($"Fil atomiskt karantänerad: {filePath} -> {quarantineId}");
-                    
-                    return new QuarantineResult 
-                    { 
-                        Success = true, 
-                        QuarantineId = quarantineId,
-                        FilePath = filePath 
-                    };
-                }
-                catch (Exception ex)
+                    FileName = Path.GetFileName(filePath),
+                    FilePath = filePath,
+                    ThreatLevel = level,
+                    Reason = reason,
+                    FileSize = new FileInfo(filePath).Length,
+                    CreatedDate = File.GetCreationTime(filePath),
+                    LastModified = File.GetLastWriteTime(filePath)
+                };
+
+                var meta = await LoadMetadataAsync();
+                meta[id] = new QuarantineItem
                 {
-                    // Rollback: Återställ från backup
-                    try
-                    {
-                        if (File.Exists(quarantinedFilePath))
-                            File.Delete(quarantinedFilePath);
-                            
-                        if (File.Exists(tempMetadataPath))
-                            File.Delete(tempMetadataPath);
-                            
-                        if (File.Exists(backupMetadataPath))
-                        {
-                            File.Move(backupMetadataPath, _metadataFile, true);
-                        }
-                    }
-                    catch (Exception rollbackEx)
-                    {
-                        _logger.Error($"Rollback misslyckades: {rollbackEx.Message}");
-                    }
-                    
-                    throw;
-                }
+                    Id = id,
+                    OriginalPath = filePath,
+                    QuarantinedPath = dest,
+                    QuarantinedFilePath = dest,
+                    Reason = reason,
+                    ThreatLevel = level,
+                    Timestamp = DateTime.Now,
+                    QuarantineDate = DateTime.Now,
+                    ScanResult = scan
+                };
+                await SaveMetadataAsync(meta);
+
+                await SecureDeleteAsync(filePath);
+
+                _logger.Information("Fil satt i karantän: {File} -> {Id}", filePath, id);
+                return new QuarantineResult { Success = true, FilePath = filePath, QuarantineId = id, QuarantinedPath = dest };
             }
             catch (Exception ex)
             {
-                _logger.Error($"Atomisk karantän misslyckades för {filePath}: {ex.Message}");
-                return new QuarantineResult 
-                { 
-                    Success = false, 
-                    ErrorMessage = ex.Message,
-                    FilePath = filePath 
-                };
+                _logger.Error(ex, "Karantän misslyckades för {File}", filePath);
+                return new QuarantineResult { Success = false, ErrorMessage = ex.Message, FilePath = filePath };
             }
             finally
             {
@@ -155,90 +117,108 @@ namespace FilKollen.Services
             }
         }
 
-        private async Task<CopyResult> SafeCopyFileAsync(string sourcePath, string destinationPath)
-        {
-            const int MaxRetries = 3;
-            const int BufferSize = 64 * 1024; // 64KB
-            
-            for (int attempt = 1; attempt <= MaxRetries; attempt++)
-            {
-                try
-                {
-                    using var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
-                    using var destination = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true);
-                    
-                    await source.CopyToAsync(destination);
-                    await destination.FlushAsync();
-                    
-                    return new CopyResult { Success = true };
-                }
-                catch (IOException ex) when (attempt < MaxRetries)
-                {
-                    _logger.Warning($"Kopiering misslyckades, försök {attempt}/{MaxRetries}: {ex.Message}");
-                    await Task.Delay(1000 * attempt);
-                }
-                catch (Exception ex)
-                {
-                    return new CopyResult 
-                    { 
-                        Success = false, 
-                        ErrorMessage = $"Kopiering misslyckades: {ex.Message}" 
-                    };
-                }
-            }
-            
-            return new CopyResult 
-            { 
-                Success = false, 
-                ErrorMessage = $"Kopiering misslyckades efter {MaxRetries} försök" 
-            };
-        }
+        // === Helpers ===
 
-        private async Task<bool> VerifyFileCopyAsync(string originalPath, string copyPath)
+        private static ThreatLevel MapSeverity(SecuritySeverity s) => s switch
+        {
+            SecuritySeverity.Critical => ThreatLevel.Critical,
+            SecuritySeverity.High     => ThreatLevel.High,
+            SecuritySeverity.Medium   => ThreatLevel.Medium,
+            _                         => ThreatLevel.Low
+        };
+
+        private async Task<Dictionary<string, QuarantineItem>> LoadMetadataAsync()
         {
             try
             {
-                var originalInfo = new FileInfo(originalPath);
-                var copyInfo = new FileInfo(copyPath);
-                
-                // Kontrollera filstorlek
-                if (originalInfo.Length != copyInfo.Length)
-                {
-                    _logger.Warning($"Filstorlek skiljer sig: {originalInfo.Length} vs {copyInfo.Length}");
-                    return false;
-                }
-                
-                // För små filer, verifiera byte-för-byte
-                if (originalInfo.Length < 10 * 1024 * 1024) // 10MB
-                {
-                    var originalBytes = await File.ReadAllBytesAsync(originalPath);
-                    var copyBytes = await File.ReadAllBytesAsync(copyPath);
-                    
-                    return originalBytes.SequenceEqual(copyBytes);
-                }
-                
-                // För stora filer, kontrollera bara storlek och datum
-                return true;
+                if (!File.Exists(_metadataFile)) return new();
+                using var fs = File.OpenRead(_metadataFile);
+                return await JsonSerializer.DeserializeAsync<Dictionary<string, QuarantineItem>>(fs) ?? new();
             }
-            catch (Exception ex)
-            {
-                _logger.Warning($"Fil-verifiering misslyckades: {ex.Message}");
-                return false;
-            }
+            catch { return new(); }
         }
 
-        private async Task SaveMetadataToFileAsync(Dictionary<string, QuarantineItem> metadata, string filePath)
+        private async Task SaveMetadataAsync(Dictionary<string, QuarantineItem> meta)
         {
-            var json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions
+            var json = JsonSerializer.Serialize(meta, new JsonSerializerOptions
             {
                 WriteIndented = true,
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
+            var tmp = _metadataFile + ".writing";
+            await File.WriteAllTextAsync(tmp, json);
+            if (File.Exists(_metadataFile)) File.Delete(_metadataFile);
+            File.Move(tmp, _metadataFile);
+        }
 
-            // Skriv till temp-fil först för atomisk operation
-            var tempPath = filePath + ".writing";
-            await File.WriteAllTextAsync(tempPath, json);
-            File.Move(tempPath, filePath, true);
+        private async Task SecureDeleteAsync(string filePath)
+        {
+            try
+            {
+                if (!File.Exists(filePath)) return;
+                var fi = new FileInfo(filePath);
+                if (fi.Length <= 1024 * 1024)
+                {
+                    var rnd = new byte[fi.Length];
+                    RandomNumberGenerator.Fill(rnd);
+                    await File.WriteAllBytesAsync(filePath, rnd);
+                }
+                File.Delete(filePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning("SecureDelete misslyckades för {File}: {Msg}", filePath, ex.Message);
+                TryDelete(filePath);
+            }
+        }
+
+        private void TryDelete(string path) { try { if (File.Exists(path)) File.Delete(path); } catch { } }
+
+        private async Task<CopyResult> SafeCopyFileAsync(string src, string dest)
+        {
+            const int MaxRetries = 3, BufferSize = 64 * 1024;
+            for (int attempt = 1; attempt <= MaxRetries; attempt++)
+            {
+                try
+                {
+                    using var s = new FileStream(src, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
+                    using var d = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true);
+                    await s.CopyToAsync(d);
+                    await d.FlushAsync();
+                    return new CopyResult { Success = true, DestinationPath = dest };
+                }
+                catch (IOException ex) when (attempt < MaxRetries)
+                {
+                    _logger.Warning("Kopiering misslyckades, försök {Attempt}/{Max}: {Msg}", attempt, MaxRetries, ex.Message);
+                    await Task.Delay(1000 * attempt);
+                }
+                catch (Exception ex)
+                {
+                    return new CopyResult { Success = false, ErrorMessage = $"Kopiering misslyckades: {ex.Message}" };
+                }
+            }
+            return new CopyResult { Success = false, ErrorMessage = "Kopiering misslyckades efter upprepade försök" };
+        }
+
+        private async Task<bool> VerifyFileCopyAsync(string a, string b)
+        {
+            try
+            {
+                var fa = new FileInfo(a); var fb = new FileInfo(b);
+                if (fa.Length != fb.Length) return false;
+                if (fa.Length < 10 * 1024 * 1024)
+                {
+                    var ba = await File.ReadAllBytesAsync(a);
+                    var bb = await File.ReadAllBytesAsync(b);
+                    return ba.SequenceEqual(bb);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning("Fil-verifiering misslyckades: {Msg}", ex.Message);
+                return false;
+            }
         }
     }
 }

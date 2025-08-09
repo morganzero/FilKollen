@@ -85,12 +85,16 @@ namespace FilKollen.Services
             {
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    var paletteHelper = new PaletteHelper();
-                    var theme = paletteHelper.GetTheme();
+var paletteHelper = new MaterialDesignThemes.Wpf.PaletteHelper();
+var theme = paletteHelper.GetTheme();
 
-                    // KORRIGERAT: Använd korrekt MaterialDesign v4 syntax
-                    var baseTheme = IsDarkTheme ? BaseTheme.Dark : BaseTheme.Light;
-                    theme.SetBaseTheme(baseTheme);
+MaterialDesignThemes.Wpf.IBaseTheme baseTheme =
+    useDarkTheme
+        ? new MaterialDesignThemes.Wpf.MaterialDesignDarkTheme()
+        : new MaterialDesignThemes.Wpf.MaterialDesignLightTheme();
+
+theme.SetBaseTheme(baseTheme);
+paletteHelper.SetTheme(theme);
 
                     // Anpassa färger för FilKollen
                     if (IsDarkTheme)
