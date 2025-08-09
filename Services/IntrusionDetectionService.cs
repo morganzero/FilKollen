@@ -5,10 +5,13 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Timers;
+using Timer = System.Timers.Timer;
 using FilKollen.Models;
 using FilKollen.Services;
 using Serilog;
+using System.Collections.Concurrent;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FilKollen.Services
 {
@@ -1466,4 +1469,3 @@ namespace FilKollen.Services
         High,
         Critical
     }
-}
