@@ -12,23 +12,237 @@ using Serilog;
 
 namespace FilKollen.Services
 {
+
+    public partial class IntrusionDetectionService
+    {
+        private readonly ConcurrentQueue<SecurityEvent> _eventQueue = new();
+        private readonly Timer _eventProcessingTimer;
+        private readonly object _processMonitorLock = new object();
+        
+        // FÖRBÄTTRING: Robust process monitoring med rate limiting
+        private async Task MonitorRunningProcessesAsync()
+        {
+            const int MaxProcessesPerScan = 500;
+            const int ProcessScanIntervalMs = 5000;
+            
+            try
+            {
+                var processes = Process.GetProcesses()
+                    .Take(MaxProcessesPerScan)
+                    .Where(p => !p.HasExited)
+                    .ToList();
+
+                var processAnalysisTasks = new List<Task>();
+                var semaphore = new SemaphoreSlim(Environment.ProcessorCount, Environment.ProcessorCount);
+
+                foreach (var process in processes)
+                {
+                    processAnalysisTasks.Add(AnalyzeProcessSafelyAsync(process, semaphore));
+                }
+
+                // Vänta på alla analyser med timeout
+                var allAnalysisTask = Task.WhenAll(processAnalysisTasks);
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
+                
+                var completedTask = await Task.WhenAny(allAnalysisTask, timeoutTask);
+                
+                if (completedTask == timeoutTask)
+                {
+                    _logger.Warning("Process analysis timeout - vissa processer hoppades över");
+                }
+
+                // Cleanup
+                foreach (var process in processes)
+                {
+                    try
+                    {
+                        process.Dispose();
+                    }
+                    catch
+                    {
+                        // Ignorera disposal errors
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Process monitoring error: {ex.Message}");
+            }
+        }
+
+        private async Task AnalyzeProcessSafelyAsync(Process process, SemaphoreSlim semaphore)
+        {
+            await semaphore.WaitAsync();
+            
+            try
+            {
+                // Timeout för process-analys
+                using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                
+                await Task.Run(() => AnalyzeProcessInternal(process), cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Debug($"Process analysis timeout for PID: {process.Id}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Process analysis error for PID: {process.Id} - {ex.Message}");
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
+
+        private void AnalyzeProcessInternal(Process process)
+        {
+            try
+            {
+                if (process.HasExited) return;
+                
+                var processName = process.ProcessName.ToLowerInvariant();
+                
+                // Rate limiting per process name
+                if (!ShouldAnalyzeProcess(processName)) return;
+                
+                // Snabb kolla mot kända malware-processer
+                if (_knownMalwareProcesses.Any(malware => processName.Contains(malware)))
+                {
+                    QueueSecurityEvent(new SecurityEvent
+                    {
+                        EventType = "KNOWN_MALWARE_PROCESS_DETECTED",
+                        Severity = SecuritySeverity.Critical,
+                        Description = $"Känd malware-process upptäckt: {processName}",
+                        ProcessName = processName,
+                        ProcessId = process.Id,
+                        Timestamp = DateTime.Now
+                    });
+                    return;
+                }
+                
+                // Ytterligare analys för suspekta processer
+                if (IsProcessSuspicious(process))
+                {
+                    QueueSecurityEvent(new SecurityEvent
+                    {
+                        EventType = "SUSPICIOUS_PROCESS_BEHAVIOR",
+                        Severity = SecuritySeverity.High,
+                        Description = $"Suspekt process-beteende: {processName}",
+                        ProcessName = processName,
+                        ProcessId = process.Id,
+                        Timestamp = DateTime.Now
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Internal process analysis error: {ex.Message}");
+            }
+        }
+
+        private readonly Dictionary<string, DateTime> _lastProcessCheck = new();
+        private readonly TimeSpan _processCheckCooldown = TimeSpan.FromSeconds(30);
+
+        private bool ShouldAnalyzeProcess(string processName)
+        {
+            lock (_processMonitorLock)
+            {
+                if (_lastProcessCheck.TryGetValue(processName, out var lastCheck))
+                {
+                    if (DateTime.Now - lastCheck < _processCheckCooldown)
+                    {
+                        return false;
+                    }
+                }
+                
+                _lastProcessCheck[processName] = DateTime.Now;
+                return true;
+            }
+        }
+
+        private void QueueSecurityEvent(SecurityEvent securityEvent)
+        {
+            _eventQueue.Enqueue(securityEvent);
+            
+            // Begränsa kö-storlek
+            while (_eventQueue.Count > 1000)
+            {
+                _eventQueue.TryDequeue(out _);
+            }
+        }
+
+        private void ProcessSecurityEvents()
+        {
+            const int MaxEventsPerBatch = 10;
+            var processedCount = 0;
+            
+            while (_eventQueue.TryDequeue(out var securityEvent) && processedCount < MaxEventsPerBatch)
+            {
+                try
+                {
+                    ProcessSecurityEventInternal(securityEvent);
+                    processedCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning($"Error processing security event: {ex.Message}");
+                }
+            }
+        }
+
+        private void ProcessSecurityEventInternal(SecurityEvent securityEvent)
+        {
+            // Implementera event-hantering här
+            RecordSecurityEvent(securityEvent);
+            
+            if (securityEvent.Severity >= SecuritySeverity.High)
+            {
+                // Trigger alerts för höga hot
+                TriggerSecurityAlert(securityEvent);
+            }
+        }
+
+        private void TriggerSecurityAlert(SecurityEvent securityEvent)
+        {
+            try
+            {
+                var alertArgs = new SecurityAlertEventArgs
+                {
+                    AlertType = securityEvent.EventType,
+                    Message = securityEvent.Description,
+                    Severity = securityEvent.Severity,
+                    ProcessName = securityEvent.ProcessName ?? "Unknown",
+                    ProcessPath = securityEvent.FilePath ?? "Unknown",
+                    ActionTaken = "Event logged and monitored"
+                };
+                
+                SecurityAlert?.Invoke(this, alertArgs);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Error triggering security alert: {ex.Message}");
+            }
+        }
+    }
+}
     public class IntrusionDetectionService : IDisposable
     {
         private readonly ILogger _logger;
         private readonly LogViewerService _logViewer;
         private readonly TempFileScanner _fileScanner; // KORRIGERAT namn
         private readonly QuarantineManager _quarantineManager;
-        
+
         private System.Timers.Timer _monitoringTimer = null!;
         private readonly List<FileSystemWatcher> _fileWatchers;
         private readonly HashSet<string> _recentlyProcessed;
         private CancellationTokenSource _cancellationTokenSource = null!;
-        
+
         // Intrång-detektering
         private readonly Dictionary<string, int> _suspiciousActivityCounter;
         private readonly Dictionary<string, DateTime> _lastActivityTime;
         private readonly Queue<SecurityEvent> _recentSecurityEvents;
-        
+
         // Känd malware-aktivitet
         private readonly HashSet<string> _knownMalwareProcesses = new()
         {
@@ -45,16 +259,16 @@ namespace FilKollen.Services
             "backdoor", "trojan", "keylogger", "spyware", "rootkit",
             "ransomware", "cryptolocker", "wannacry", "emotet", "trickbot"
         };
-        
+
         // Suspekta nätverksanslutningar
         private readonly HashSet<string> _suspiciousNetworkPatterns = new()
         {
             ".onion", ".tor", "stratum+tcp://", "mining:", "pool:",
             "bitcoin", "monero", "ethereum", "zcash", "litecoin"
         };
-        
+
         // Farliga registry-ändringar
-        private readonly string[] _criticalRegistryKeys = 
+        private readonly string[] _criticalRegistryKeys =
         {
             @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
             @"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
@@ -72,14 +286,14 @@ namespace FilKollen.Services
         public event EventHandler<IntrusionDetectedEventArgs>? IntrusionDetected;
         public event EventHandler<SecurityAlertEventArgs>? SecurityAlert;
 
-        public IntrusionDetectionService(ILogger logger, LogViewerService logViewer, 
+        public IntrusionDetectionService(ILogger logger, LogViewerService logViewer,
             TempFileScanner fileScanner, QuarantineManager quarantineManager)
         {
             _logger = logger;
             _logViewer = logViewer;
             _fileScanner = fileScanner; // KORRIGERAT namn från _tempFileScanner
             _quarantineManager = quarantineManager;
-            
+
             _fileWatchers = new List<FileSystemWatcher>();
             _recentlyProcessed = new HashSet<string>();
             _suspiciousActivityCounter = new Dictionary<string, int>();
@@ -94,28 +308,28 @@ namespace FilKollen.Services
             try
             {
                 _cancellationTokenSource = new CancellationTokenSource();
-                
+
                 // Starta fil-system övervakning
                 await StartFileSystemMonitoringAsync();
-                
+
                 // Starta process-övervakning
                 await StartProcessMonitoringAsync();
-                
+
                 // Starta nätverks-övervakning
                 await StartNetworkMonitoringAsync();
-                
+
                 // Starta registry-övervakning
                 await StartRegistryMonitoringAsync();
-                
+
                 // Starta periodisk systemkontroll
                 StartPeriodicSystemCheck();
-                
+
                 IsMonitoringActive = true;
-                
+
                 _logger.Information("🔒 Intrusion Detection System AKTIVERAT - kontinuerlig övervakning startad");
-                _logViewer.AddLogEntry(LogLevel.Information, "IDS", 
+                _logViewer.AddLogEntry(LogLevel.Information, "IDS",
                     "🔒 INTRUSION DETECTION AKTIVERAT - avancerad hotdetektering startad");
-                
+
                 // Första genomgång direkt
                 _ = Task.Run(async () => await PerformSystemSecurityScanAsync());
             }
@@ -133,21 +347,21 @@ namespace FilKollen.Services
             try
             {
                 _cancellationTokenSource?.Cancel();
-                
+
                 _monitoringTimer?.Stop();
                 _monitoringTimer?.Dispose();
-                
+
                 foreach (var watcher in _fileWatchers)
                 {
                     watcher.EnableRaisingEvents = false;
                     watcher.Dispose();
                 }
                 _fileWatchers.Clear();
-                
+
                 IsMonitoringActive = false;
-                
+
                 _logger.Information("Intrusion Detection System inaktiverat");
-                _logViewer.AddLogEntry(LogLevel.Warning, "IDS", 
+                _logViewer.AddLogEntry(LogLevel.Warning, "IDS",
                     "⚠️ INTRUSION DETECTION INAKTIVERAT - systemet är nu mer sårbart");
             }
             catch (Exception ex)
@@ -159,7 +373,7 @@ namespace FilKollen.Services
         private async Task StartFileSystemMonitoringAsync()
         {
             await Task.Yield();
-            
+
             var criticalPaths = new[]
             {
                 Environment.GetFolderPath(Environment.SpecialFolder.System),
@@ -184,10 +398,10 @@ namespace FilKollen.Services
                     watcher.Created += OnCriticalFileCreated;
                     watcher.Changed += OnCriticalFileChanged;
                     watcher.Renamed += OnCriticalFileRenamed;
-                    
+
                     _fileWatchers.Add(watcher);
-                    
-                    _logViewer.AddLogEntry(LogLevel.Information, "IDS", 
+
+                    _logViewer.AddLogEntry(LogLevel.Information, "IDS",
                         $"🔍 Övervakar kritisk sökväg: {path}");
                 }
                 catch (Exception ex)
@@ -197,32 +411,32 @@ namespace FilKollen.Services
             }
         }
 
-private async Task StartProcessMonitoringAsync()
-{
-    _ = Task.Run(async () =>
-    {
-        while (!_cancellationTokenSource.Token.IsCancellationRequested)
+        private async Task StartProcessMonitoringAsync()
         {
-            try
+            _ = Task.Run(async () =>
             {
-                await MonitorRunningProcessesAsync();
-                await Task.Delay(5000, _cancellationTokenSource.Token); // Kolla var 5:e sekund
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning($"Process monitoring error: {ex.Message}");
-                await Task.Delay(10000, _cancellationTokenSource.Token);
-            }
+                while (!_cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        await MonitorRunningProcessesAsync();
+                        await Task.Delay(5000, _cancellationTokenSource.Token); // Kolla var 5:e sekund
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warning($"Process monitoring error: {ex.Message}");
+                        await Task.Delay(10000, _cancellationTokenSource.Token);
+                    }
+                }
+            });
+
+            _logViewer.AddLogEntry(LogLevel.Information, "IDS", "🔍 Process-övervakning aktiverad");
+            await Task.Yield(); // TILLAGD för att uppfylla async contract
         }
-    });
-    
-    _logViewer.AddLogEntry(LogLevel.Information, "IDS", "🔍 Process-övervakning aktiverad");
-    await Task.Yield(); // TILLAGD för att uppfylla async contract
-}
 
         private async Task StartNetworkMonitoringAsync()
         {
@@ -251,15 +465,15 @@ private async Task StartProcessMonitoringAsync()
             await Task.Yield(); // TILLAGD för att uppfylla async contract
         }
 
-private async Task StartRegistryMonitoringAsync()
-{
-    await Task.Yield(); // TILLAGD för att uppfylla async contract
-    
-    // Registry monitoring är komplex och kräver WMI eller Registry notification API
-    // För MVP implementerar vi en periodisk kontroll istället
-    
-    _logViewer.AddLogEntry(LogLevel.Information, "IDS", "📋 Registry-övervakning aktiverad");
-}
+        private async Task StartRegistryMonitoringAsync()
+        {
+            await Task.Yield(); // TILLAGD för att uppfylla async contract
+
+            // Registry monitoring är komplex och kräver WMI eller Registry notification API
+            // För MVP implementerar vi en periodisk kontroll istället
+
+            _logViewer.AddLogEntry(LogLevel.Information, "IDS", "📋 Registry-övervakning aktiverad");
+        }
 
         private void StartPeriodicSystemCheck()
         {
@@ -267,7 +481,7 @@ private async Task StartRegistryMonitoringAsync()
             _monitoringTimer.Elapsed += async (sender, e) => await PerformSystemSecurityScanAsync();
             _monitoringTimer.AutoReset = true;
             _monitoringTimer.Start();
-            
+
             _logViewer.AddLogEntry(LogLevel.Information, "IDS", "⏰ Periodisk säkerhetskontroll aktiverad (2-minuters intervall)");
         }
 
@@ -292,20 +506,20 @@ private async Task StartRegistryMonitoringAsync()
             {
                 var key = $"{filePath}_{action}";
                 if (_recentlyProcessed.Contains(key)) return;
-                
+
                 _recentlyProcessed.Add(key);
                 _ = Task.Delay(30000).ContinueWith(t => _recentlyProcessed.Remove(key));
-                
+
                 await Task.Delay(1000); // Vänta på att filen ska skrivas klart
-                
+
                 if (!File.Exists(filePath)) return;
-                
+
                 var fileName = Path.GetFileName(filePath);
                 var fileInfo = new FileInfo(filePath);
-                
-                _logViewer.AddLogEntry(LogLevel.Warning, "IDS", 
+
+                _logViewer.AddLogEntry(LogLevel.Warning, "IDS",
                     $"🚨 KRITISK FILAKTIVITET: {fileName} {action} i {Path.GetDirectoryName(filePath)}");
-                
+
                 // Analysera filen omedelbart
                 var scanResult = await _fileScanner.ScanSingleFileAsync(filePath);
                 if (scanResult != null)
@@ -324,7 +538,7 @@ private async Task StartRegistryMonitoringAsync()
                         ProcessName = GetProcessThatAccessedFile(filePath),
                         Timestamp = DateTime.Now
                     };
-                    
+
                     RecordSecurityEvent(securityEvent);
                 }
             }
@@ -339,24 +553,24 @@ private async Task StartRegistryMonitoringAsync()
             try
             {
                 var processes = Process.GetProcesses();
-                
+
                 foreach (var process in processes)
                 {
                     try
                     {
                         if (process.HasExited) continue;
-                        
+
                         var processName = process.ProcessName.ToLowerInvariant();
-                        
+
                         // Kolla mot kända malware-processer
                         if (_knownMalwareProcesses.Any(malware => processName.Contains(malware)))
                         {
                             await HandleSuspiciousProcessAsync(process, "KNOWN_MALWARE_PROCESS");
                         }
-                        
+
                         // Kolla efter suspekta process-egenskaper
                         await CheckProcessCharacteristicsAsync(process);
-                        
+
                     }
                     catch (Exception ex)
                     {
@@ -384,7 +598,7 @@ private async Task StartRegistryMonitoringAsync()
                 {
                     await HandleSuspiciousProcessAsync(process, "CRYPTO_MINING_DETECTED");
                 }
-                
+
                 // Kolla efter processer utan beskrivning (ofta malware)
                 if (string.IsNullOrEmpty(process.MainModule?.FileVersionInfo.FileDescription))
                 {
@@ -394,7 +608,7 @@ private async Task StartRegistryMonitoringAsync()
                         await HandleSuspiciousProcessAsync(process, "UNSIGNED_PROCESS_SUSPICIOUS_LOCATION");
                     }
                 }
-                
+
                 // Kolla efter processer som körs från temp-kataloger
                 var mainModulePath = process.MainModule?.FileName;
                 if (!string.IsNullOrEmpty(mainModulePath))
@@ -406,8 +620,8 @@ private async Task StartRegistryMonitoringAsync()
                         @"c:\windows\temp",
                         @"c:\users\public"
                     };
-                    
-                    if (tempPaths.Any(temp => !string.IsNullOrEmpty(temp) && 
+
+                    if (tempPaths.Any(temp => !string.IsNullOrEmpty(temp) &&
                         mainModulePath.ToLowerInvariant().StartsWith(temp)))
                     {
                         await HandleSuspiciousProcessAsync(process, "PROCESS_RUNNING_FROM_TEMP");
@@ -427,26 +641,26 @@ private async Task StartRegistryMonitoringAsync()
                 // Kolla CPU-användning under en kort period
                 var initialCpuTime = process.TotalProcessorTime;
                 await Task.Delay(1000);
-                
+
                 if (process.HasExited) return false;
-                
+
                 var finalCpuTime = process.TotalProcessorTime;
                 var cpuUsed = (finalCpuTime - initialCpuTime).TotalMilliseconds;
-                
+
                 // Om processen använder mer än 80% CPU under mätperioden
                 if (cpuUsed > 800) // 800ms av 1000ms = 80%
                 {
                     // Dubbelkolla genom att se om det inte är en känd systemprocess
-                    var knownSystemProcesses = new[] 
-                    { 
-                        "svchost", "dwm", "csrss", "winlogon", "explorer", 
-                        "taskhostw", "services", "lsass", "smss" 
+                    var knownSystemProcesses = new[]
+                    {
+                        "svchost", "dwm", "csrss", "winlogon", "explorer",
+                        "taskhostw", "services", "lsass", "smss"
                     };
-                    
+
                     var processName = process.ProcessName.ToLowerInvariant();
                     return !knownSystemProcesses.Any(sys => processName.Contains(sys));
                 }
-                
+
                 return false;
             }
             catch
@@ -459,7 +673,7 @@ private async Task StartRegistryMonitoringAsync()
         {
             "api.telegram.org",
             "sendDocument",
-            "savescreenshot", 
+            "savescreenshot",
             "nircmd.exe",
             "Screenshot_",
             "ScreenshotLog.txt",
@@ -485,11 +699,11 @@ private async Task StartRegistryMonitoringAsync()
             try
             {
                 if (!File.Exists(filePath)) return false;
-                
+
                 var content = await File.ReadAllTextAsync(filePath);
                 var suspiciousCount = 0;
                 var detectedPatterns = new List<string>();
-                
+
                 // Kontrollera för Telegram bot-aktivitet
                 foreach (var indicator in _telegramBotIndicators)
                 {
@@ -499,7 +713,7 @@ private async Task StartRegistryMonitoringAsync()
                         detectedPatterns.Add(indicator);
                     }
                 }
-                
+
                 // Kontrollera för screenshot-aktivitet 
                 foreach (var pattern in _suspiciousScreenshotPatterns)
                 {
@@ -509,7 +723,7 @@ private async Task StartRegistryMonitoringAsync()
                         detectedPatterns.Add($"screenshot:{pattern}");
                     }
                 }
-                
+
                 // Om vi hittar 3+ indicators = troligt Telegram bot attack
                 if (suspiciousCount >= 3)
                 {
@@ -522,15 +736,15 @@ private async Task StartRegistryMonitoringAsync()
                         ProcessName = "Telegram Bot Script",
                         Timestamp = DateTime.Now
                     };
-                    
+
                     RecordSecurityEvent(securityEvent);
-                    
+
                     // Omedelbar blockering och karantän
                     await BlockTelegramBotThreatAsync(filePath, detectedPatterns);
-                    
+
                     return true;
                 }
-                
+
                 return false;
             }
             catch (Exception ex)
@@ -544,9 +758,9 @@ private async Task StartRegistryMonitoringAsync()
         {
             try
             {
-                _logViewer.AddLogEntry(LogLevel.Error, "CRITICAL", 
+                _logViewer.AddLogEntry(LogLevel.Error, "CRITICAL",
                     $"🚨 KRITISKT: TELEGRAM BOT SPYWARE DETEKTERAT - {Path.GetFileName(filePath)}");
-                
+
                 // 1. Sätt filen i karantän omedelbart
                 var scanResult = new ScanResult
                 {
@@ -556,21 +770,21 @@ private async Task StartRegistryMonitoringAsync()
                     FileSize = File.Exists(filePath) ? new FileInfo(filePath).Length : 0,
                     CreatedDate = File.Exists(filePath) ? File.GetCreationTime(filePath) : DateTime.Now
                 };
-                
+
                 var quarantineResult = await _quarantineManager.QuarantineFileAsync(scanResult);
-                
+
                 if (quarantineResult)
                 {
-                    _logViewer.AddLogEntry(LogLevel.Information, "CRITICAL", 
+                    _logViewer.AddLogEntry(LogLevel.Information, "CRITICAL",
                         $"✅ Telegram bot spyware satt i karantän: {Path.GetFileName(filePath)}");
                 }
-                
+
                 // 2. Blockera nätverksanslutningar till Telegram (via hosts)
                 await BlockTelegramDomainsAsync();
-                
+
                 // 3. Sök efter relaterade filer (nircmd.exe, temp screenshots etc)
                 await CleanupTelegramBotArtifactsAsync();
-                
+
                 // 4. Trigger kritisk säkerhetsvarning
                 var alertArgs = new SecurityAlertEventArgs
                 {
@@ -581,11 +795,11 @@ private async Task StartRegistryMonitoringAsync()
                     ProcessPath = filePath,
                     ActionTaken = "Fil karantänerad, nätverksaccess blockerad, relaterade filer rensade"
                 };
-                
+
                 SecurityAlert?.Invoke(this, alertArgs);
-                
+
                 TotalThreatsBlocked++;
-                
+
             }
             catch (Exception ex)
             {
@@ -597,13 +811,13 @@ private async Task StartRegistryMonitoringAsync()
         {
             try
             {
-                var hostsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), 
+                var hostsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
                     "drivers", "etc", "hosts");
-                
+
                 if (!File.Exists(hostsPath)) return;
-                
+
                 var hostsContent = await File.ReadAllTextAsync(hostsPath);
-                
+
                 // Lägg till Telegram-blockering om den inte redan finns
                 if (!hostsContent.Contains("# FilKollen Telegram Bot Block"))
                 {
@@ -611,15 +825,15 @@ private async Task StartRegistryMonitoringAsync()
                     {
                         "\n# FilKollen Telegram Bot Block - START",
                         "0.0.0.0 api.telegram.org",
-                        "0.0.0.0 telegram.org", 
+                        "0.0.0.0 telegram.org",
                         "0.0.0.0 web.telegram.org",
                         "0.0.0.0 t.me",
                         "# FilKollen Telegram Bot Block - END\n"
                     };
-                    
+
                     await File.AppendAllTextAsync(hostsPath, string.Join('\n', telegramBlocks));
-                    
-                    _logViewer.AddLogEntry(LogLevel.Information, "CRITICAL", 
+
+                    _logViewer.AddLogEntry(LogLevel.Information, "CRITICAL",
                         "🛡️ Telegram-domäner blockerade via hosts-fil");
                 }
             }
@@ -709,8 +923,8 @@ private async Task StartRegistryMonitoringAsync()
                 @"\Windows\Temp\",
                 @"\ProgramData\"
             };
-            
-            return suspiciousLocations.Any(loc => 
+
+            return suspiciousLocations.Any(loc =>
                 filePath.Contains(loc, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -733,9 +947,9 @@ private async Task StartRegistryMonitoringAsync()
 
                 var output = await process.StandardOutput.ReadToEndAsync();
                 await process.WaitForExitAsync();
-                
+
                 var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                
+
                 foreach (var line in lines.Skip(2)) // Hoppa över headers
                 {
                     await AnalyzeNetworkConnectionAsync(line);
@@ -753,14 +967,14 @@ private async Task StartRegistryMonitoringAsync()
             {
                 var parts = connectionLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length < 5) return;
-                
+
                 var protocol = parts[0];
                 var localAddress = parts[1];
                 var foreignAddress = parts[2];
                 var state = parts[3];
-                
+
                 if (!int.TryParse(parts[4], out var pid)) return;
-                
+
                 // Kolla efter suspekta portar och adresser
                 if (IsSuspiciousConnection(foreignAddress, localAddress))
                 {
@@ -777,9 +991,9 @@ private async Task StartRegistryMonitoringAsync()
                             NetworkDetails = $"{protocol} {localAddress} -> {foreignAddress} ({state})",
                             Timestamp = DateTime.Now
                         };
-                        
+
                         RecordSecurityEvent(securityEvent);
-                        
+
                         await HandleSuspiciousProcessAsync(process, "SUSPICIOUS_NETWORK_ACTIVITY");
                     }
                 }
@@ -795,20 +1009,20 @@ private async Task StartRegistryMonitoringAsync()
             // Kolla efter kända mining pools och suspekta portar
             var suspiciousPorts = new[] { "4444", "3333", "8333", "9999", "14444", "5555" };
             var miningPoolIndicators = new[] { "pool", "mining", "stratum", "crypto" };
-            
+
             // Kolla port
             if (suspiciousPorts.Any(port => foreignAddress.EndsWith($":{port}")))
                 return true;
-            
+
             // Kolla för mining pool-adresser
-            if (miningPoolIndicators.Any(indicator => 
+            if (miningPoolIndicators.Any(indicator =>
                 foreignAddress.Contains(indicator, StringComparison.OrdinalIgnoreCase)))
                 return true;
-            
+
             // Kolla för TOR-exit nodes eller onion-domäner
             if (foreignAddress.Contains(".onion") || IsKnownTorExitNode(foreignAddress))
                 return true;
-            
+
             return false;
         }
 
@@ -837,16 +1051,16 @@ private async Task StartRegistryMonitoringAsync()
             {
                 var processName = process.ProcessName;
                 var processPath = process.MainModule?.FileName ?? "Okänd sökväg";
-                
+
                 // Räkna upp misstänkt aktivitet för denna process
                 if (!_suspiciousActivityCounter.ContainsKey(processName))
                     _suspiciousActivityCounter[processName] = 0;
-                
+
                 _suspiciousActivityCounter[processName]++;
                 _lastActivityTime[processName] = DateTime.Now;
-                
+
                 var activityCount = _suspiciousActivityCounter[processName];
-                
+
                 var securityEvent = new SecurityEvent
                 {
                     EventType = threatType,
@@ -857,15 +1071,15 @@ private async Task StartRegistryMonitoringAsync()
                     FilePath = processPath,
                     Timestamp = DateTime.Now
                 };
-                
+
                 RecordSecurityEvent(securityEvent);
-                
+
                 // Om det är känd malware eller upprepade intrång, blockera omedelbart
                 if (threatType == "KNOWN_MALWARE_PROCESS" || activityCount >= 3)
                 {
                     await BlockAndQuarantineProcessAsync(process, securityEvent);
                 }
-                
+
                 // Trigger intrusion alert
                 var intrusionArgs = new IntrusionDetectedEventArgs
                 {
@@ -876,15 +1090,15 @@ private async Task StartRegistryMonitoringAsync()
                     Description = securityEvent.Description,
                     ShouldBlock = activityCount >= 3 || threatType == "KNOWN_MALWARE_PROCESS"
                 };
-                
+
                 IntrusionDetected?.Invoke(this, intrusionArgs);
-                
+
                 TotalThreatsDetected++;
                 LastThreatTime = DateTime.Now;
-                
-                _logViewer.AddLogEntry(LogLevel.Error, "IDS", 
+
+                _logViewer.AddLogEntry(LogLevel.Error, "IDS",
                     $"🚨 INTRÅNG UPPTÄCKT: {processName} - {threatType} (#{activityCount})");
-                
+
             }
             catch (Exception ex)
             {
@@ -897,49 +1111,49 @@ private async Task StartRegistryMonitoringAsync()
             try
             {
                 var processPath = process.MainModule?.FileName;
-                
-                _logViewer.AddLogEntry(LogLevel.Error, "IDS", 
+
+                _logViewer.AddLogEntry(LogLevel.Error, "IDS",
                     $"🛡️ BLOCKERAR HOTPROCESS: {process.ProcessName} (PID: {process.Id})");
-                
+
                 // 1. Avsluta processen omedelbart
                 try
                 {
                     process.Kill();
                     process.WaitForExit(5000);
                     TotalThreatsBlocked++;
-                    
-                    _logViewer.AddLogEntry(LogLevel.Information, "IDS", 
+
+                    _logViewer.AddLogEntry(LogLevel.Information, "IDS",
                         $"✅ Process {process.ProcessName} avslutad framgångsrikt");
                 }
                 catch (Exception ex)
                 {
-                    _logViewer.AddLogEntry(LogLevel.Error, "IDS", 
+                    _logViewer.AddLogEntry(LogLevel.Error, "IDS",
                         $"❌ Kunde inte avsluta process {process.ProcessName}: {ex.Message}");
                 }
-                
+
                 // 2. Sätt filen i karantän om vi har sökvägen
                 if (!string.IsNullOrEmpty(processPath) && File.Exists(processPath))
                 {
                     try
                     {
                         var quarantineResult = await _quarantineManager.QuarantineFileAsync(
-                            processPath, 
+                            processPath,
                             $"Automatisk karantän - {securityEvent.EventType}",
                             securityEvent.Severity);
-                        
+
                         if (quarantineResult.Success)
                         {
-                            _logViewer.AddLogEntry(LogLevel.Information, "IDS", 
+                            _logViewer.AddLogEntry(LogLevel.Information, "IDS",
                                 $"🔒 Fil satt i karantän: {Path.GetFileName(processPath)}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logViewer.AddLogEntry(LogLevel.Warning, "IDS", 
+                        _logViewer.AddLogEntry(LogLevel.Warning, "IDS",
                             $"⚠️ Kunde inte sätta fil i karantän: {ex.Message}");
                     }
                 }
-                
+
                 // 3. Rapportera framgångsrik blockering
                 var alertArgs = new SecurityAlertEventArgs
                 {
@@ -950,13 +1164,13 @@ private async Task StartRegistryMonitoringAsync()
                     ProcessPath = processPath,
                     ActionTaken = "Process avslutad och fil satt i karantän"
                 };
-                
+
                 SecurityAlert?.Invoke(this, alertArgs);
-                
+
             }
             catch (Exception ex)
             {
-                _logViewer.AddLogEntry(LogLevel.Error, "IDS", 
+                _logViewer.AddLogEntry(LogLevel.Error, "IDS",
                     $"❌ Kritiskt fel vid blockering av hotprocess: {ex.Message}");
             }
         }
@@ -965,13 +1179,13 @@ private async Task StartRegistryMonitoringAsync()
         {
             try
             {
-                _logViewer.AddLogEntry(LogLevel.Information, "IDS", 
+                _logViewer.AddLogEntry(LogLevel.Information, "IDS",
                     "🔍 Genomför periodisk säkerhetskontroll...");
-                
+
                 // 1. Snabb temp-fil scan
                 var tempResults = await _fileScanner.ScanTempDirectoriesAsync();
                 var threats = tempResults.Where(r => r.ThreatLevel >= ThreatLevel.Medium).ToList();
-                
+
                 foreach (var threat in threats.ToList())
                 {
                     var isTelegramBot = await DetectTelegramBotActivityAsync(threat.FilePath);
@@ -981,7 +1195,7 @@ private async Task StartRegistryMonitoringAsync()
                         threats.Remove(threat);
                     }
                 }
-                
+
                 foreach (var threat in threats)
                 {
                     await HandleSecurityThreatAsync(threat, "PERIODIC_SCAN", "Periodisk säkerhetskontroll");
@@ -989,28 +1203,28 @@ private async Task StartRegistryMonitoringAsync()
 
                 // 2. Kontrollera registry för nya startup-poster
                 await CheckRegistryStartupChangesAsync();
-                
+
                 // 3. Kontrollera för nya nätverksanslutningar
                 await CheckForNewNetworkConnectionsAsync();
-                
+
                 // 4. Rensa gamla aktivitetsräknare
                 CleanupOldActivityCounters();
-                
+
                 var newThreats = threats.Count;
                 if (newThreats > 0)
                 {
-                    _logViewer.AddLogEntry(LogLevel.Warning, "IDS", 
+                    _logViewer.AddLogEntry(LogLevel.Warning, "IDS",
                         $"⚠️ Periodisk kontroll: {newThreats} nya hot upptäckta");
                 }
                 else
                 {
-                    _logViewer.AddLogEntry(LogLevel.Information, "IDS", 
+                    _logViewer.AddLogEntry(LogLevel.Information, "IDS",
                         "✅ Periodisk kontroll: Inga nya hot upptäckta");
                 }
             }
             catch (Exception ex)
             {
-                _logViewer.AddLogEntry(LogLevel.Error, "IDS", 
+                _logViewer.AddLogEntry(LogLevel.Error, "IDS",
                     $"❌ Fel vid periodisk säkerhetskontroll: {ex.Message}");
             }
         }
@@ -1018,7 +1232,7 @@ private async Task StartRegistryMonitoringAsync()
         private async Task CheckRegistryStartupChangesAsync()
         {
             await Task.Yield();
-            
+
             try
             {
                 // Förenklad implementation - kontrollera vanliga startup-nycklar
@@ -1027,7 +1241,7 @@ private async Task StartRegistryMonitoringAsync()
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
                 };
-                
+
                 foreach (var keyPath in startupKeys)
                 {
                     try
@@ -1049,7 +1263,7 @@ private async Task StartRegistryMonitoringAsync()
                                         RegistryKey = $"HKCU\\{keyPath}\\{valueName}",
                                         Timestamp = DateTime.Now
                                     };
-                                    
+
                                     RecordSecurityEvent(securityEvent);
                                 }
                             }
@@ -1075,8 +1289,8 @@ private async Task StartRegistryMonitoringAsync()
                 "powershell", "cmd.exe /c", "wscript", "cscript",
                 ".tmp.exe", ".scr", ".pif", ".com"
             };
-            
-            return suspiciousPatterns.Any(pattern => 
+
+            return suspiciousPatterns.Any(pattern =>
                 value.Contains(pattern, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -1094,7 +1308,7 @@ private async Task StartRegistryMonitoringAsync()
                 .Where(kvp => kvp.Value < cutoffTime)
                 .Select(kvp => kvp.Key)
                 .ToList();
-            
+
             foreach (var key in keysToRemove)
             {
                 _suspiciousActivityCounter.Remove(key);
@@ -1119,33 +1333,33 @@ private async Task StartRegistryMonitoringAsync()
                 FileHash = threat.FileHash,
                 Timestamp = DateTime.Now
             };
-            
+
             RecordSecurityEvent(securityEvent);
-            
+
             // Auto-karantän för kritiska hot
             if (threat.ThreatLevel >= ThreatLevel.High)
             {
                 try
                 {
                     var quarantineResult = await _quarantineManager.QuarantineFileAsync(
-                        threat.FilePath, 
+                        threat.FilePath,
                         $"Automatisk karantän - {eventType}: {threat.Reason}",
                         threat.ThreatLevel);
-                    
+
                     if (quarantineResult.Success)
                     {
                         TotalThreatsBlocked++;
-                        _logViewer.AddLogEntry(LogLevel.Information, "IDS", 
+                        _logViewer.AddLogEntry(LogLevel.Information, "IDS",
                             $"🔒 AUTO-KARANTÄN: {Path.GetFileName(threat.FilePath)}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logViewer.AddLogEntry(LogLevel.Warning, "IDS", 
+                    _logViewer.AddLogEntry(LogLevel.Warning, "IDS",
                         $"⚠️ Kunde inte sätta fil i auto-karantän: {ex.Message}");
                 }
             }
-            
+
             TotalThreatsDetected++;
             LastThreatTime = DateTime.Now;
         }
@@ -1153,13 +1367,13 @@ private async Task StartRegistryMonitoringAsync()
         private void RecordSecurityEvent(SecurityEvent securityEvent)
         {
             _recentSecurityEvents.Enqueue(securityEvent);
-            
+
             // Håll bara de senaste 100 händelserna i minnet
             while (_recentSecurityEvents.Count > 100)
             {
                 _recentSecurityEvents.Dequeue();
             }
-            
+
             // Logga händelsen
             var logLevel = securityEvent.Severity switch
             {
@@ -1168,8 +1382,8 @@ private async Task StartRegistryMonitoringAsync()
                 SecuritySeverity.Medium => LogLevel.Information,
                 _ => LogLevel.Debug
             };
-            
-            _logViewer.AddLogEntry(logLevel, "IDS", 
+
+            _logViewer.AddLogEntry(logLevel, "IDS",
                 $"🔍 {securityEvent.EventType}: {securityEvent.Description}");
         }
 
@@ -1201,7 +1415,7 @@ private async Task StartRegistryMonitoringAsync()
         {
             StopMonitoringAsync().Wait();
             _cancellationTokenSource?.Dispose();
-            
+
             foreach (var watcher in _fileWatchers)
             {
                 watcher?.Dispose();

@@ -539,48 +539,70 @@ private async Task<List<ScanResult>> ScanDirectoryDeepAsync(string path)
                    commonExtensions.Contains(secondLastExt);
         }
 
-private async Task<string> GetFileHashAsync(string filePath)
-{
-    try
-    {
-        var fileInfo = new FileInfo(filePath);
-        
-        // Skippa mycket stora filer för prestanda
-        if (fileInfo.Length > 50 * 1024 * 1024) // 50MB
+        private async Task<string> GetFileHashAsync(string filePath)
         {
-            return "SKIPPED_LARGE_FILE";
+            const int MaxFileSizeForHash = 100 * 1024 * 1024; // 100MB
+            const int BufferSize = 64 * 1024; // 64KB buffer
+            const int HashTimeoutSeconds = 30;
+            
+            try
+            {
+                var fileInfo = new FileInfo(filePath);
+                
+                // Skippa för stora filer
+                if (fileInfo.Length > MaxFileSizeForHash)
+                {
+                    _logger.Debug($"Skippar hash för stor fil: {filePath} ({fileInfo.Length} bytes)");
+                    return "LARGE_FILE_SKIPPED";
+                }
+                
+                using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(HashTimeoutSeconds));
+                using var sha256 = SHA256.Create();
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
+                
+                var buffer = new byte[BufferSize];
+                var totalBytesRead = 0L;
+                int bytesRead;
+                
+                while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationTokenSource.Token)) > 0)
+                {
+                    sha256.TransformBlock(buffer, 0, bytesRead, buffer, 0);
+                    totalBytesRead += bytesRead;
+                    
+                    // Kontrollera timeout
+                    cancellationTokenSource.Token.ThrowIfCancellationRequested();
+                }
+                
+                sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                var hash = sha256.Hash;
+                
+                if (hash != null)
+                {
+                    return Convert.ToHexString(hash);
+                }
+                
+                return "HASH_ERROR";
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Warning($"Hash-beräkning timeout för fil: {filePath}");
+                return "TIMEOUT";
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return "ACCESS_DENIED";
+            }
+            catch (IOException ex)
+            {
+                _logger.Debug($"IO-fel vid hash-beräkning för {filePath}: {ex.Message}");
+                return "IO_ERROR";
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Oväntat fel vid hash-beräkning för {filePath}: {ex.Message}");
+                return "ERROR";
+            }
         }
-
-        using var sha256 = SHA256.Create();
-        using var stream = File.OpenRead(filePath);
-        
-        // Timeout för hash-beräkning
-        var hashTask = Task.Run(() => sha256.ComputeHash(stream));
-        var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
-        
-        if (await Task.WhenAny(hashTask, timeoutTask) == hashTask)
-        {
-            var hash = await hashTask;
-            return Convert.ToHexString(hash);
-        }
-        else
-        {
-            _logger.Warning($"Hash timeout för fil: {filePath}");
-            return "TIMEOUT";
-        }
-    }
-    catch (UnauthorizedAccessException)
-    {
-        return "ACCESS_DENIED";
-    }
-    catch (IOException)
-    {
-        return "IO_ERROR";
-    }
-    catch (Exception ex)
-    {
-        _logger.Debug($"Hash error för {filePath}: {ex.Message}");
-        return "ERROR";
     }
 }
 
@@ -597,46 +619,106 @@ private bool HasDirectoryAccess(string path)
     }
 }
 
-private bool IsFileLocked(string filePath)
-{
-    try
-    {
-        using var fs = File.OpenRead(filePath);
-        return false;
-    }
-    catch (IOException)
-    {
-        return true;
-    }
-    catch
-    {
-        return false;
-    }
-}
-
-private async Task<string[]> GetFilesWithTimeoutAsync(string path, TimeSpan timeout)
-{
-    try
-    {
-        var task = Task.Run(() => Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly));
-        
-        if (await Task.WhenAny(task, Task.Delay(timeout)) == task)
+        private bool IsFileLocked(string filePath)
         {
-            return await task;
+            try
+            {
+                // Använd FileShare.ReadWrite för att testa låsning
+                using var fs = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                
+                // Försök läsa lite data för att säkerställa tillgänglighet
+                var buffer = new byte[1];
+                fs.ReadTimeout = 1000; // 1 sekund timeout
+                fs.Read(buffer, 0, 1);
+                
+                return false;
+            }
+            catch (IOException ex) when (ex.HResult == -2147024864) // File in use
+            {
+                return true;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Unexpected error checking file lock for {filePath}: {ex.Message}");
+                return true; // Anta att filen är låst för säkerhet
+            }
         }
-        else
+
+        private async Task<string[]> GetFilesWithTimeoutAsync(string path, TimeSpan timeout)
         {
-            _logger.Warning($"Timeout vid fillistning: {path}");
+            const int MaxRetries = 3;
+            const int RetryDelayMs = 1000;
+            
+            for (int attempt = 1; attempt <= MaxRetries; attempt++)
+            {
+                try
+                {
+                    var cancellationToken = new CancellationTokenSource(timeout).Token;
+                    
+                    var task = Task.Run(() => 
+                    {
+                        var files = new List<string>();
+                        try
+                        {
+                            // Använd EnumerateFiles för bättre prestanda och minnesanvändning
+                            foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.TopDirectoryOnly))
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+                                
+                                // Skippa system-filer och filer som används
+                                if (!IsSystemFile(file) && !IsFileLocked(file))
+                                {
+                                    files.Add(file);
+                                }
+                                
+                                // Begränsa antalet filer för att undvika memory issues
+                                if (files.Count >= 1000)
+                                {
+                                    _logger.Warning($"Begränsar filskanning till 1000 filer i {path}");
+                                    break;
+                                }
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            _logger.Warning($"Fillistning avbruten på grund av timeout: {path}");
+                            throw;
+                        }
+                        catch (UnauthorizedAccessException ex)
+                        {
+                            _logger.Warning($"Åtkomst nekad till {path}: {ex.Message}");
+                            return Array.Empty<string>();
+                        }
+                        catch (DirectoryNotFoundException)
+                        {
+                            _logger.Warning($"Katalog inte funnen: {path}");
+                            return Array.Empty<string>();
+                        }
+                        
+                        return files.ToArray();
+                    }, cancellationToken);
+                    
+                    return await task;
+                }
+                catch (OperationCanceledException) when (attempt < MaxRetries)
+                {
+                    _logger.Warning($"Timeout vid fillistning, försök {attempt}/{MaxRetries}: {path}");
+                    await Task.Delay(RetryDelayMs * attempt);
+                }
+                catch (Exception ex) when (attempt < MaxRetries)
+                {
+                    _logger.Warning($"Fel vid fillistning, försök {attempt}/{MaxRetries}: {path} - {ex.Message}");
+                    await Task.Delay(RetryDelayMs * attempt);
+                }
+            }
+            
+            _logger.Error($"Misslyckades att lista filer efter {MaxRetries} försök: {path}");
             return Array.Empty<string>();
         }
-    }
-    catch (Exception ex)
-    {
-        _logger.Warning($"Fel vid fillistning {path}: {ex.Message}");
-        return Array.Empty<string>();
-    }
-}
-
         public void AddToWhitelist(string path)
         {
             if (!_config.WhitelistPaths.Contains(path))

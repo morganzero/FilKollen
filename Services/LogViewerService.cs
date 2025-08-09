@@ -10,6 +10,105 @@ using System.Windows;
 
 namespace FilKollen.Services
 {
+
+    public partial class LogViewerService
+    {
+        private readonly ConcurrentQueue<LogEntry> _logQueue = new();
+        private readonly Timer _logProcessingTimer;
+        private readonly SemaphoreSlim _logProcessingSemaphore = new(1, 1);
+        
+        // FÖRBÄTTRING: Asynkron log-bearbetning för bättre prestanda
+        public async Task AddLogEntryAsync(LogLevel level, string source, string message)
+        {
+            var entry = new LogEntry
+            {
+                Timestamp = DateTime.Now,
+                Level = level,
+                Source = source,
+                Message = message,
+                ThreadId = Environment.CurrentManagedThreadId
+            };
+
+            _logQueue.Enqueue(entry);
+            
+            // Trigger immediate processing för kritiska meddelanden
+            if (level >= LogLevel.Error)
+            {
+                _ = Task.Run(ProcessLogQueueAsync);
+            }
+        }
+
+        private async Task ProcessLogQueueAsync()
+        {
+            if (!await _logProcessingSemaphore.WaitAsync(100))
+                return; // Undvik concurrent processing
+            
+            try
+            {
+                const int MaxBatchSize = 50;
+                var batch = new List<LogEntry>();
+                
+                while (_logQueue.TryDequeue(out var entry) && batch.Count < MaxBatchSize)
+                {
+                    batch.Add(entry);
+                }
+                
+                if (batch.Any())
+                {
+                    await ProcessLogBatchAsync(batch);
+                }
+            }
+            finally
+            {
+                _logProcessingSemaphore.Release();
+            }
+        }
+
+        private async Task ProcessLogBatchAsync(List<LogEntry> logEntries)
+        {
+            try
+            {
+                await Application.Current?.Dispatcher.InvokeAsync(() =>
+                {
+                    foreach (var entry in logEntries)
+                    {
+                        LogEntries.Insert(0, entry);
+                    }
+                    
+                    // Trim till max antal entries för minnesoptimering
+                    while (LogEntries.Count > 500)
+                    {
+                        LogEntries.RemoveAt(LogEntries.Count - 1);
+                    }
+                }) ?? Task.CompletedTask;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to process log batch: {ex.Message}");
+            }
+        }
+    }
+
+    public class LogEntry
+    {
+        public DateTime Timestamp { get; set; }
+        public LogLevel Level { get; set; }
+        public string Source { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public int ThreadId { get; set; }
+        
+        public string FormattedTimestamp => Timestamp.ToString("HH:mm:ss.fff");
+        public string LevelIcon => Level switch
+        {
+            LogLevel.Debug => "🔍",
+            LogLevel.Information => "ℹ️",
+            LogLevel.Warning => "⚠️",
+            LogLevel.Error => "❌",
+            LogLevel.Fatal => "💀",
+            _ => "📝"
+        };
+    }
+
     public class LogViewerService : INotifyPropertyChanged, IDisposable
     {
         private readonly string _logDirectory;
@@ -30,7 +129,7 @@ namespace FilKollen.Services
         {
             _logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
             _logEntries = new ObservableCollection<LogEntry>();
-            
+
             if (!Directory.Exists(_logDirectory))
             {
                 Directory.CreateDirectory(_logDirectory);
@@ -86,7 +185,7 @@ namespace FilKollen.Services
                 {
                     await LoadLogFileAsync(logFile);
                 }
-                
+
                 // Lägg till välkomstmeddelande om inga loggar finns
                 if (!LogEntries.Any())
                 {
@@ -119,7 +218,7 @@ namespace FilKollen.Services
                         Application.Current?.Dispatcher.Invoke(() =>
                         {
                             LogEntries.Insert(0, logEntry);
-                            
+
                             // Begränsa till max 200 entries
                             while (LogEntries.Count > 200)
                             {
@@ -200,7 +299,7 @@ namespace FilKollen.Services
                 return "License";
             if (message.Contains("Branding"))
                 return "Branding";
-            
+
             return "FilKollen";
         }
 
@@ -219,7 +318,7 @@ namespace FilKollen.Services
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
                     LogEntries.Insert(0, entry);
-                    
+
                     while (LogEntries.Count > 200)
                     {
                         LogEntries.RemoveAt(LogEntries.Count - 1);
@@ -257,12 +356,12 @@ namespace FilKollen.Services
                 lines.Add($"FilKollen Security Log Export - {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 lines.Add("=".PadRight(60, '='));
                 lines.Add("");
-                
+
                 foreach (var entry in LogEntries.Reverse())
                 {
                     lines.Add($"{entry.Timestamp:yyyy-MM-dd HH:mm:ss} [{entry.Level}] {entry.Source}: {entry.Message}");
                 }
-                
+
                 File.WriteAllLines(filePath, lines);
                 AddLogEntry(LogLevel.Information, "Export", $"📄 Loggar exporterade till: {Path.GetFileName(filePath)}");
             }
