@@ -75,13 +75,17 @@ namespace FilKollen.Services
             _config = config;
             _logger = logger;
         }
+        public async Task<List<ScanResult>> ScanAsync()
+        {
+            return await ScanTempDirectoriesAsync();
+        }
 
         public async Task<List<ScanResult>> ScanTempDirectoriesAsync()
         {
             var results = new List<ScanResult>();
-            
+
             _logger.Information("🔍 Startar djup säkerhetsskanning av temp-kataloger...");
-            
+
             // Standard temp-sökvägar med utökad lista
             var tempPaths = new List<string>
             {
@@ -100,15 +104,15 @@ namespace FilKollen.Services
                 @"C:\Windows\System32\drivers",
                 
                 // Browser temp folders
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     @"Google\Chrome\User Data\Default\Cache"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     @"Microsoft\Edge\User Data\Default\Cache"),
                 
                 // Adobe och Office temp
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     @"Adobe\Acrobat\DC\Cache"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     @"Microsoft\Office\16.0\OfficeFileCache")
             };
 
@@ -121,7 +125,7 @@ namespace FilKollen.Services
                 var pathResults = await ScanDirectoryDeepAsync(path);
                 results.AddRange(pathResults);
             }
-            
+
             _logger.Information($"✅ Djup skanning klar. Hittade {results.Count} suspekta filer.");
             return results.OrderByDescending(r => r.ThreatLevel).ThenByDescending(r => r.FileSize).ToList();
         }

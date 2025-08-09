@@ -14,6 +14,7 @@ using FilKollen.ViewModels;
 using FilKollen.Windows;
 using Microsoft.Win32;
 using Serilog;
+using FilKollen.Commands;
 
 namespace FilKollen
 {
@@ -49,6 +50,11 @@ namespace FilKollen
         #region Constructor
         public MainWindow(LicenseService licenseService, BrandingService brandingService, ThemeService themeService)
         {
+            // Commands för UI
+        public ICommand QuarantineCommand { get; private set; } = null!;
+        public ICommand ShowInExplorerCommand { get; private set; } = null!;
+        public ICommand AddToWhitelistCommand { get; private set; } = null!;
+
             _licenseService = licenseService;
             _brandingService = brandingService;
             _themeService = themeService;
@@ -63,6 +69,7 @@ namespace FilKollen
             InitializeComponent();
             InitializeCollections();
             InitializeServices();
+            InitializeCommands();
             SetupEventHandlers();
             
             DataContext = this;
@@ -84,33 +91,94 @@ namespace FilKollen
             ActivityLogListView.ItemsSource = ActivityLog;
         }
 
+        // I MainWindow.xaml.cs - lägg till proper disposal
+        protected override void OnClosed(EventArgs e)
+        {
+            try
+            {
+                // Cleanup services
+                _protectionService?.StopProtectionAsync().Wait(5000);
+                _intrusionDetection?.StopMonitoringAsync().Wait(5000);
+                _trayService?.Dispose();
+                _logViewer?.Dispose();
+
+                // Unregister events
+                if (_protectionService != null)
+                {
+                    _protectionService.ProtectionStatusChanged -= OnProtectionStatusChanged;
+                    _protectionService.ThreatDetected -= OnThreatDetected;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warning($"Error during cleanup: {ex.Message}");
+            }
+            finally
+            {
+                base.OnClosed(e);
+            }
+        }
         private void InitializeServices()
         {
             try
             {
                 var config = LoadConfiguration();
-                
+
                 // Kärnservices
                 _quarantineManager = new QuarantineManager(_logger);
                 _logViewer = new LogViewerService();
                 _tempFileScanner = new TempFileScanner(config, _logger);
                 _browserCleaner = new AdvancedBrowserCleaner(_logger);
-                
+
                 // Avancerade säkerhetstjänster
                 _intrusionDetection = new IntrusionDetectionService(_logger, _logViewer, _tempFileScanner, _quarantineManager);
                 _protectionService = new RealTimeProtectionService(_tempFileScanner, _quarantineManager, _logViewer, _logger, config);
                 _trayService = new SystemTrayService(_protectionService, _logViewer, _logger);
-                
+
                 _logger.Information("✅ Alla säkerhetstjänster initialiserade framgångsrikt");
             }
             catch (Exception ex)
             {
                 _logger.Error($"❌ Kritiskt fel vid initiering av säkerhetstjänster: {ex.Message}");
-                MessageBox.Show($"Kritiskt fel vid start av säkerhetstjänster:\n\n{ex.Message}", 
+                MessageBox.Show($"Kritiskt fel vid start av säkerhetstjänster:\n\n{ex.Message}",
                     "Startfel", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+            
         }
+private void InitializeCommands()
+{
+    QuarantineCommand = new RelayCommand<ThreatItemViewModel>(async (threat) => 
+    {
+        if (threat != null)
+        {
+            var scanResult = new ScanResult
+            {
+                FilePath = threat.FilePath,
+                ThreatLevel = Enum.Parse<ThreatLevel>(threat.ThreatLevel),
+                Reason = threat.Reason
+            };
+            await _quarantineManager.QuarantineFileAsync(scanResult);
+            ActiveThreats.Remove(threat);
+        }
+    });
 
+    ShowInExplorerCommand = new RelayCommand<ThreatItemViewModel>((threat) => 
+    {
+        if (threat != null && File.Exists(threat.FilePath))
+        {
+            Process.Start("explorer.exe", $"/select,\"{threat.FilePath}\"");
+        }
+    });
+
+    AddToWhitelistCommand = new RelayCommand<ThreatItemViewModel>((threat) => 
+    {
+        if (threat != null)
+        {
+            _tempFileScanner.AddToWhitelist(threat.FilePath);
+            ActiveThreats.Remove(threat);
+        }
+    });
+}
         private void SetupEventHandlers()
         {
             // Protection service events
@@ -550,7 +618,7 @@ namespace FilKollen
 
         private void RefreshThreatsButton_Click(object sender, RoutedEventArgs e)
         {
-            _ = Task.Run(async () => await PerformTempScanAsync());
+            _ = Task.Run(PerformTempScanAsync);
         }
         #endregion
 
@@ -595,10 +663,7 @@ namespace FilKollen
         {
             // Växla till System Information tab
             var tabControl = this.FindVisualChild<TabControl>();
-            if (tabControl != null)
-            {
-                tabControl.SelectedIndex = 2; // System Information tab
-            }
+            tabControl?.SetCurrentValue(TabControl.SelectedIndexProperty, 2);
         }
 
         private void SettingsButton_Click(object sender, RoutedEventArgs e)

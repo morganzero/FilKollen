@@ -36,7 +36,7 @@ namespace FilKollen.Services
         public RealTimeProtectionService(FileScanner fileScanner, QuarantineManager quarantineManager, 
             LogViewerService logViewer, ILogger logger, AppConfig config)
         {
-            _fileScanner = fileScanner;
+            _tempFileScanner = tempFileScanner;
             _quarantineManager = quarantineManager;
             _logViewer = logViewer;
             _logger = logger;

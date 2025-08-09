@@ -78,7 +78,7 @@ namespace FilKollen.Services
         {
             _logger = logger;
             _logViewer = logViewer;
-            _fileScanner = fileScanner;
+            _tempFileScanner = tempFileScanner;
             _quarantineManager = quarantineManager;
             
             _fileWatchers = new List<FileSystemWatcher>();
@@ -452,7 +452,18 @@ namespace FilKollen.Services
                 return false;
             }
         }
-
+// Lägg till i IntrusionDetectionService.cs
+private readonly HashSet<string> _malwareNetworkIndicators = new()
+{
+    "api.telegram.org",
+    "t.me/",
+    "discord.com/api/webhooks",
+    "pastebin.com/raw/",
+    "nircmd.exe",
+    "savescreenshot",
+    "Invoke-WebRequest",
+    "/sendDocument"
+};
         private bool IsInSuspiciousLocation(string filePath)
         {
             var suspiciousLocations = new[]
