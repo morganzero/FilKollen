@@ -1,0 +1,38 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Light Theme Colors -->
+    <SolidColorBrush x:Key="FK.Brush.Primary"
+            Color="#6CC1F0"/>
+    <SolidColorBrush x:Key="FK.Brush.PrimaryDark"
+            Color="#3DA7E1"/>
+    <SolidColorBrush x:Key="FK.Brush.Bg"
+            Color="#F6FAFF"/>
+    <SolidColorBrush x:Key="FK.Brush.Surface"
+            Color="#D9FFFFFF"/>
+    <SolidColorBrush x:Key="FK.Brush.Text"
+            Color="#0B1B2B"/>
+    <SolidColorBrush x:Key="FK.Brush.Subtext"
+            Color="#3A546A"/>
+    <SolidColorBrush x:Key="FK.Brush.Border"
+            Color="#D6E6F5"/>
+    <SolidColorBrush x:Key="FK.Brush.Success"
+            Color="#2DD4BF"/>
+    <SolidColorBrush x:Key="FK.Brush.Warning"
+            Color="#F59E0B"/>
+    <SolidColorBrush x:Key="FK.Brush.Danger"
+            Color="#FF6B7D"/>
+
+    <!-- Light theme card gradient -->
+    <LinearGradientBrush x:Key="FK.Brush.CardGradient"
+            StartPoint="0,0"
+            EndPoint="1,1">
+        <GradientStop Color="#F0FFFFFF"
+                Offset="0"/>
+        <GradientStop Color="#E6FFFFFF"
+                Offset="0.5"/>
+        <GradientStop Color="#DCFFFFFF"
+                Offset="1"/>
+    </LinearGradientBrush>
+
+</ResourceDictionary>

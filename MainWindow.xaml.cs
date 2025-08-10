@@ -35,7 +35,6 @@ namespace FilKollen
         private bool _isProtectionActive = false;
         private readonly Timer _statusUpdateTimer;
 
-        // FÖRENKLAD: Endast nödvändiga UI-kontroller
         public MainWindow() : this(null, null, null) { }
 
         public MainWindow(LicenseService? licenseService, BrandingService? brandingService, ThemeService? themeService)
@@ -43,7 +42,7 @@ namespace FilKollen
             try
             {
                 _logger = Log.Logger ?? throw new InvalidOperationException("Logger inte initierad");
-                _logger.Information("MainWindow startar (FÖRENKLAD SVENSKA MODE)");
+                _logger.Information("MainWindow startar (MINIMALISTISK RESPONSIV MODE)");
 
                 _licenseService = licenseService;
                 _brandingService = brandingService;
@@ -150,10 +149,11 @@ namespace FilKollen
                 if (LastScanText != null)
                     LastScanText.Text = "Senaste skanning: Aldrig";
 
-                // Tema-toggle
-                if (_themeService != null && ThemeToggle != null)
+                // Tema-selector setup
+                if (_themeService != null && ThemeSelector != null)
                 {
-                    ThemeToggle.IsChecked = !_themeService.IsDarkTheme;
+                    ThemeSelector.SelectedIndex = (int)_themeService.Mode;
+                    _themeService.ThemeChanged += OnThemeChanged;
                 }
 
                 // Licensstatus
@@ -183,7 +183,6 @@ namespace FilKollen
         {
             try
             {
-                // Sätt initial protection status
                 _isProtectionActive = false;
                 UpdateProtectionStatusUI(false);
 
@@ -227,6 +226,31 @@ namespace FilKollen
             }
 
             await Task.Delay(10);
+        }
+
+        private void OnThemeChanged(object? sender, EventArgs e)
+        {
+            // Theme service handles the actual theme change
+            _logger.Information($"Tema ändrat via ThemeService");
+        }
+
+        private void ThemeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (_themeService != null && ThemeSelector != null)
+                {
+                    var selectedMode = (ThemeMode)ThemeSelector.SelectedIndex;
+                    _themeService.ApplyTheme(selectedMode);
+
+                    _logger.Information($"Tema växlat till: {selectedMode}");
+                    _logViewer?.AddLogEntry(LogLevel.Information, "UI", $"🎨 Tema ändrat till {selectedMode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Tema-växling misslyckades: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -329,13 +353,13 @@ namespace FilKollen
         }
 
         /// <summary>
-        /// HUVUDKONTROLL 2: "Prune bluffnotiser"-knapp - Manuell + automatisk rensning
+        /// HUVUDKONTROLL 2: "Rensa bluffnotiser"-knapp - Manuell + automatisk rensning
         /// </summary>
         private async void BrowserCleanButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                _logger.Information("Manuell 'Prune bluffnotiser' begärd");
+                _logger.Information("Manuell 'Rensa bluffnotiser' begärd");
 
                 if (BrowserCleanButton != null)
                 {
@@ -344,7 +368,7 @@ namespace FilKollen
                 }
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "BrowserClean",
-                    "🌐 PRUNE BLUFFNOTISER STARTAD - Avancerad webbläsarrensning");
+                    "🌐 RENSA BLUFFNOTISER STARTAD - Avancerad webbläsarrensning");
 
                 // Kör avancerad browser cleaning
                 if (_browserCleaner != null)
@@ -416,13 +440,13 @@ namespace FilKollen
                 {
                     SystemStatusText.Text = isActive ? "SKYDD AKTIVERAT" : "SKYDD INAKTIVERAT";
                     SystemStatusText.Foreground = new SolidColorBrush(isActive ?
-                        Color.FromRgb(0, 255, 136) : Color.FromRgb(255, 107, 125));
+                        Color.FromRgb(52, 211, 153) : Color.FromRgb(255, 107, 125)); // FK success/danger colors
                 }
 
                 if (StatusIndicator != null)
                 {
                     StatusIndicator.Fill = new SolidColorBrush(isActive ?
-                        Color.FromRgb(0, 255, 136) : Color.FromRgb(255, 107, 125));
+                        Color.FromRgb(52, 211, 153) : Color.FromRgb(255, 107, 125));
                 }
 
                 if (StatusBarText != null)
@@ -488,7 +512,7 @@ namespace FilKollen
                     if (ConnectionStatusText != null)
                     {
                         ConnectionStatusText.Text = "ONLINE";
-                        ConnectionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0, 255, 136));
+                        ConnectionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(52, 211, 153));
                     }
 
                     // Uppdatera statistik om protection är aktivt
@@ -504,25 +528,7 @@ namespace FilKollen
             }
         }
 
-        // === FÖRENKLAD: Endast nödvändiga UI-händelser ===
-
-        private void ThemeToggle_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (_themeService != null && ThemeToggle != null)
-                {
-                    _themeService.ToggleTheme();
-                    _logger.Information($"Tema växlat till: {(_themeService.IsDarkTheme ? "Mörkt" : "Ljust")}");
-                    _logViewer?.AddLogEntry(LogLevel.Information, "UI",
-                        $"🎨 Tema ändrat till {(_themeService.IsDarkTheme ? "mörkt" : "ljust")}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Tema-växling misslyckades: {ex.Message}");
-            }
-        }
+        // === UI-händelser ===
 
         /// <summary>
         /// KRITISKT: OnClosing ska minimera till tray (e.Cancel=true; Hide();)
@@ -571,8 +577,6 @@ namespace FilKollen
             }
         }
 
-        // === FÖRENKLAD: Endast grundläggande knappar ===
-
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
         {
             WindowState = WindowState.Minimized;
@@ -584,7 +588,7 @@ namespace FilKollen
             Hide();
         }
 
-        // === FÖRENKLAD: Grundläggande funktioner ===
+        // === Funktioner ===
 
         private async void TempScanButton_Click(object sender, RoutedEventArgs e)
         {
@@ -747,7 +751,7 @@ namespace FilKollen
             }
         }
 
-        // === FÖRENKLAD: Basic helpers ===
+        // === Helpers ===
 
         private void ShowErrorDialog(string message, Exception ex)
         {
@@ -769,6 +773,11 @@ namespace FilKollen
                 _intrusionDetection?.Dispose();
                 _trayService?.Dispose();
                 _logViewer?.Dispose();
+
+                if (_themeService != null)
+                {
+                    _themeService.ThemeChanged -= OnThemeChanged;
+                }
             }
             catch (Exception ex)
             {

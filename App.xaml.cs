@@ -23,13 +23,13 @@ namespace FilKollen
                 // KRITISKT: Säker logging-initiation som aldrig kraschar
                 await InitializeLoggingSafelyAsync();
 
-                _logger?.Information("=== FilKollen Säkerhetsscanner startar (AKTIV MODE) ===");
+                _logger?.Information("=== FilKollen Säkerhetsscanner startar (MINIMALISTISK UI MODE) ===");
 
                 // KRITISKT: Failsafe service initialization
                 await InitializeServicesSafelyAsync();
 
-                // KRITISKT: Säker tema-hantering
-                ApplySystemThemeSafely();
+                // KRITISKT: Säker tema-hantering (ny metod)
+                ApplyInitialThemeSafely();
 
                 // KRITISKT: Säker licens-hantering
                 await HandleLicensingSafelyAsync();
@@ -37,7 +37,7 @@ namespace FilKollen
                 // KRITISKT: Säker huvudapplikation-start
                 StartMainApplicationSafely();
 
-                _logger?.Information("=== FilKollen startup slutförd framgångsrikt (AKTIV MODE) ===");
+                _logger?.Information("=== FilKollen startup slutförd framgångsrikt (MINIMALISTISK UI MODE) ===");
             }
             catch (Exception ex)
             {
@@ -83,11 +83,11 @@ namespace FilKollen
             {
                 _logger?.Information("Initierar kärntjänster...");
 
-                // ThemeService - säker initiation
+                // ThemeService - säker initiation (ny version)
                 try
                 {
                     _themeService = new ThemeService();
-                    _logger?.Information("✅ ThemeService initierad säkert");
+                    _logger?.Information("✅ ThemeService (ny version) initierad säkert");
                 }
                 catch (Exception ex)
                 {
@@ -130,19 +130,17 @@ namespace FilKollen
             }
         }
 
-        private void ApplySystemThemeSafely()
+        private void ApplyInitialThemeSafely()
         {
             try
             {
                 if (_themeService != null)
                 {
-                    _logger?.Information("Applicerar systemtema...");
+                    _logger?.Information("Applicerar initial tema via nya ThemeService...");
 
-                    // Tillämpa tema baserat på systemeinställningar eller sparade preferenser
-                    var shouldUseDark = _themeService.ShouldUseDarkTheme();
-                    _themeService.SetTheme(shouldUseDark);
-
-                    _logger?.Information($"Tema tillämpat: {(shouldUseDark ? "Mörkt" : "Ljust")}");
+                    // Den nya ThemeService hanterar automatiskt tema-tillämpning i sin konstruktor
+                    // och laddar sparade inställningar från theme.json
+                    _logger?.Information($"Tema tillämpat: {_themeService.ThemeDisplayName} (Mode: {_themeService.ModeDisplayName})");
                 }
                 else
                 {
@@ -206,7 +204,7 @@ namespace FilKollen
                 var mainWindow = new MainWindow(
                     _licenseService, // Kan vara null
                     _brandingService, // Kan vara null  
-                    _themeService // Kan vara null
+                    _themeService // Kan vara null (nya versionen)
                 );
 
                 _logger?.Information("MainWindow skapad framgångsrikt");
