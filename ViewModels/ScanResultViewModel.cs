@@ -61,12 +61,12 @@ namespace FilKollen.ViewModels
         {
             return new ScanResultViewModel
             {
-                FileName = scanResult.FileName,
-                FilePath = scanResult.FilePath,
+                FileName = scanResult.FileName ?? string.Empty,                    // Rad 68 - NULL-SAFE
+                FilePath = scanResult.FilePath ?? string.Empty,                    // Rad 69 - NULL-SAFE
                 ThreatLevel = scanResult.ThreatLevel.ToString(),
-                Reason = scanResult.Reason,
-                FormattedSize = scanResult.FormattedSize,
-                FileHash = scanResult.FileHash,
+                Reason = scanResult.Reason ?? string.Empty,
+                FormattedSize = scanResult.FormattedSize ?? "0 B",
+                FileHash = scanResult.FileHash ?? string.Empty,
                 IsQuarantined = scanResult.IsQuarantined,
                 IsSelected = false
             };

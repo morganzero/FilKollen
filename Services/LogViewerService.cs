@@ -60,28 +60,31 @@ namespace FilKollen.Services
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Error processing log file change: {ex.Message}"); }
         }
 
-        public async Task LoadExistingLogsAsync()
+public async Task LoadExistingLogsAsync()
+{
+    try
+    {
+        var logFiles = Directory.GetFiles(_logDirectory, "*.log")
+            .OrderByDescending(f => File.GetLastWriteTime(f))
+            .Take(5);
+
+        // KORRIGERAT: Lägg till await i loop
+        foreach (var logFile in logFiles) 
         {
-            try
-            {
-                var logFiles = Directory.GetFiles(_logDirectory, "*.log")
-                    .OrderByDescending(f => File.GetLastWriteTime(f))
-                    .Take(5);
-
-                foreach (var logFile in logFiles) await LoadLogFileAsync(logFile);
-
-                if (!LogEntries.Any())
-                {
-                    AddLogEntry(LogLevel.Information, "FilKollen", "🛡️ FilKollen Real-time Security startad");
-                    AddLogEntry(LogLevel.Information, "System", "Systemkontroll genomförd - redo för säkerhetsskanning");
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLogEntry(LogLevel.Error, "LogViewer", $"Kunde inte ladda befintliga loggar: {ex.Message}");
-            }
+            await LoadLogFileAsync(logFile);
         }
 
+        if (!LogEntries.Any())
+        {
+            AddLogEntry(LogLevel.Information, "FilKollen", "🛡️ FilKollen Real-time Security startad");
+            AddLogEntry(LogLevel.Information, "System", "Systemkontroll genomförd - redo för säkerhetsskanning");
+        }
+    }
+    catch (Exception ex)
+    {
+        AddLogEntry(LogLevel.Error, "LogViewer", $"Kunde inte ladda befintliga loggar: {ex.Message}");
+    }
+}
         private async Task LoadLogFileAsync(string filePath)
         {
             try
@@ -187,19 +190,20 @@ namespace FilKollen.Services
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Failed to add log entry: {ex.Message}"); }
         }
 
-        public async Task AddLogEntryAsync(LogLevel level, string source, string message)
-        {
-            var entry = new LogEntry
-            {
-                Timestamp = DateTime.Now,
-                Level = level,
-                Source = source,
-                Message = message,
-                ThreadId = Environment.CurrentManagedThreadId
-            };
-            _logQueue.Enqueue(entry);
-            if (level >= LogLevel.Error) _ = Task.Run(ProcessLogQueueAsync);
-        }
+public Task AddLogEntryAsync(LogLevel level, string source, string message)
+{
+    var entry = new LogEntry
+    {
+        Timestamp = DateTime.Now,
+        Level = level,
+        Source = source,
+        Message = message,
+        ThreadId = Environment.CurrentManagedThreadId
+    };
+    _logQueue.Enqueue(entry);
+    if (level >= LogLevel.Error) _ = Task.Run(ProcessLogQueueAsync);
+    return Task.CompletedTask;
+}
 
         private async Task ProcessLogQueueAsync()
         {

@@ -140,7 +140,6 @@ private bool ShouldAnalyzeProcess(string processName)
         private async Task MonitorRunningProcessesAsync()
         {
             const int MaxProcessesPerScan = 500;
-            const int ProcessScanIntervalMs = 5000;
             
             try
             {
@@ -374,6 +373,22 @@ private bool ShouldAnalyzeProcess(string processName)
                 };
                 
                 SecurityAlert?.Invoke(this, alertArgs);
+
+                // KORRIGERAT: Använd IntrusionDetected event också
+                if (securityEvent.Severity >= SecuritySeverity.High)
+                {
+                    var intrusionArgs = new IntrusionDetectedEventArgs
+                    {
+                        ThreatType = securityEvent.EventType,
+                        ProcessName = securityEvent.ProcessName ?? "Unknown",
+                        ProcessPath = securityEvent.FilePath ?? "Unknown",
+                        Severity = securityEvent.Severity,
+                        Description = securityEvent.Description,
+                        ShouldBlock = securityEvent.Severity == SecuritySeverity.Critical
+                    };
+                    
+                    IntrusionDetected?.Invoke(this, intrusionArgs);
+                }
             }
             catch (Exception ex)
             {

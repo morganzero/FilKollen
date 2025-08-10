@@ -102,6 +102,7 @@ namespace FilKollen.Services
                 var suspiciousExt = _extensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
 
                 if (!(suspiciousExt || isNoExt)) return null;
+                await Task.Yield();
 
                 var info = new FileInfo(filePath);
                 if (info.Length == 0) return null;

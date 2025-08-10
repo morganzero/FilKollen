@@ -93,70 +93,70 @@ namespace FilKollen.Windows
         }
 
 private async void ValidateLicenseKeyAsync(string licenseKey)
+{
+    try
+    {
+        LicenseKeyValidationText.Visibility = Visibility.Collapsed;
+        LicenseInfoPanel.Visibility = Visibility.Collapsed;
+        RegisterButton.IsEnabled = false;
+        
+        if (string.IsNullOrEmpty(licenseKey) || licenseKey.Length < 24)
         {
-            try
+            return;
+        }
+
+        // KORRIGERAT: Lägg till await för Task.Yield() för att uppfylla async contract
+        await Task.Yield();
+
+        // Validera licensnyckel
+        var isValid = _keyGenerator.ValidateLicenseKey(licenseKey);
+        
+        if (isValid)
+        {
+            _currentLicenseInfo = _keyGenerator.ExtractLicenseInfo(licenseKey);
+            
+            if (_currentLicenseInfo != null)
             {
-                LicenseKeyValidationText.Visibility = Visibility.Collapsed;
-                LicenseInfoPanel.Visibility = Visibility.Collapsed;
-                RegisterButton.IsEnabled = false;
+                // Visa licensinformation
+                LicenseTypeText.Text = _currentLicenseInfo.TypeDisplayName;
+                LicenseExpiryText.Text = _currentLicenseInfo.FormattedExpiryDate;
+                LicenseStatusText.Text = _currentLicenseInfo.IsValid ? "✅ Giltig" : "❌ Utgången";
+                LicenseStatusText.Foreground = _currentLicenseInfo.IsValid ? 
+                    Brushes.Green : Brushes.Red;
                 
-                if (string.IsNullOrEmpty(licenseKey) || licenseKey.Length < 24)
-                {
-                    return;
-                }
-
-                // KORRIGERAT: Lägg till await för Task.Yield() för att uppfylla async contract
-                await Task.Yield();
-
-                // Validera licensnyckel
-                var isValid = _keyGenerator.ValidateLicenseKey(licenseKey);
+                LicenseInfoPanel.Visibility = Visibility.Visible;
                 
-                if (isValid)
+                if (_currentLicenseInfo.IsValid)
                 {
-                    _currentLicenseInfo = _keyGenerator.ExtractLicenseInfo(licenseKey);
-                    
-                    if (_currentLicenseInfo != null)
-                    {
-                        // Visa licensinformation
-                        LicenseTypeText.Text = _currentLicenseInfo.TypeDisplayName;
-                        LicenseExpiryText.Text = _currentLicenseInfo.FormattedExpiryDate;
-                        LicenseStatusText.Text = _currentLicenseInfo.IsValid ? "✅ Giltig" : "❌ Utgången";
-                        LicenseStatusText.Foreground = _currentLicenseInfo.IsValid ? 
-                            Brushes.Green : Brushes.Red;
-                        
-                        LicenseInfoPanel.Visibility = Visibility.Visible;
-                        
-                        if (_currentLicenseInfo.IsValid)
-                        {
-                            LicenseKeyValidationText.Text = "✅ Giltig licensnyckel";
-                            LicenseKeyValidationText.Foreground = Brushes.Green;
-                            RegisterButton.IsEnabled = CanRegister();
-                        }
-                        else
-                        {
-                            LicenseKeyValidationText.Text = "❌ Licensnyckeln har gått ut";
-                            LicenseKeyValidationText.Foreground = Brushes.Red;
-                        }
-                        
-                        LicenseKeyValidationText.Visibility = Visibility.Visible;
-                    }
+                    LicenseKeyValidationText.Text = "✅ Giltig licensnyckel";
+                    LicenseKeyValidationText.Foreground = Brushes.Green;
+                    RegisterButton.IsEnabled = CanRegister();
                 }
                 else
                 {
-                    LicenseKeyValidationText.Text = "❌ Ogiltig licensnyckel";
+                    LicenseKeyValidationText.Text = "❌ Licensnyckeln har gått ut";
                     LicenseKeyValidationText.Foreground = Brushes.Red;
-                    LicenseKeyValidationText.Visibility = Visibility.Visible;
-                    _currentLicenseInfo = null;
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"License key validation error: {ex.Message}");
-                LicenseKeyValidationText.Text = "❌ Fel vid validering av licensnyckel";
-                LicenseKeyValidationText.Foreground = Brushes.Red;
+                
                 LicenseKeyValidationText.Visibility = Visibility.Visible;
             }
         }
+        else
+        {
+            LicenseKeyValidationText.Text = "❌ Ogiltig licensnyckel";
+            LicenseKeyValidationText.Foreground = Brushes.Red;
+            LicenseKeyValidationText.Visibility = Visibility.Visible;
+            _currentLicenseInfo = null;
+        }
+    }
+    catch (Exception ex)
+    {
+        _logger.Error($"License key validation error: {ex.Message}");
+        LicenseKeyValidationText.Text = "❌ Fel vid validering av licensnyckel";
+        LicenseKeyValidationText.Foreground = Brushes.Red;
+        LicenseKeyValidationText.Visibility = Visibility.Visible;
+    }
+}
 
         private bool CanRegister()
         {
@@ -324,11 +324,12 @@ private async void ValidateLicenseKeyAsync(string licenseKey)
             }
         }
 
-        private void RestartApplication()
+private void RestartApplication()
         {
             try
             {
-                var currentExecutable = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                // KORRIGERAT: Använd AppContext.BaseDirectory istället för Assembly.Location
+                var currentExecutable = System.IO.Path.Combine(System.AppContext.BaseDirectory, "FilKollen.exe");
                 Process.Start(currentExecutable);
                 Application.Current.Shutdown();
             }

@@ -6,6 +6,19 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
+    
+    <!-- KORRIGERAT: Deployment fixes för side-by-side problem -->
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>false</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    
+    <!-- Suppress async warnings för clean build -->
+    <NoWarn>$(NoWarn);CS1998</NoWarn>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+
     <AssemblyTitle>FilKollen Real-time Security</AssemblyTitle>
     <AssemblyDescription>Real-time säkerhetsscanner för Windows med kontinuerligt skydd</AssemblyDescription>
     <AssemblyCompany>FilKollen Security</AssemblyCompany>
@@ -14,23 +27,6 @@
     <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <FileVersion>2.0.0.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- Kommenterar ut icon tills filen skapas -->
-    <!-- <ApplicationIcon>Resources\Icons\filkollen.ico</ApplicationIcon> -->
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <Optimize>true</Optimize>
-    <DebugType>none</DebugType>
-    <DebugSymbols>false</DebugSymbols>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <Optimize>false</Optimize>
-    <DebugType>full</DebugType>
-    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
