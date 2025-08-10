@@ -14,7 +14,7 @@
         Background="Transparent">
 
     <Window.Resources>
-        <!-- Threat Item Template (endast för suspekta filer) -->
+        <!-- Förenklad threat item template -->
         <DataTemplate x:Key="SuspiciousThreatTemplate">
             <Border Style="{StaticResource GlassMorphCard}"
                     Margin="0,0,0,12"
@@ -34,18 +34,12 @@
                             Background="{StaticResource TransparentDanger}"
                             VerticalAlignment="Center"
                             Margin="0,0,16,0">
-                        <Border.Effect>
-                            <DropShadowEffect Color="#ff4757"
-                                    BlurRadius="15"
-                                    ShadowDepth="0"
-                                    Opacity="0.6"/>
-                        </Border.Effect>
                         <materialDesign:PackIcon Kind="AlertCircle"
-                                Width="24"
-                                Height="24"
+                                                 Width="24"
+                                                 Height="24"
                                                  Foreground="White"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"/>
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center"/>
                     </Border>
 
                     <!-- File Info -->
@@ -53,7 +47,7 @@
                             VerticalAlignment="Center">
                         <TextBlock Text="{Binding FileName}"
                                    FontSize="15"
-                                FontWeight="SemiBold"
+                                   FontWeight="SemiBold"
                                    Foreground="{DynamicResource DynamicText}"/>
                         <TextBlock Text="{Binding FilePath}"
                                    FontSize="11"
@@ -68,8 +62,8 @@
 
                     <!-- Action Buttons -->
                     <StackPanel Grid.Column="2"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center">
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center">
                         <Button Style="{StaticResource GlassButton}"
                                 Content="🔒 KARANTÄN"
                                 Margin="4"
@@ -93,10 +87,10 @@
             BorderBrush="{StaticResource GlassMorphBorder}">
         <Border.Effect>
             <DropShadowEffect Color="#000000"
-                    Direction="270"
-                    ShadowDepth="20"
-                    BlurRadius="40"
-                    Opacity="0.4"/>
+                              Direction="270"
+                              ShadowDepth="20"
+                              BlurRadius="40"
+                              Opacity="0.4"/>
         </Border.Effect>
 
         <Grid>
@@ -122,25 +116,19 @@
 
                     <!-- Logo and Title -->
                     <StackPanel Grid.Column="0"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center">
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center">
                         <Border Width="40"
                                 Height="40"
                                 CornerRadius="20"
                                 Background="{StaticResource TransparentSuccess}"
                                 Margin="0,0,16,0">
-                            <Border.Effect>
-                                <DropShadowEffect Color="#00ff88"
-                                        BlurRadius="15"
-                                        ShadowDepth="0"
-                                        Opacity="0.8"/>
-                            </Border.Effect>
                             <materialDesign:PackIcon Kind="Security"
-                                    Width="20"
-                                    Height="20"
+                                                     Width="20"
+                                                     Height="20"
                                                      Foreground="White"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"/>
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center"/>
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="FILKOLLEN"
@@ -156,27 +144,15 @@
 
                     <!-- Status Display -->
                     <StackPanel Grid.Column="1"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal"
-                                HorizontalAlignment="Center">
+                                    HorizontalAlignment="Center">
                             <Ellipse x:Name="StatusIndicator"
-                                    Width="12"
-                                    Height="12"
+                                     Width="12"
+                                     Height="12"
                                      Fill="#ff6b7d"
-                                    Margin="0,0,10,0">
-                                <Ellipse.Effect>
-                                    <DropShadowEffect Color="#ff4757"
-                                            BlurRadius="8"
-                                            ShadowDepth="0"
-                                            Opacity="1"/>
-                                </Ellipse.Effect>
-                                <Ellipse.Triggers>
-                                    <EventTrigger RoutedEvent="Loaded">
-                                        <BeginStoryboard Storyboard="{StaticResource PulseAnimation}"/>
-                                    </EventTrigger>
-                                </Ellipse.Triggers>
-                            </Ellipse>
+                                     Margin="0,0,10,0"/>
                             <TextBlock x:Name="SystemStatusText"
                                        Text="SKYDD INAKTIVERAT"
                                        FontWeight="Bold"
@@ -201,8 +177,8 @@
 
                     <!-- Window Controls -->
                     <StackPanel Grid.Column="3"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center">
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center">
                         <Button Content="−"
                                 Style="{StaticResource GlassButton}"
                                 Width="30"
@@ -247,6 +223,7 @@
                                            HorizontalAlignment="Center"
                                            Margin="0,0,0,20"/>
 
+                                <!-- HUVUDKONTROLL 1: Protection Toggle -->
                                 <ToggleButton x:Name="ProtectionToggle"
                                               Style="{StaticResource ProtectionToggle}"
                                               HorizontalAlignment="Center"
@@ -261,17 +238,11 @@
                                         BorderBrush="{StaticResource TransparentDanger}"
                                         BorderThickness="1">
                                     <StackPanel Orientation="Horizontal"
-                                            HorizontalAlignment="Center">
+                                                HorizontalAlignment="Center">
                                         <Ellipse Width="8"
-                                                Height="8"
+                                                 Height="8"
                                                  Fill="#ff6b7d"
-                                                 Margin="0,0,8,0">
-                                            <Ellipse.Triggers>
-                                                <EventTrigger RoutedEvent="Loaded">
-                                                    <BeginStoryboard Storyboard="{StaticResource PulseAnimation}"/>
-                                                </EventTrigger>
-                                            </Ellipse.Triggers>
-                                        </Ellipse>
+                                                 Margin="0,0,8,0"/>
                                         <TextBlock Text="SYSTEMET ÄR SÅRBART"
                                                    Foreground="#ff6b7d"
                                                    FontSize="11"
@@ -298,9 +269,10 @@
                                         Margin="0,0,0,12"
                                         Click="TempScanButton_Click"/>
 
+                                <!-- HUVUDKONTROLL 2: Browser Clean Button -->
                                 <Button x:Name="BrowserCleanButton"
                                         Style="{StaticResource GlassButton}"
-                                        Content="🌐 RENSA WEBBLÄSARE"
+                                        Content="🌐 RENSA BLUFFNOTISER"
                                         Margin="0,0,0,12"
                                         Click="BrowserCleanButton_Click"/>
 
@@ -334,46 +306,46 @@
 
                                     <TextBlock Grid.Row="0"
                                             Grid.Column="0"
-                                            Text="Hot funna:"
+                                               Text="Hot funna:"
                                                Foreground="{DynamicResource DynamicTextSecondary}"
-                                            FontSize="12"/>
+                                               FontSize="12"/>
                                     <TextBlock Grid.Row="0"
                                             Grid.Column="1"
-                                            x:Name="StatsThreatsFound"
-                                            Text="0"
+                                               x:Name="StatsThreatsFound"
+                                               Text="0"
                                                FontSize="16"
-                                            FontWeight="Bold"
-                                            Foreground="#ff6b7d"/>
+                                               FontWeight="Bold"
+                                               Foreground="#ff6b7d"/>
 
                                     <TextBlock Grid.Row="1"
                                             Grid.Column="0"
-                                            Text="Filer skannade:"
+                                               Text="Filer skannade:"
                                                Foreground="{DynamicResource DynamicTextSecondary}"
-                                            FontSize="12"
-                                            Margin="0,8,0,0"/>
-                                    <TextBlock Grid.Row="1"
-                                            Grid.Column="1"
-                                            x:Name="StatsFilesScanned"
-                                            Text="0"
-                                               FontSize="16"
-                                            FontWeight="Bold"
-                                            Foreground="{StaticResource TransparentAccent}"
-                                            Margin="0,8,0,0"/>
-
-                                    <TextBlock Grid.Row="2"
-                                            Grid.Column="0"
-                                            Text="Senaste skanning:"
-                                               Foreground="{DynamicResource DynamicTextSecondary}"
-                                            FontSize="12"
-                                            Margin="0,8,0,0"/>
-                                    <TextBlock Grid.Row="2"
-                                            Grid.Column="1"
-                                            x:Name="StatsLastScan"
-                                            Text="Aldrig"
                                                FontSize="12"
-                                            FontWeight="Bold"
-                                            Foreground="{DynamicResource DynamicTextSecondary}"
-                                            Margin="0,8,0,0"/>
+                                               Margin="0,8,0,0"/>
+                                    <TextBlock Grid.Row="1"
+                                            Grid.Column="1"
+                                               x:Name="StatsFilesScanned"
+                                               Text="0"
+                                               FontSize="16"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource TransparentAccent}"
+                                               Margin="0,8,0,0"/>
+
+                                    <TextBlock Grid.Row="2"
+                                            Grid.Column="0"
+                                               Text="Senaste skanning:"
+                                               Foreground="{DynamicResource DynamicTextSecondary}"
+                                               FontSize="12"
+                                               Margin="0,8,0,0"/>
+                                    <TextBlock Grid.Row="2"
+                                            Grid.Column="1"
+                                               x:Name="StatsLastScan"
+                                               Text="Aldrig"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource DynamicTextSecondary}"
+                                               Margin="0,8,0,0"/>
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -435,18 +407,12 @@
                                             CornerRadius="30"
                                             Background="{StaticResource TransparentDanger}"
                                             HorizontalAlignment="Center">
-                                        <Border.Effect>
-                                            <DropShadowEffect Color="#ff4757"
-                                                    BlurRadius="15"
-                                                    ShadowDepth="0"
-                                                    Opacity="0.8"/>
-                                        </Border.Effect>
                                         <materialDesign:PackIcon Kind="AlertDecagram"
-                                                Width="30"
-                                                Height="30"
+                                                                 Width="30"
+                                                                 Height="30"
                                                                  Foreground="White"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"/>
+                                                                 HorizontalAlignment="Center"
+                                                                 VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Text="SUSPEKTA FILER"
                                                FontSize="12"
@@ -475,18 +441,12 @@
                                             CornerRadius="30"
                                             Background="{StaticResource TransparentSuccess}"
                                             HorizontalAlignment="Center">
-                                        <Border.Effect>
-                                            <DropShadowEffect Color="#00ff88"
-                                                    BlurRadius="15"
-                                                    ShadowDepth="0"
-                                                    Opacity="0.8"/>
-                                        </Border.Effect>
                                         <materialDesign:PackIcon Kind="FileSearch"
-                                                Width="30"
-                                                Height="30"
+                                                                 Width="30"
+                                                                 Height="30"
                                                                  Foreground="White"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"/>
+                                                                 HorizontalAlignment="Center"
+                                                                 VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Text="SKANNADE FILER"
                                                FontSize="12"
@@ -515,9 +475,10 @@
                             <Grid>
                                 <!-- Threat List -->
                                 <ScrollViewer x:Name="ThreatsScrollViewer"
-                                        VerticalScrollBarVisibility="Auto">
+                                              VerticalScrollBarVisibility="Auto"
+                                              Visibility="Collapsed">
                                     <ItemsControl x:Name="ThreatsList"
-                                            ItemTemplate="{StaticResource SuspiciousThreatTemplate}"/>
+                                                  ItemTemplate="{StaticResource SuspiciousThreatTemplate}"/>
                                 </ScrollViewer>
 
                                 <!-- No Threats Message -->
@@ -532,24 +493,16 @@
                                             HorizontalAlignment="Center">
                                         <Border.Effect>
                                             <DropShadowEffect Color="#00ff88"
-                                                    BlurRadius="25"
-                                                    ShadowDepth="0"
-                                                    Opacity="0.8"/>
+                                                              BlurRadius="25"
+                                                              ShadowDepth="0"
+                                                              Opacity="0.8"/>
                                         </Border.Effect>
-                                        <Border.RenderTransform>
-                                            <TranslateTransform/>
-                                        </Border.RenderTransform>
-                                        <Border.Triggers>
-                                            <EventTrigger RoutedEvent="Loaded">
-                                                <BeginStoryboard Storyboard="{StaticResource FloatAnimation}"/>
-                                            </EventTrigger>
-                                        </Border.Triggers>
                                         <materialDesign:PackIcon Kind="CheckCircle"
-                                                Width="50"
-                                                Height="50"
+                                                                 Width="50"
+                                                                 Height="50"
                                                                  Foreground="White"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"/>
+                                                                 HorizontalAlignment="Center"
+                                                                 VerticalAlignment="Center"/>
                                     </Border>
                                     <TextBlock Text="🎉 INGA AKTIVA HOT UPPTÄCKTA!"
                                                FontSize="22"
@@ -596,7 +549,7 @@
                                 Margin="20,0">
                         <materialDesign:PackIcon Kind="License"
                                                  Width="14"
-                                Height="14"
+                                                 Height="14"
                                                  Foreground="{StaticResource TransparentAccent}"
                                                  Margin="0,0,6,0"/>
                         <TextBlock x:Name="LicenseStatusText"
@@ -610,14 +563,14 @@
                                 Orientation="Horizontal"
                                 VerticalAlignment="Center">
                         <Ellipse Width="6"
-                                Height="6"
+                                 Height="6"
                                  Fill="#00ff88"
                                  Margin="0,0,6,0">
                             <Ellipse.Effect>
                                 <DropShadowEffect Color="#00ff88"
-                                        BlurRadius="6"
-                                        ShadowDepth="0"
-                                        Opacity="1"/>
+                                                  BlurRadius="6"
+                                                  ShadowDepth="0"
+                                                  Opacity="1"/>
                             </Ellipse.Effect>
                         </Ellipse>
                         <TextBlock x:Name="ConnectionStatusText"

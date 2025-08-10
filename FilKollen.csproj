@@ -45,6 +45,9 @@
     <!-- JSON hantering -->
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
     
+    <!-- NYTT: SQLite för Firefox permissions-hantering -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.14" />
+    
     <!-- System komponenter -->
     <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
