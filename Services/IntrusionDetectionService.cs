@@ -121,11 +121,6 @@ namespace FilKollen.Services
             _eventProcessingTimer.Start();
         }
 
-// ENHANCED PROCESS MONITORING - Rate limiting för att undvika performance-problem
-private readonly Dictionary<string, DateTime> _lastProcessCheck = new();
-private readonly TimeSpan _processCheckCooldown = TimeSpan.FromSeconds(30);
-private readonly object _processMonitorLock = new object();
-
 private bool ShouldAnalyzeProcess(string processName)
 {
     lock (_processMonitorLock)

@@ -443,213 +443,196 @@ namespace FilKollen.Services
                                Path.GetFileName(d).StartsWith("Profile"))
                     .ToList();
 
-                foreach (var profilePath in profiles)
-                {
-                    var profileName = Path.GetFileName(profilePath);
-                    LogOperation($"🔒 Djuprensning Chrome profil: {profileName}");
+foreach (var profilePath in profiles)
+{
+    var profileName = Path.GetFileName(profilePath);
+    LogOperation($"🔒 Djuprensning Chrome profil: {profileName}");
 
-                    // Rensa malware notifications (avancerat)
-                    var notificationsRemoved = await RemoveMalwareNotificationsAdvancedAsync(profilePath, "Chrome");
-                    result.MalwareNotificationsRemoved += notificationsRemoved;
-                    
-                    // Analysera och ta bort suspekta extensions
-                    var extensionsRemoved = await AnalyzeAndRemoveMaliciousExtensionsAsync(profilePath, "Chrome");
-                    result.SuspiciousExtensionsRemoved += extensionsRemoved;
-                    
-                    // Rensa all browsing data komplett
-                    await NukeAllBrowsingDataAsync(profilePath, "Chrome");
-                    
-                    // Återställ till säkra standardinställningar
-                    await ApplyMaxSecuritySettingsAsync(profilePath, "Chrome");
-                    
-                    // Kontrollera och fixa shortcuts
-                    await FixBrowserShortcutsAsync("Chrome");
-                    
-                    result.ProfilesCleaned++;
-                }
+    // Rensa malware notifications (avancerat)
+    var notificationsRemoved = await RemoveMalwareNotificationsAdvancedAsync(profilePath, "Chrome");
+    result.MalwareNotificationsRemoved += notificationsRemoved;
+    
+    // Analysera och ta bort suspekta extensions
+    var extensionsRemoved = await AnalyzeAndRemoveMaliciousExtensionsAsync(profilePath, "Chrome");
+    result.SuspiciousExtensionsRemoved += extensionsRemoved;
+    
+    // Rensa all browsing data komplett
+    await NukeAllBrowsingDataAsync(profilePath, "Chrome");
+    
+    // Återställ till säkra standardinställningar
+    await ApplyMaxSecuritySettingsAsync(profilePath, "Chrome");
+    
+    // Kontrollera och fixa shortcuts
+    await FixBrowserShortcutsAsync("Chrome");
+    
+    result.ProfilesCleaned++;
+}
+}
+catch (Exception ex)
+{
+    _logger.Error($"Fel vid Chrome-rensning: {ex.Message}");
+}
+return result;
+}
 
-                LogOperation($"✅ Chrome djuprensning klar: {result.ProfilesCleaned} profiler, {result.MalwareNotificationsRemoved} malware-notiser, {result.SuspiciousExtensionsRemoved} extensions");
-                return result;
-            }
-            catch (Exception ex)
+        private string ResolveBrowserExecutable(string browserName)
+        {
+            string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
+            return browserName.ToLowerInvariant() switch
             {
-                LogOperation($"❌ Fel vid Chrome djuprensning: {ex.Message}");
-                return result;
-            }
-        }
-
-        private async Task<SecurityCleanResult> DeepCleanEdgeAsync()
-        {
-            var result = new SecurityCleanResult();
-            
-            try
-            {
-                LogOperation("--- EDGE DJUP SÄKERHETSRENSNING ---");
-                
-                var edgeDataPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "Microsoft", "Edge", "User Data");
-
-                if (!Directory.Exists(edgeDataPath))
+                "chrome" => new[]
                 {
-                    LogOperation("❌ Edge installation ej funnen");
-                    return result;
-                }
-
-                var profiles = Directory.GetDirectories(edgeDataPath)
-                    .Where(d => Path.GetFileName(d).StartsWith("Default") || 
-                               Path.GetFileName(d).StartsWith("Profile"))
-                    .ToList();
-
-                foreach (var profilePath in profiles)
+                    Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe"),
+                    Path.Combine(programFilesX86, "Google", "Chrome", "Application", "chrome.exe")
+                }.FirstOrDefault(File.Exists) ?? "",
+                "edge" => new[]
                 {
-                    var profileName = Path.GetFileName(profilePath);
-                    LogOperation($"🔒 Djuprensning Edge profil: {profileName}");
-
-                    var notificationsRemoved = await RemoveMalwareNotificationsAdvancedAsync(profilePath, "Edge");
-                    result.MalwareNotificationsRemoved += notificationsRemoved;
-                    
-                    var extensionsRemoved = await AnalyzeAndRemoveMaliciousExtensionsAsync(profilePath, "Edge");
-                    result.SuspiciousExtensionsRemoved += extensionsRemoved;
-                    
-                    await NukeAllBrowsingDataAsync(profilePath, "Edge");
-                    await ApplyMaxSecuritySettingsAsync(profilePath, "Edge");
-                    await FixBrowserShortcutsAsync("Edge");
-                    
-                    result.ProfilesCleaned++;
-                }
-
-                LogOperation($"✅ Edge djuprensning klar: {result.ProfilesCleaned} profiler, {result.MalwareNotificationsRemoved} malware-notiser, {result.SuspiciousExtensionsRemoved} extensions");
-                return result;
-            }
-            catch (Exception ex)
-            {
-                LogOperation($"❌ Fel vid Edge djuprensning: {ex.Message}");
-                return result;
-            }
-        }
-
-        private async Task<SecurityCleanResult> CleanFirefoxAsync()
-        {
-            var result = new SecurityCleanResult();
-            
-            try
-            {
-                LogOperation("--- FIREFOX SÄKERHETSRENSNING ---");
-                
-                var firefoxPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "Mozilla", "Firefox", "Profiles");
-
-                if (!Directory.Exists(firefoxPath))
+                    Path.Combine(programFiles, "Microsoft", "Edge", "Application", "msedge.exe"),
+                    Path.Combine(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe")
+                }.FirstOrDefault(File.Exists) ?? "",
+                "firefox" => new[]
                 {
-                    LogOperation("❌ Firefox installation ej funnen");
-                    return result;
-                }
-
-                var profiles = Directory.GetDirectories(firefoxPath);
-                
-                foreach (var profilePath in profiles)
-                {
-                    var profileName = Path.GetFileName(profilePath);
-                    LogOperation($"🔒 Rensning Firefox profil: {profileName}");
-
-                    // Rensa Firefox-specifika filer
-                    var filesToDelete = new[]
-                    {
-                        "permissions.sqlite", "content-prefs.sqlite", "cookies.sqlite",
-                        "formhistory.sqlite", "places.sqlite", "webappsstore.sqlite"
-                    };
-
-                    foreach (var file in filesToDelete)
-                    {
-                        var filePath = Path.Combine(profilePath, file);
-                        if (File.Exists(filePath))
-                        {
-                            try
-                            {
-                                File.Delete(filePath);
-                                LogOperation($"   🗑️ Firefox: Raderad {file}");
-                            }
-                            catch { }
-                        }
-                    }
-                    
-                    result.ProfilesCleaned++;
-                }
-
-                LogOperation($"✅ Firefox rensning klar: {result.ProfilesCleaned} profiler");
-                return result;
-            }
-            catch (Exception ex)
-            {
-                LogOperation($"❌ Fel vid Firefox rensning: {ex.Message}");
-                return result;
-            }
-        }
-
-        // Resten av metoderna fortsätter med samma struktur...
-        // [Inkludera alla andra metoder från den ursprungliga filen]
-
-        private void LogOperation(string message)
-        {
-            _operationLog.Add($"{DateTime.Now:HH:mm:ss} - {message}");
-            _logger.Information($"AdvancedBrowserCleaner: {message}");
-        }
-
-        public List<string> GetOperationLog()
-        {
-            return new List<string>(_operationLog);
-        }
-
-        // Placeholder-metoder för att undvika compilation errors
-        private async Task<int> RemoveMalwareNotificationsAdvancedAsync(string profilePath, string browserName)
-        {
-            await Task.Delay(100);
-            return 0;
-        }
-
-        private async Task<int> AnalyzeAndRemoveMaliciousExtensionsAsync(string profilePath, string browserName)
-        {
-            await Task.Delay(100);
-            return 0;
-        }
-
-        private async Task NukeAllBrowsingDataAsync(string profilePath, string browserName)
-        {
-            await Task.Delay(100);
-        }
-
-        private async Task ApplyMaxSecuritySettingsAsync(string profilePath, string browserName)
-        {
-            await Task.Delay(100);
-        }
-
-        private async Task FixBrowserShortcutsAsync(string browserName)
-        {
-            await Task.Delay(100);
-        }
-
-        private async Task SetMaximumSecurityPoliciesAsync()
-        {
-            await Task.Delay(100);
+                    Path.Combine(programFiles, "Mozilla Firefox", "firefox.exe"),
+                    Path.Combine(programFilesX86, "Mozilla Firefox", "firefox.exe")
+                }.FirstOrDefault(File.Exists) ?? "",
+                _ => ""
+            };
         }
 
         private async Task CleanWindowsNotificationSystemAsync()
         {
-            await Task.Delay(100);
+            try
+            {
+                LogOperation("   🧹 Rensar Windows notifikationscache...");
+                var notifDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Microsoft", "Windows", "Notifications");
+                if (Directory.Exists(notifDir))
+                {
+                    foreach (var f in Directory.GetFiles(notifDir, "*.*", SearchOption.TopDirectoryOnly))
+                    {
+                        try { File.Delete(f); } catch { }
+                    }
+                    foreach (var d in Directory.GetDirectories(notifDir))
+                    {
+                        try { Directory.Delete(d, true); } catch { }
+                    }
+                }
+                await Task.Delay(50);
+                LogOperation("      ✅ Windows notifications rensade");
+            }
+            catch (Exception ex)
+            {
+                LogOperation($"      ⚠️ Kunde inte rensa Windows notifications: {ex.Message}");
+            }
         }
 
         private async Task FlushAndResetDnsAsync()
         {
-            await Task.Delay(100);
+            try
+            {
+                LogOperation("   🔄 Flusha DNS-cache...");
+                RunCmd("ipconfig", "/flushdns");
+                RunCmd("powershell", "-NoProfile -Command Clear-DnsClientCache", true);
+                LogOperation("      ✅ DNS-cache flushad");
+                await Task.Delay(50);
+            }
+            catch (Exception ex)
+            {
+                LogOperation($"      ⚠️ Kunde inte flusha DNS: {ex.Message}");
+            }
         }
 
         private async Task ResetProxySettingsAsync()
         {
-            await Task.Delay(100);
+            try
+            {
+                LogOperation("   🔁 Återställer proxy-inställningar (IE/WinHTTP)...");
+                using (var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings"))
+                {
+                    key?.SetValue("ProxyEnable", 0, RegistryValueKind.DWord);
+                    key?.DeleteValue("ProxyServer", false);
+                    key?.DeleteValue("AutoConfigURL", false);
+                }
+                RunCmd("netsh", "winhttp reset proxy");
+                LogOperation("      ✅ Proxy-inställningar återställda");
+                await Task.Delay(30);
+            }
+            catch (Exception ex)
+            {
+                LogOperation($"      ⚠️ Kunde inte återställa proxy: {ex.Message}");
+            }
         }
-    }
+
+        private void RunCmd(string fileName, string args, bool hidden = false)
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo(fileName, args)
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = hidden,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true
+                };
+                using var p = System.Diagnostics.Process.Start(psi);
+                p?.WaitForExit(10000);
+            }
+            catch { }
+        }
+
+        private async Task SetMaximumSecurityPoliciesAsync()
+        {
+            try
+            {
+                LogOperation("   🏛️ Sätter max säkerhetspolicys (Chrome/Edge via Registry)...");
+
+                using (var chrome = Registry.CurrentUser.CreateSubKey(@"Software\Policies\Google\Chrome"))
+                {
+                    chrome?.SetValue("DefaultNotificationsSetting", 2, RegistryValueKind.DWord);
+                    chrome?.SetValue("PasswordManagerEnabled", 0, RegistryValueKind.DWord);
+                    chrome?.SetValue("SafeBrowsingProtectionLevel", 2, RegistryValueKind.DWord);
+                    chrome?.SetValue("URLBlocklist", new string[] {}, RegistryValueKind.MultiString);
+                }
+
+                using (var edge = Registry.CurrentUser.CreateSubKey(@"Software\Policies\Microsoft\Edge"))
+                {
+                    edge?.SetValue("DefaultNotificationsSetting", 2, RegistryValueKind.DWord);
+                    edge?.SetValue("PasswordManagerEnabled", 0, RegistryValueKind.DWord);
+                    edge?.SetValue("SmartScreenEnabled", 1, RegistryValueKind.DWord);
+                    edge?.SetValue("URLBlocklist", new string[] {}, RegistryValueKind.MultiString);
+                }
+
+                LogOperation("      ✅ Policys satta");
+                await Task.Delay(30);
+            }
+            catch (Exception ex)
+            {
+                LogOperation($"      ⚠️ Kunde inte sätta policys: {ex.Message}");
+            }
+        }
+        private void CreateShortcut(string path, string targetPath, string arguments)
+        {
+            try
+            {
+                Type? t = Type.GetTypeFromProgID("WScript.Shell");
+                if (t != null)
+                {
+                    dynamic shell = Activator.CreateInstance(t)!;
+                    dynamic lnk = shell.CreateShortcut(path);
+                    lnk.TargetPath = targetPath;
+                    lnk.Arguments = arguments;
+                    lnk.WorkingDirectory = Path.GetDirectoryName(targetPath);
+                    lnk.Save();
+                }
+            }
+            catch { /* ignore */ }
+        }
+
+
+
 
     // Support-klasser
     public class SecurityCleanResult
@@ -704,188 +687,6 @@ namespace FilKollen.Services
                 _ => ""
             };
         }
-
-        private void CreateShortcut(string path, string targetPath, string arguments)
-        {
-            try
-            {
-                Type? t = Type.GetTypeFromProgID("WScript.Shell");
-                if (t != null)
-                {
-                    dynamic shell = Activator.CreateInstance(t)!;
-                    dynamic lnk = shell.CreateShortcut(path);
-                    lnk.TargetPath = targetPath;
-                    lnk.Arguments = arguments;
-                    lnk.WorkingDirectory = Path.GetDirectoryName(targetPath);
-                    lnk.Save();
-                }
-            }
-            catch { /* ignore */ }
-        }
-
-        private async Task CleanWindowsNotificationSystemAsync()
-        {
-            try
-            {
-                LogOperation("   🧹 Rensar Windows notifikationscache...");
-                var notifDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "Microsoft", "Windows", "Notifications");
-                if (Directory.Exists(notifDir))
-                {
-                    foreach (var f in Directory.GetFiles(notifDir, "*.*", SearchOption.TopDirectoryOnly))
-                    {
-                        try { File.Delete(f); } catch { }
-                    }
-                    foreach (var d in Directory.GetDirectories(notifDir))
-                    {
-                        try { Directory.Delete(d, true); } catch { }
-                    }
-                }
-                await Task.Delay(50);
-                LogOperation("      ✅ Windows notifications rensade");
-            }
-            catch (Exception ex)
-            {
-                LogOperation($"      ⚠️ Kunde inte rensa Windows notifications: {ex.Message}");
-            }
-        }
-
-        private async Task UpdateHostsFileWithMalwareProtectionAsync()
-        {
-            try
-            {
-                LogOperation("   🛑 Uppdaterar HOSTS med block för malware-domäner...");
-                string hostsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers", "etc", "hosts");
-                if (!File.Exists(hostsPath))
-                {
-                    LogOperation("      ⚠️ HOSTS-fil ej funnen");
-                    return;
-                }
-
-                try
-                {
-                    // Backup en gång per körning
-                    var backup = hostsPath + ".filkollen.bak";
-                    if (!File.Exists(backup))
-                        File.Copy(hostsPath, backup, true);
-                }
-                catch { }
-
-                var existing = new HashSet<string>(File.ReadAllLines(hostsPath)
-                    .Select(l => l.Trim())
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#")), StringComparer.OrdinalIgnoreCase);
-
-                var linesToAppend = new List<string>();
-                foreach (var domain in _malwareNotificationDomains)
-                {
-                    var entry = $"0.0.0.0 {domain}";
-                    if (!existing.Contains(entry))
-                        linesToAppend.Add(entry);
-                    // blockera även wildcard subdomäner via kommentar/hint – HOSTS hanterar ej wildcard
-                }
-
-                if (linesToAppend.Count > 0)
-                    File.AppendAllLines(hostsPath, new[] { "", "# FilKollen malware block:" }.Concat(linesToAppend));
-
-                LogOperation($"      ✅ HOSTS uppdaterad ({linesToAppend.Count} domäner)");
-                await Task.Delay(30);
-            }
-            catch (Exception ex)
-            {
-                LogOperation($"      ⚠️ Kunde inte uppdatera HOSTS: {ex.Message}");
-            }
-        }
-
-        private async Task FlushAndResetDnsAsync()
-        {
-            try
-            {
-                LogOperation("   🔄 Flusha DNS-cache...");
-                RunCmd("ipconfig", "/flushdns");
-                // Extra: Rensa resolver cache via PowerShell om tillgängligt
-                RunCmd("powershell", "-NoProfile -Command Clear-DnsClientCache", true);
-                LogOperation("      ✅ DNS-cache flushad");
-                await Task.Delay(50);
-            }
-            catch (Exception ex)
-            {
-                LogOperation($"      ⚠️ Kunde inte flusha DNS: {ex.Message}");
-            }
-        }
-
-        private async Task ResetProxySettingsAsync()
-        {
-            try
-            {
-                LogOperation("   🔁 Återställer proxy-inställningar (IE/WinHTTP)...");
-                // HKCU Internet Settings
-                using (var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings"))
-                {
-                    key?.SetValue("ProxyEnable", 0, RegistryValueKind.DWord);
-                    key?.DeleteValue("ProxyServer", false);
-                    key?.DeleteValue("AutoConfigURL", false);
-                }
-                // Återställ WinHTTP proxy
-                RunCmd("netsh", "winhttp reset proxy");
-                LogOperation("      ✅ Proxy-inställningar återställda");
-                await Task.Delay(30);
-            }
-            catch (Exception ex)
-            {
-                LogOperation($"      ⚠️ Kunde inte återställa proxy: {ex.Message}");
-            }
-        }
-
-        private void RunCmd(string fileName, string args, bool hidden = false)
-        {
-            try
-            {
-                var psi = new System.Diagnostics.ProcessStartInfo(fileName, args)
-                {
-                    UseShellExecute = false,
-                    CreateNoWindow = hidden,
-                    RedirectStandardError = true,
-                    RedirectStandardOutput = true
-                };
-                using var p = System.Diagnostics.Process.Start(psi);
-                p?.WaitForExit(10000);
-            }
-            catch { }
-        }
-
-        private async Task SetMaximumSecurityPoliciesAsync()
-        {
-            try
-            {
-                LogOperation("   🏛️ Sätter max säkerhetspolicys (Chrome/Edge via Registry)...");
-
-                // Chrome policies (HKCU)
-                using (var chrome = Registry.CurrentUser.CreateSubKey(@"Software\Policies\Google\Chrome"))
-                {
-                    chrome?.SetValue("DefaultNotificationsSetting", 2, RegistryValueKind.DWord);
-                    chrome?.SetValue("PasswordManagerEnabled", 0, RegistryValueKind.DWord);
-                    chrome?.SetValue("SafeBrowsingProtectionLevel", 2, RegistryValueKind.DWord); // Enhanced
-                    chrome?.SetValue("URLBlocklist", new string[] {}, RegistryValueKind.MultiString);
-                }
-
-                // Edge policies (HKCU)
-                using (var edge = Registry.CurrentUser.CreateSubKey(@"Software\Policies\Microsoft\Edge"))
-                {
-                    edge?.SetValue("DefaultNotificationsSetting", 2, RegistryValueKind.DWord);
-                    edge?.SetValue("PasswordManagerEnabled", 0, RegistryValueKind.DWord);
-                    edge?.SetValue("SmartScreenEnabled", 1, RegistryValueKind.DWord);
-                    edge?.SetValue("URLBlocklist", new string[] {}, RegistryValueKind.MultiString);
-                }
-
-                LogOperation("      ✅ Policys satta");
-                await Task.Delay(30);
-            }
-            catch (Exception ex)
-            {
-                LogOperation($"      ⚠️ Kunde inte sätta policys: {ex.Message}");
-            }
-        }
-
+    }
 }
-
 }
