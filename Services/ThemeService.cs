@@ -85,35 +85,86 @@ namespace FilKollen.Services
             {
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
-var paletteHelper = new MaterialDesignThemes.Wpf.PaletteHelper();
-var theme = paletteHelper.GetTheme();
+                    var paletteHelper = new PaletteHelper();
+                    var theme = paletteHelper.GetTheme();
 
-MaterialDesignThemes.Wpf.IBaseTheme baseTheme =
-    IsDarkTheme
-        ? new MaterialDesignThemes.Wpf.MaterialDesignDarkTheme()
-        : new MaterialDesignThemes.Wpf.MaterialDesignLightTheme();
+                    // KORRIGERAT: Använd rätt variabelnamn
+                    IBaseTheme baseTheme = IsDarkTheme
+                        ? new MaterialDesignDarkTheme()
+                        : new MaterialDesignLightTheme();
 
-theme.SetBaseTheme(baseTheme);
-paletteHelper.SetTheme(theme);
+                    theme.SetBaseTheme(baseTheme);
 
-                    // Anpassa färger för FilKollen
+                    // FÖRBÄTTRADE färger för FilKollen
                     if (IsDarkTheme)
                     {
-                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(102, 126, 234));
-                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(255, 152, 0));
+                        // Mörka tema-färger - moderna blå/turkos nyanser
+                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(59, 130, 246));   // Blue-500
+                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(6, 182, 212));  // Cyan-500
+                        
+                        // Anpassa Paper och Card bakgrunder för mörkt tema
+                        theme.Paper = System.Windows.Media.Color.FromRgb(15, 23, 42);  // Slate-900
+                        theme.CardBackground = System.Windows.Media.Color.FromRgb(30, 41, 59);    // Slate-800
                     }
                     else
                     {
-                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(33, 150, 243));
-                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(255, 152, 0));
+                        // Ljusa tema-färger - livfulla men professionella
+                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(37, 99, 235));    // Blue-600
+                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(8, 145, 178));  // Cyan-600
+                        
+                        // Ljusa bakgrunder
+                        theme.Paper = System.Windows.Media.Color.FromRgb(248, 250, 252);  // Slate-50
+                        theme.CardBackground = System.Windows.Media.Color.FromRgb(255, 255, 255); // White
                     }
 
                     paletteHelper.SetTheme(theme);
+
+                    // Uppdatera även custom resurser
+                    UpdateCustomResources();
                 });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to apply theme: {ex.Message}");
+            }
+        }
+
+        private void UpdateCustomResources()
+        {
+            try
+            {
+                var resources = Application.Current?.Resources;
+                if (resources == null) return;
+
+                // Uppdatera custom tema-resurser baserat på aktuellt tema
+                if (IsDarkTheme)
+                {
+                    // Mörka tema-resurser
+                    resources["ModernWindowBackground"] = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(15, 23, 42));   // Slate-900
+                    resources["ModernCardBackground"] = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(30, 41, 59));   // Slate-800
+                    resources["ModernTextPrimary"] = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(248, 250, 252)); // Slate-50
+                    resources["ModernTextSecondary"] = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(203, 213, 225)); // Slate-300
+                }
+                else
+                {
+                    // Ljusa tema-resurser
+                    resources["ModernWindowBackground"] = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(248, 249, 250)); // Gray-50
+                    resources["ModernCardBackground"] = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(255, 255, 255)); // White
+                    resources["ModernTextPrimary"] = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(33, 37, 41));    // Gray-900
+                    resources["ModernTextSecondary"] = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(108, 117, 125)); // Gray-600
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to update custom resources: {ex.Message}");
             }
         }
 

@@ -16,6 +16,18 @@
         Icon="Resources/Icons/filkollen.ico">
 
     <Window.Resources>
+        <!-- MaterialDesign Resource Dictionaries -->
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Light.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Defaults.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Button.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ComboBox.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.TabControl.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Card.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.PackIcon.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
         <!-- Custom Styles -->
         <Style x:Key="ThreatLevelCritical" TargetType="Border">
             <Setter Property="Background" Value="#FFEBEE"/>
@@ -152,6 +164,7 @@
                 </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid>
@@ -251,188 +264,218 @@
                     <StackPanel Margin="16">
                         
                         <!-- Real-time Protection -->
-                        <materialDesign:Card Style="{StaticResource SecurityCardStyle}">
-                            <StackPanel>
-                                <TextBlock Text="🛡️ Real-time Skydd" 
-                                         FontSize="16" 
-                                         FontWeight="SemiBold" 
-                                         Margin="0,0,0,12"/>
-                                
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock x:Name="ProtectionStatusText" 
-                                                 Text="INAKTIVERAT" 
-                                                 FontWeight="Bold"
-                                                 Foreground="#F44336"/>
-                                        <TextBlock x:Name="ProtectionModeText" 
-                                                 Text="Manuell hantering" 
-                                                 FontSize="11" 
-                                                 Opacity="0.7"/>
-                                    </StackPanel>
-                                    
-                                    <materialDesign:PackIcon x:Name="ProtectionIcon" 
-                                                           Grid.Column="1"
-                                                           Kind="ShieldOff" 
-                                                           Width="24" Height="24"
-                                                           Foreground="#F44336"/>
-                                </Grid>
-                                
-                                <ToggleButton x:Name="ProtectionToggle"
-                                            Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                                            Margin="0,12,0,8"
-                                            Checked="ProtectionToggle_Checked"
-                                            Unchecked="ProtectionToggle_Unchecked"/>
-                                
-                                <Separator Margin="0,8"/>
-                                
-                                <TextBlock Text="Hanteringsläge" FontWeight="SemiBold" FontSize="12" Margin="0,8,0,4"/>
-                                <RadioButton x:Name="ManualModeRadio" 
-                                           Content="Manuell" 
-                                           IsChecked="True"
-                                           FontSize="11"
-                                           Checked="ModeRadio_Checked"/>
-                                <RadioButton x:Name="AutoModeRadio" 
-                                           Content="Automatisk" 
-                                           FontSize="11"
-                                           Checked="ModeRadio_Checked"/>
-                            </StackPanel>
-                        </materialDesign:Card>
+<Border Style="{StaticResource ModernGlassCard}">
+    <StackPanel>
+        <TextBlock Text="🛡️ Real-time Skydd" 
+                 FontSize="16" 
+                 FontWeight="SemiBold" 
+                 Margin="0,0,0,12"/>
+        
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <StackPanel Grid.Column="0">
+                <TextBlock x:Name="ProtectionStatusText" 
+                         Text="INAKTIVERAT" 
+                         FontWeight="Bold"
+                         Foreground="#F44336"/>
+                <TextBlock x:Name="ProtectionModeText" 
+                         Text="Manuell hantering" 
+                         FontSize="11" 
+                         Opacity="0.7"/>
+            </StackPanel>
+            
+            <materialDesign:PackIcon x:Name="ProtectionIcon" 
+                                   Grid.Column="1"
+                                   Kind="ShieldOff" 
+                                   Width="24" Height="24"
+                                   Foreground="#F44336"/>
+        </Grid>
+        
+        <ToggleButton x:Name="ProtectionToggle"
+                    Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                    Margin="0,12,0,8"
+                    Checked="ProtectionToggle_Checked"
+                    Unchecked="ProtectionToggle_Unchecked"/>
+        
+        <Separator Margin="0,8"/>
+        
+        <TextBlock Text="Hanteringsläge" FontWeight="SemiBold" FontSize="12" Margin="0,8,0,4"/>
+        <RadioButton x:Name="ManualModeRadio" 
+                   Content="Manuell" 
+                   IsChecked="True"
+                   FontSize="11"
+                   Checked="ModeRadio_Checked"/>
+        <RadioButton x:Name="AutoModeRadio" 
+                   Content="Automatisk" 
+                   FontSize="11"
+                   Checked="ModeRadio_Checked"/>
+        
+        <!-- NYTT: Status indicator med animation -->
+        <Border Background="{DynamicResource PrimaryHueMidBrush}" 
+                CornerRadius="20" 
+                HorizontalAlignment="Center"
+                Padding="12,6"
+                Margin="0,8">
+            <StackPanel Orientation="Horizontal">
+                <Ellipse Width="8" Height="8" 
+                         Fill="White" 
+                         Margin="0,0,6,0">
+                    <Ellipse.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard RepeatBehavior="Forever">
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                   From="1" To="0.3" Duration="0:0:1"
+                                                   AutoReverse="True"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Ellipse.Triggers>
+                </Ellipse>
+                <TextBlock Text="LIVE MONITORING" 
+                           Foreground="White" 
+                           FontSize="10" 
+                           FontWeight="Bold"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</Border>
 
                         <!-- Intrusion Detection -->
-                        <materialDesign:Card Style="{StaticResource SecurityCardStyle}">
-                            <StackPanel>
-                                <TextBlock Text="🔍 Intrång-detektering" 
-                                         FontSize="16" 
-                                         FontWeight="SemiBold" 
-                                         Margin="0,0,0,12"/>
-                                
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock x:Name="IDSStatusText" 
-                                                 Text="INAKTIVERAT" 
-                                                 FontWeight="Bold"
-                                                 Foreground="#F44336"/>
-                                        <TextBlock x:Name="IDSDetailsText" 
-                                                 Text="Avancerat hotskydd avstängt" 
-                                                 FontSize="11" 
-                                                 Opacity="0.7"/>
-                                    </StackPanel>
-                                    
-                                    <materialDesign:PackIcon x:Name="IDSIcon" 
-                                                           Grid.Column="1"
-                                                           Kind="RadarOff" 
-                                                           Width="24" Height="24"
-                                                           Foreground="#F44336"/>
-                                </Grid>
-                                
-                                <ToggleButton x:Name="IDSToggle"
-                                            Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                                            Margin="0,12"
-                                            Checked="IDSToggle_Checked"
-                                            Unchecked="IDSToggle_Unchecked"/>
-                                
-                                <!-- IDS Stats -->
-                                <Border Background="#E3F2FD" 
-                                      CornerRadius="4" 
-                                      Padding="8" 
-                                      Margin="0,8,0,0">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition/>
-                                            <RowDefinition/>
-                                        </Grid.RowDefinitions>
-                                        
-                                        <StackPanel Grid.Row="0" Orientation="Horizontal">
-                                            <materialDesign:PackIcon Kind="Eye" Width="12" Height="12" Margin="0,0,4,0"/>
-                                            <TextBlock x:Name="IDSThreatsText" Text="0 hot blockerade" FontSize="10"/>
-                                        </StackPanel>
-                                        
-                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,2,0,0">
-                                            <materialDesign:PackIcon Kind="Clock" Width="12" Height="12" Margin="0,0,4,0"/>
-                                            <TextBlock x:Name="IDSLastEventText" Text="Senaste: Aldrig" FontSize="10"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </materialDesign:Card>
+<Border Style="{StaticResource ModernGlassCard}">
+    <StackPanel>
+        <TextBlock Text="🔍 Intrång-detektering" 
+                 FontSize="16" 
+                 FontWeight="SemiBold" 
+                 Margin="0,0,0,12"/>
+        
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <StackPanel Grid.Column="0">
+                <TextBlock x:Name="IDSStatusText" 
+                         Text="INAKTIVERAT" 
+                         FontWeight="Bold"
+                         Foreground="#F44336"/>
+                <TextBlock x:Name="IDSDetailsText" 
+                         Text="Avancerat hotskydd avstängt" 
+                         FontSize="11" 
+                         Opacity="0.7"/>
+            </StackPanel>
+            
+            <materialDesign:PackIcon x:Name="IDSIcon" 
+                                   Grid.Column="1"
+                                   Kind="RadarOff" 
+                                   Width="24" Height="24"
+                                   Foreground="#F44336"/>
+        </Grid>
+        
+        <ToggleButton x:Name="IDSToggle"
+                    Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                    Margin="0,12"
+                    Checked="IDSToggle_Checked"
+                    Unchecked="IDSToggle_Unchecked"/>
+        
+        <!-- IDS Stats -->
+        <Border Background="#E3F2FD" 
+              CornerRadius="4" 
+              Padding="8" 
+              Margin="0,8,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                
+                <StackPanel Grid.Row="0" Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="Eye" Width="12" Height="12" Margin="0,0,4,0"/>
+                    <TextBlock x:Name="IDSThreatsText" Text="0 hot blockerade" FontSize="10"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,2,0,0">
+                    <materialDesign:PackIcon Kind="Clock" Width="12" Height="12" Margin="0,0,4,0"/>
+                    <TextBlock x:Name="IDSLastEventText" Text="Senaste: Aldrig" FontSize="10"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </StackPanel>
+</Border>
+
 
                         <!-- Quick Actions -->
-                        <materialDesign:Card Style="{StaticResource SecurityCardStyle}">
-                            <StackPanel>
-                                <TextBlock Text="⚡ Snabbåtgärder" 
-                                         FontSize="16" 
-                                         FontWeight="SemiBold" 
-                                         Margin="0,0,0,12"/>
-                                
-                                <Button x:Name="TempScanButton"
-                                      Style="{StaticResource MaterialDesignRaisedButton}"
-                                      Content="🔍 Skanna temp-filer"
-                                      Margin="0,0,0,8"
-                                      Click="TempScanButton_Click"/>
-                                
-                                <Button x:Name="BrowserCleanButton"
-                                      Style="{StaticResource MaterialDesignOutlinedButton}"
-                                      Content="🌐 Rensa webbläsare"
-                                      Margin="0,0,0,8"
-                                      Click="BrowserCleanButton_Click"/>
-                                
-                                <Button x:Name="QuarantineManagerButton"
-                                      Style="{StaticResource MaterialDesignOutlinedButton}"
-                                      Content="🏥 Hantera karantän"
-                                      Margin="0,0,0,8"
-                                      Click="QuarantineManagerButton_Click"/>
-                                
-                                <Button x:Name="SystemInfoButton"
-                                      Style="{StaticResource MaterialDesignFlatButton}"
-                                      Content="ℹ️ Systeminformation"
-                                      Click="SystemInfoButton_Click"/>
-                            </StackPanel>
-                        </materialDesign:Card>
+<Border Style="{StaticResource ModernGlassCard}">
+    <StackPanel>
+        <TextBlock Text="⚡ Snabbåtgärder" 
+                 FontSize="16" 
+                 FontWeight="SemiBold" 
+                 Margin="0,0,0,12"/>
+        
+        <Button x:Name="TempScanButton"
+              Style="{StaticResource MaterialDesignRaisedButton}"
+              Content="🔍 Skanna temp-filer"
+              Margin="0,0,0,8"
+              Click="TempScanButton_Click"/>
+        
+        <Button x:Name="BrowserCleanButton"
+              Style="{StaticResource MaterialDesignOutlinedButton}"
+              Content="🌐 Rensa webbläsare"
+              Margin="0,0,0,8"
+              Click="BrowserCleanButton_Click"/>
+        
+        <Button x:Name="QuarantineManagerButton"
+              Style="{StaticResource MaterialDesignOutlinedButton}"
+              Content="🏥 Hantera karantän"
+              Margin="0,0,0,8"
+              Click="QuarantineManagerButton_Click"/>
+        
+        <Button x:Name="SystemInfoButton"
+              Style="{StaticResource MaterialDesignFlatButton}"
+              Content="ℹ️ Systeminformation"
+              Click="SystemInfoButton_Click"/>
+    </StackPanel>
+</Border>
 
-                        <!-- System Stats -->
-                        <materialDesign:Card Style="{StaticResource SecurityCardStyle}">
-                            <StackPanel>
-                                <TextBlock Text="📊 Systemstatistik" 
-                                         FontSize="16" 
-                                         FontWeight="SemiBold" 
-                                         Margin="0,0,0,12"/>
-                                
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition/>
-                                        <RowDefinition/>
-                                        <RowDefinition/>
-                                        <RowDefinition/>
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Hot upptäckta:" FontSize="11"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StatsThreatsFound" Text="0" FontSize="11" FontWeight="Bold"/>
-                                    
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Hot hanterade:" FontSize="11"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="StatsThreatsHandled" Text="0" FontSize="11" FontWeight="Bold"/>
-                                    
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Filer i karantän:" FontSize="11"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="StatsQuarantined" Text="0" FontSize="11" FontWeight="Bold"/>
-                                    
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Skanning idag:" FontSize="11"/>
-                                    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="StatsScansToday" Text="0" FontSize="11" FontWeight="Bold"/>
-                                </Grid>
-                            </StackPanel>
-                        </materialDesign:Card>
+<!-- System Stats -->
+<Border Style="{StaticResource ModernGlassCard}">
+    <StackPanel>
+        <TextBlock Text="📊 Systemstatistik" 
+                   FontSize="16" 
+                   FontWeight="SemiBold" 
+                   Margin="0,0,0,12"/>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition/>
+                <RowDefinition/>
+                <RowDefinition/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Hot upptäckta:" FontSize="11"/>
+            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StatsThreatsFound" Text="0" FontSize="11" FontWeight="Bold"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Hot hanterade:" FontSize="11"/>
+            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="StatsThreatsHandled" Text="0" FontSize="11" FontWeight="Bold"/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Filer i karantän:" FontSize="11"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="StatsQuarantined" Text="0" FontSize="11" FontWeight="Bold"/>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Skanning idag:" FontSize="11"/>
+            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="StatsScansToday" Text="0" FontSize="11" FontWeight="Bold"/>
+        </Grid>
+    </StackPanel>
+</Border>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -448,11 +491,11 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            
+
                             <!-- Alert Cards -->
                             <UniformGrid Grid.Row="0" Rows="1" Columns="3" Margin="0,0,0,16">
                                 <!-- Critical Threats -->
-                                <materialDesign:Card Margin="4" Padding="16">
+                            <Border Style="{StaticResource ModernGlassCard}" Margin="4">
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                             <materialDesign:PackIcon Kind="AlertDecagram" 
@@ -474,10 +517,10 @@
                                                  HorizontalAlignment="Center"
                                                  Opacity="0.7"/>
                                     </StackPanel>
-                                </materialDesign:Card>
+                            </Border>
                                 
                                 <!-- High Threats -->
-                                <materialDesign:Card Margin="4" Padding="16">
+                            <Border Style="{StaticResource ModernGlassCard}" Margin="4">
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                             <materialDesign:PackIcon Kind="Alert" 
@@ -499,10 +542,10 @@
                                                  HorizontalAlignment="Center"
                                                  Opacity="0.7"/>
                                     </StackPanel>
-                                </materialDesign:Card>
+                                </Border>
                                 
                                 <!-- Total Files Scanned -->
-                                <materialDesign:Card Margin="4" Padding="16">
+                            <Border Style="{StaticResource ModernGlassCard}" Margin="4">
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                             <materialDesign:PackIcon Kind="FileSearch" 
@@ -524,11 +567,11 @@
                                                  HorizontalAlignment="Center"
                                                  Opacity="0.7"/>
                                     </StackPanel>
-                                </materialDesign:Card>
+                                </Border>
                             </UniformGrid>
                             
                             <!-- Threat List -->
-                            <materialDesign:Card Grid.Row="1" Padding="16">
+<Border Style="{StaticResource ModernGlassCard}" Grid.Row="1">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -602,7 +645,7 @@
                                                Visibility="Collapsed"
                                                Margin="0,16,0,0"/>
                                 </Grid>
-                            </materialDesign:Card>
+</Border>
                         </Grid>
                     </TabItem>
 
@@ -697,7 +740,7 @@
                     <TabItem Header="ℹ️ Systeminformation">
                         <ScrollViewer Margin="16" VerticalScrollBarVisibility="Auto">
                             <StackPanel>
-                                <materialDesign:Card Padding="16" Margin="0,0,0,16">
+<Border Style="{StaticResource ModernGlassCard}" Margin="0,0,0,16">
                                     <StackPanel>
                                         <TextBlock Text="💻 Systemöversikt" 
                                                  FontSize="18" 
@@ -733,9 +776,8 @@
                                             <TextBlock Grid.Row="4" Grid.Column="1" Text="2.0.0"/>
                                         </Grid>
                                     </StackPanel>
-                                </materialDesign:Card>
-                                
-                                <materialDesign:Card Padding="16">
+</Border>                                
+<Border Style="{StaticResource ModernGlassCard}">
                                     <StackPanel>
                                         <TextBlock Text="🔧 Säkerhetsstatus" 
                                                  FontSize="18" 
@@ -771,7 +813,7 @@
                                             <TextBlock Grid.Row="4" Grid.Column="1" x:Name="SecurityDefenderText" Text="Kontrollerar..."/>
                                         </Grid>
                                     </StackPanel>
-                                </materialDesign:Card>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
