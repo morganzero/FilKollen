@@ -40,7 +40,27 @@
             <Setter Property="Padding" Value="16"/>
             <Setter Property="materialDesign:ShadowAssist.ShadowDepth" Value="Depth2"/>
         </Style>
-
+<!-- Förbättrade kort med glassmorphism -->
+<Style x:Key="ModernGlassCard" TargetType="Border">
+    <Setter Property="Background">
+        <Setter.Value>
+            <SolidColorBrush Color="White" Opacity="0.85"/>
+        </Setter.Value>
+    </Setter>
+    <Setter Property="BorderBrush" Value="#E0E0E0"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="16"/>
+    <Setter Property="Padding" Value="24"/>
+    <Setter Property="Effect">
+        <Setter.Value>
+            <DropShadowEffect Color="Black" 
+                            Direction="270" 
+                            ShadowDepth="8" 
+                            BlurRadius="24" 
+                            Opacity="0.08"/>
+        </Setter.Value>
+    </Setter>
+</Style>
         <!-- Threat Level Data Template -->
         <DataTemplate x:Key="ThreatItemTemplate">
             <Border Name="ThreatBorder" Margin="4" Padding="12" CornerRadius="4">

@@ -415,9 +415,8 @@ namespace FilKollen.Services
         }
 
         private async Task StartProcessMonitoringAsync()
-        {
-            _ = Task.Run(async () =>
-            {
+{
+    _ = Task.Run(async () => {
                 while (!_cancellationTokenSource.Token.IsCancellationRequested)
                 {
                     try
@@ -438,7 +437,7 @@ namespace FilKollen.Services
             });
 
             _logViewer.AddLogEntry(LogLevel.Information, "IDS", "🔍 Process-övervakning aktiverad");
-            await Task.Yield(); // TILLAGD för att uppfylla async contract
+    await Task.Yield();
         }
 
         private async Task StartNetworkMonitoringAsync()
@@ -684,7 +683,12 @@ namespace FilKollen.Services
             "Expand-Archive",
             "bot[0-9]+:",
             "chat_id=",
-            "/sendDocument"
+            "/sendDocument",
+            @"bot\d+:",
+            @"chat_id=\d+",
+            "ScreenshotLog.txt",
+            "Invoke-WebRequest.*telegram",
+            "curl.*api.telegram.org"
         };
 
         private readonly HashSet<string> _suspiciousScreenshotPatterns = new()

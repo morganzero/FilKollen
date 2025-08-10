@@ -89,7 +89,7 @@ var paletteHelper = new MaterialDesignThemes.Wpf.PaletteHelper();
 var theme = paletteHelper.GetTheme();
 
 MaterialDesignThemes.Wpf.IBaseTheme baseTheme =
-    useDarkTheme
+    IsDarkTheme
         ? new MaterialDesignThemes.Wpf.MaterialDesignDarkTheme()
         : new MaterialDesignThemes.Wpf.MaterialDesignLightTheme();
 
