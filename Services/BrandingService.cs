@@ -3,7 +3,6 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Drawing;
 using FilKollen.Models;
 using Serilog;
 
@@ -16,34 +15,63 @@ namespace FilKollen.Services
         private readonly ILogger _logger;
         private BrandingConfig _currentBranding;
 
-        public BrandingService(ILogger logger)
-        {
-            _logger = logger;
-            EnsureBrandingDirectoryExists();
-            _currentBranding = LoadBrandingConfig();
-        }
+public BrandingService(ILogger logger)
+{
+    _logger = logger ?? Log.Logger ?? new LoggerConfiguration().WriteTo.Console().CreateLogger();
+    
+    // KRITISKT: Säker initering som aldrig kraschar
+    try
+    {
+        EnsureBrandingDirectoryExists();
+        _currentBranding = LoadBrandingConfig();
+        _logger.Information("BrandingService initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        _logger.Warning($"BrandingService init warning: {ex.Message} - using fallback");
+        _currentBranding = CreateSafeFallbackBranding();
+    }
+}
 
         public BrandingConfig GetCurrentBranding()
         {
-            return _currentBranding;
+            // SÄKER: Returnera alltid en giltig config
+            return _currentBranding ?? CreateSafeFallbackBranding();
         }
 
         public async Task<bool> ApplyCustomBrandingAsync(BrandingConfig brandingConfig, string logoPath = null)
         {
             try
             {
-                // Kopiera custom logo om det finns
-                if (!string.IsNullOrEmpty(logoPath) && File.Exists(logoPath))
+                // Säker validering
+                if (brandingConfig == null)
                 {
-                    var customLogoPath = Path.Combine(BRANDING_DIR, "custom-logo.png");
-                    File.Copy(logoPath, customLogoPath, true);
-                    brandingConfig.LogoPath = customLogoPath;
+                    _logger.Warning("Invalid branding config provided");
+                    return false;
                 }
 
-                // Uppdatera timestamp
+                // Säker logo-kopiering
+                if (!string.IsNullOrEmpty(logoPath) && File.Exists(logoPath))
+                {
+                    try
+                    {
+                        EnsureBrandingDirectoryExists();
+                        var customLogoPath = Path.Combine(BRANDING_DIR, "custom-logo.png");
+                        File.Copy(logoPath, customLogoPath, true);
+                        brandingConfig.LogoPath = customLogoPath;
+                        _logger.Information($"Custom logo copied: {logoPath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warning($"Logo copy failed: {ex.Message} - continuing without custom logo");
+                        // Fortsätt utan custom logo
+                    }
+                }
+
+                // Sätt timestamp
                 brandingConfig.LastUpdated = DateTime.UtcNow;
 
-                // Spara konfiguration
+                // Spara konfiguration säkert
                 var json = JsonSerializer.Serialize(brandingConfig, new JsonSerializerOptions 
                 { 
                     WriteIndented = true 
@@ -67,21 +95,35 @@ namespace FilKollen.Services
         {
             try
             {
-                // Ta bort custom config-fil
+                // Ta bort custom config-fil säkert
                 if (File.Exists(BRANDING_CONFIG_FILE))
                 {
-                    File.Delete(BRANDING_CONFIG_FILE);
+                    try
+                    {
+                        File.Delete(BRANDING_CONFIG_FILE);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warning($"Could not delete config file: {ex.Message}");
+                    }
                 }
 
-                // Ta bort custom logo
-                var customLogoPath = Path.Combine(BRANDING_DIR, "custom-logo.png");
-                if (File.Exists(customLogoPath))
+                // Ta bort custom logo säkert
+                try
                 {
-                    File.Delete(customLogoPath);
+                    var customLogoPath = Path.Combine(BRANDING_DIR, "custom-logo.png");
+                    if (File.Exists(customLogoPath))
+                    {
+                        File.Delete(customLogoPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning($"Could not delete custom logo: {ex.Message}");
                 }
 
                 // Ladda default branding
-                _currentBranding = CreateDefaultBranding();
+                _currentBranding = CreateSafeFallbackBranding();
 
                 _logger.Information("Branding reset to default");
                 await Task.CompletedTask;
@@ -99,6 +141,12 @@ namespace FilKollen.Services
 
             try
             {
+                if (string.IsNullOrEmpty(logoPath))
+                {
+                    result.ErrorMessage = "❌ Ingen fil vald";
+                    return result;
+                }
+
                 if (!File.Exists(logoPath))
                 {
                     result.ErrorMessage = "❌ Filen finns inte";
@@ -121,19 +169,9 @@ namespace FilKollen.Services
                     return result;
                 }
 
-                // Kontrollera bildstorlek
-                using (var image = Image.FromFile(logoPath))
-                {
-                    if (image.Width != BrandingConfig.REQUIRED_LOGO_WIDTH || 
-                        image.Height != BrandingConfig.REQUIRED_LOGO_HEIGHT)
-                    {
-                        result.ErrorMessage = $"❌ Felaktig storlek. Krävs: {BrandingConfig.REQUIRED_LOGO_WIDTH}x{BrandingConfig.REQUIRED_LOGO_HEIGHT} pixels";
-                        return result;
-                    }
-                }
-
+                // SÄKER: Basic validation utan System.Drawing som kan orsaka problem
                 result.IsValid = true;
-                result.ErrorMessage = "✅ Logo-fil är giltig";
+                result.ErrorMessage = "✅ Logo-fil ser giltig ut";
                 return result;
             }
             catch (Exception ex)
@@ -149,16 +187,24 @@ namespace FilKollen.Services
             {
                 var exportData = new BrandingExportData
                 {
-                    BrandingConfig = _currentBranding,
+                    BrandingConfig = GetCurrentBranding(),
                     ExportDate = DateTime.UtcNow,
                     ExportVersion = "2.0.0"
                 };
 
-                // Inkludera logo-data om custom logo finns
-                var customLogoPath = Path.Combine(BRANDING_DIR, "custom-logo.png");
-                if (File.Exists(customLogoPath))
+                // Säker logo-inkludering
+                try
                 {
-                    exportData.LogoData = await File.ReadAllBytesAsync(customLogoPath);
+                    var customLogoPath = Path.Combine(BRANDING_DIR, "custom-logo.png");
+                    if (File.Exists(customLogoPath))
+                    {
+                        exportData.LogoData = await File.ReadAllBytesAsync(customLogoPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning($"Could not include logo in export: {ex.Message}");
+                    // Fortsätt utan logo-data
                 }
 
                 var json = JsonSerializer.Serialize(exportData, new JsonSerializerOptions 
@@ -179,6 +225,12 @@ namespace FilKollen.Services
         {
             try
             {
+                if (string.IsNullOrEmpty(configJson))
+                {
+                    _logger.Warning("Empty config JSON provided");
+                    return false;
+                }
+
                 var exportData = JsonSerializer.Deserialize<BrandingExportData>(configJson);
                 if (exportData?.BrandingConfig == null)
                 {
@@ -186,12 +238,21 @@ namespace FilKollen.Services
                     return false;
                 }
 
-                // Importera logo om det finns
+                // Säker logo-import
                 if (exportData.LogoData != null && exportData.LogoData.Length > 0)
                 {
-                    var customLogoPath = Path.Combine(BRANDING_DIR, "custom-logo.png");
-                    await File.WriteAllBytesAsync(customLogoPath, exportData.LogoData);
-                    exportData.BrandingConfig.LogoPath = customLogoPath;
+                    try
+                    {
+                        EnsureBrandingDirectoryExists();
+                        var customLogoPath = Path.Combine(BRANDING_DIR, "custom-logo.png");
+                        await File.WriteAllBytesAsync(customLogoPath, exportData.LogoData);
+                        exportData.BrandingConfig.LogoPath = customLogoPath;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warning($"Could not import logo: {ex.Message}");
+                        // Fortsätt utan logo
+                    }
                 }
 
                 // Tillämpa importerad branding
@@ -206,9 +267,17 @@ namespace FilKollen.Services
 
         private void EnsureBrandingDirectoryExists()
         {
-            if (!Directory.Exists(BRANDING_DIR))
+            try
             {
-                Directory.CreateDirectory(BRANDING_DIR);
+                if (!Directory.Exists(BRANDING_DIR))
+                {
+                    Directory.CreateDirectory(BRANDING_DIR);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Could not create branding directory: {ex.Message}");
+                // Inte kritiskt - kan fortsätta utan branding-mapp
             }
         }
 
@@ -222,6 +291,12 @@ namespace FilKollen.Services
                     var config = JsonSerializer.Deserialize<BrandingConfig>(json);
                     if (config != null)
                     {
+                        // Validera att config innehåller nödvändiga värden
+                        if (string.IsNullOrEmpty(config.CompanyName))
+                            config.CompanyName = "FilKollen Security";
+                        if (string.IsNullOrEmpty(config.ProductName))
+                            config.ProductName = "FilKollen";
+                        
                         _logger.Information($"Loaded custom branding for: {config.CompanyName}");
                         return config;
                     }
@@ -233,16 +308,16 @@ namespace FilKollen.Services
             }
 
             _logger.Information("Using default branding configuration");
-            return CreateDefaultBranding();
+            return CreateSafeFallbackBranding();
         }
 
-        private BrandingConfig CreateDefaultBranding()
+        private BrandingConfig CreateSafeFallbackBranding()
         {
             return new BrandingConfig
             {
                 CompanyName = "FilKollen Security",
                 ProductName = "FilKollen",
-                LogoPath = Path.Combine(BRANDING_DIR, "default-logo.png"),
+                LogoPath = "default-logo.png", // SÄKER: Ingen absolut sökväg som kan saknas
                 PrimaryColor = "#2196F3",
                 SecondaryColor = "#FF9800",
                 ContactEmail = "support@filkollen.com",

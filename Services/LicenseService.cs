@@ -18,9 +18,9 @@ namespace FilKollen.Services
         private readonly ILogger _logger;
         private License? _currentLicense;
 
-        public LicenseService(ILogger logger)
+        public LicenseService(ILogger? logger)
         {
-            _logger = logger;
+            _logger = logger ?? Log.Logger ?? new LoggerConfiguration().WriteTo.Console().CreateLogger();
         }
 
         public async Task<LicenseStatus> ValidateLicenseAsync()

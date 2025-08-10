@@ -7,18 +7,21 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     
-    <!-- KORRIGERAT: Deployment fixes för side-by-side problem -->
+    <!-- KORRIGERAT: Säkra deployment-inställningar -->
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishSingleFile>false</PublishSingleFile>
+    <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    
-    <!-- Suppress async warnings för clean build -->
-    <NoWarn>$(NoWarn);CS1998</NoWarn>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    
+    <!-- KORRIGERAT: Säkra DPI-inställningar -->
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    
+    <!-- Suppress warnings för cleaner build -->
+    <NoWarn>$(NoWarn);CS1998;NU1701</NoWarn>
 
+    <!-- Assembly metadata -->
     <AssemblyTitle>FilKollen Real-time Security</AssemblyTitle>
     <AssemblyDescription>Real-time säkerhetsscanner för Windows med kontinuerligt skydd</AssemblyDescription>
     <AssemblyCompany>FilKollen Security</AssemblyCompany>
@@ -26,11 +29,11 @@
     <AssemblyCopyright>© 2025 FilKollen Security</AssemblyCopyright>
     <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <FileVersion>2.0.0.0</FileVersion>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationManifest>app-dev.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Core UI Dependencies -->
+    <!-- KORRIGERAT: Stabila paketversioner -->
     <PackageReference Include="MaterialDesignThemes" Version="4.9.0" />
     <PackageReference Include="MaterialDesignColors" Version="2.1.4" />
     
@@ -39,29 +42,16 @@
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     
-    <!-- JSON och Serialization -->
+    <!-- JSON hantering -->
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     
-    <!-- System och Security -->
+    <!-- System komponenter -->
     <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
-    <PackageReference Include="System.Security.Cryptography.Algorithms" Version="4.3.1" />
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
-    
-    <!-- File System Monitoring -->
-    <PackageReference Include="System.IO.FileSystem.Watcher" Version="4.3.0" />
-    
-    <!-- Collections och LINQ -->
-    <PackageReference Include="System.Collections" Version="4.3.0" />
-    <PackageReference Include="System.Linq" Version="4.3.0" />
-    
-    <!-- Threading -->
-    <PackageReference Include="System.Threading.Tasks" Version="4.3.0" />
-    <PackageReference Include="System.Threading.Timer" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Content files som ska kopieras -->
+    <!-- KORRIGERAT: Säker innehållshantering -->
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -69,37 +59,35 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     
-    <!-- Build scripts -->
-    <None Include="build.ps1" />
-    <None Include="README.md" />
+    <!-- KORRIGERAT: Inkludera logo-filer säkert -->
+    <Content Include="Resources\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Skapa output-mappar -->
+    <!-- Skapa nödvändiga mappar -->
     <Folder Include="logs\" />
     <Folder Include="Resources\Branding\" />
     <Folder Include="Resources\Icons\" />
-    <Folder Include="Services\" />
-    <Folder Include="Models\" />
-    <Folder Include="ViewModels\" />
-    <Folder Include="Windows\" />
   </ItemGroup>
 
-  <!-- Post-build events -->
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="echo FilKollen build completed successfully!" />
+  <!-- KORRIGERAT: Pre-build för att skapa logo-filer -->
+  <Target Name="CreateRequiredFiles" BeforeTargets="Build">
+    <Message Text="Creating required resource files..." Importance="high" />
+    <MakeDir Directories="Resources\Branding;Resources\Icons;logs" />
+    
+    <!-- Skapa placeholder logo om den inte finns -->
+    <ItemGroup>
+      <LogoFiles Include="Resources\Branding\default-logo.png;Resources\Icons\filkollen.ico" />
+    </ItemGroup>
+    
+    <Touch Files="@(LogoFiles)" AlwaysCreate="true" Condition="!Exists('%(Identity)')" />
   </Target>
 
-  <!-- Publish settings -->
-  <PropertyGroup>
-    <PublishDir>publish\</PublishDir>
-    <PublishUrl>publish\</PublishUrl>
-    <IsWebBootstrapper>false</IsWebBootstrapper>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <PublishTrimmed>false</PublishTrimmed>
-  </PropertyGroup>
+  <!-- Post-build validation -->
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Message Text="✅ FilKollen build completed successfully!" Importance="high" />
+  </Target>
 
 </Project>

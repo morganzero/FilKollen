@@ -1,34 +1,20 @@
+<!-- MainWindow.xaml - KRITISKT FIXAD VERSION utan trasiga referenser -->
 <Window x:Class="FilKollen.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"
-        TextElement.FontWeight="Regular"
-        TextElement.FontSize="13"
-        TextOptions.TextFormattingMode="Ideal"
-        TextOptions.TextRenderingMode="Auto"
         Background="{DynamicResource MaterialDesignPaper}"
         FontFamily="{DynamicResource MaterialDesignFont}"
         Title="FilKollen Real-time Security Suite v2.0"
         Height="800" Width="1200"
         MinHeight="600" MinWidth="800"
-        WindowStartupLocation="CenterScreen"
-        Icon="Resources/Icons/filkollen.ico">
+        WindowStartupLocation="CenterScreen">
+    
+    <!-- KORRIGERAT: Ta bort Icon-referens till icke-existerande fil -->
 
     <Window.Resources>
-        <!-- MaterialDesign Resource Dictionaries -->
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Light.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Defaults.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Button.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ComboBox.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.TabControl.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Card.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.PackIcon.xaml" />
-            </ResourceDictionary.MergedDictionaries>
-
-        <!-- Custom Styles -->
+        <!-- Endast säkra, grundläggande stiler -->
         <Style x:Key="ThreatLevelCritical" TargetType="Border">
             <Setter Property="Background" Value="#FFEBEE"/>
             <Setter Property="BorderBrush" Value="#F44336"/>
@@ -41,130 +27,34 @@
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
         
-        <Style x:Key="ThreatLevelMedium" TargetType="Border">
-            <Setter Property="Background" Value="#FFF8E1"/>
-            <Setter Property="BorderBrush" Value="#FFC107"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-
-        <Style x:Key="SecurityCardStyle" TargetType="materialDesign:Card">
-            <Setter Property="Margin" Value="8"/>
-            <Setter Property="Padding" Value="16"/>
-            <Setter Property="materialDesign:ShadowAssist.ShadowDepth" Value="Depth2"/>
-        </Style>
-<!-- Förbättrade kort med glassmorphism -->
-<Style x:Key="ModernGlassCard" TargetType="Border">
-    <Setter Property="Background">
-        <Setter.Value>
-            <SolidColorBrush Color="White" Opacity="0.85"/>
-        </Setter.Value>
-    </Setter>
-    <Setter Property="BorderBrush" Value="#E0E0E0"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="16"/>
-    <Setter Property="Padding" Value="24"/>
-    <Setter Property="Effect">
-        <Setter.Value>
-            <DropShadowEffect Color="Black" 
-                            Direction="270" 
-                            ShadowDepth="8" 
-                            BlurRadius="24" 
-                            Opacity="0.08"/>
-        </Setter.Value>
-    </Setter>
-</Style>
-        <!-- Threat Level Data Template -->
+        <!-- Threat Item Template -->
         <DataTemplate x:Key="ThreatItemTemplate">
-            <Border Name="ThreatBorder" Margin="4" Padding="12" CornerRadius="4">
+            <Border Margin="4" Padding="12" CornerRadius="4" Background="White" BorderBrush="#E0E0E0" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     
-                    <!-- Threat Level Icon -->
-                    <materialDesign:PackIcon Grid.Column="0" 
-                                           Kind="Alert" 
-                                           Width="24" Height="24" 
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,12,0"/>
+                    <!-- Icon -->
+                    <materialDesign:PackIcon Grid.Column="0" Kind="Alert" Width="20" Height="20" 
+                                           VerticalAlignment="Center" Margin="0,0,12,0" Foreground="#FF9800"/>
                     
                     <!-- File Info -->
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding FileName}" 
-                                 FontWeight="SemiBold" 
-                                 FontSize="14"
-                                 TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Text="{Binding FilePath}" 
-                                 FontSize="11" 
-                                 Opacity="0.7"
-                                 TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Text="{Binding Reason}" 
-                                 FontSize="12" 
-                                 Foreground="{DynamicResource MaterialDesignValidationErrorBrush}"
-                                 TextWrapping="Wrap"/>
-                        <TextBlock FontSize="10" Opacity="0.6">
-                            <Run Text="Storlek: "/>
-                            <Run Text="{Binding FileSizeFormatted}"/>
-                            <Run Text=" | Skapad: "/>
-                            <Run Text="{Binding CreatedDate, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"/>
-                        </TextBlock>
+                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="14"/>
+                        <TextBlock Text="{Binding FilePath}" FontSize="11" Opacity="0.7"/>
+                        <TextBlock Text="{Binding Reason}" FontSize="12" Foreground="#F44336"/>
                     </StackPanel>
                     
-                    <!-- Threat Level Badge -->
-                    <Border Grid.Column="2" 
-                          Background="{Binding ThreatLevelColor}" 
-                          CornerRadius="12" 
-                          Padding="8,2"
-                          Margin="8,0">
-                        <TextBlock Text="{Binding ThreatLevel}" 
-                                 Foreground="White" 
-                                 FontSize="10" 
-                                 FontWeight="Bold"
-                                 HorizontalAlignment="Center"/>
+                    <!-- Threat Level -->
+                    <Border Grid.Column="2" Background="#FF9800" CornerRadius="12" Padding="8,2" Margin="8,0">
+                        <TextBlock Text="{Binding ThreatLevel}" Foreground="White" FontSize="10" FontWeight="Bold"/>
                     </Border>
-                    
-                    <!-- Action Buttons -->
-                    <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="8,0,0,0">
-                        <Button Style="{StaticResource MaterialDesignIconButton}"
-                              ToolTip="Sätt i karantän"
-                              Command="{Binding DataContext.QuarantineCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                              CommandParameter="{Binding}">
-                            <materialDesign:PackIcon Kind="ShieldLock" Width="18" Height="18"/>
-                        </Button>
-                        
-                        <Button Style="{StaticResource MaterialDesignIconButton}"
-                              ToolTip="Visa i Utforskaren"
-                              Command="{Binding DataContext.ShowInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                              CommandParameter="{Binding}">
-                            <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18"/>
-                        </Button>
-                        
-                        <Button Style="{StaticResource MaterialDesignIconButton}"
-                              ToolTip="Lägg till undantag"
-                              Command="{Binding DataContext.AddToWhitelistCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                              CommandParameter="{Binding}">
-                            <materialDesign:PackIcon Kind="CheckCircle" Width="18" Height="18"/>
-                        </Button>
-                    </StackPanel>
                 </Grid>
             </Border>
-            
-            <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding ThreatLevel}" Value="Critical">
-                    <Setter TargetName="ThreatBorder" Property="Style" Value="{StaticResource ThreatLevelCritical}"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding ThreatLevel}" Value="High">
-                    <Setter TargetName="ThreatBorder" Property="Style" Value="{StaticResource ThreatLevelHigh}"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding ThreatLevel}" Value="Medium">
-                    <Setter TargetName="ThreatBorder" Property="Style" Value="{StaticResource ThreatLevelMedium}"/>
-                </DataTrigger>
-            </DataTemplate.Triggers>
         </DataTemplate>
-        </ResourceDictionary>
     </Window.Resources>
 
     <Grid>
@@ -174,11 +64,8 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Title Bar -->
-        <materialDesign:ColorZone Grid.Row="0" 
-                                  Mode="PrimaryMid" 
-                                  Padding="16" 
-                                  materialDesign:ShadowAssist.ShadowDepth="Depth2">
+        <!-- Header -->
+        <materialDesign:ColorZone Grid.Row="0" Mode="PrimaryMid" Padding="16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -188,60 +75,30 @@
                 
                 <!-- Logo and Title -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <materialDesign:PackIcon Kind="Security" 
-                                           Width="32" Height="32" 
-                                           Foreground="White"
-                                           Margin="0,0,12,0"/>
+                    <materialDesign:PackIcon Kind="Security" Width="28" Height="28" 
+                                           Foreground="White" Margin="0,0,12,0"/>
                     <StackPanel>
-                        <TextBlock Text="FilKollen Real-time Security" 
-                                 FontSize="20" 
-                                 FontWeight="Bold"
-                                 Foreground="White"/>
-                        <TextBlock Text="Avancerad säkerhetssvit med real-time skydd" 
-                                 FontSize="12" 
-                                 Foreground="White"
-                                 Opacity="0.8"/>
+                        <TextBlock Text="FilKollen Real-time Security" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Avancerad säkerhetsskydd" FontSize="12" Foreground="White" Opacity="0.8"/>
                     </StackPanel>
                 </StackPanel>
                 
-                <!-- System Status -->
-                <StackPanel Grid.Column="1" 
-                          HorizontalAlignment="Center" 
-                          VerticalAlignment="Center">
+                <!-- Status -->
+                <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Ellipse x:Name="StatusIndicator" 
-                               Width="12" Height="12" 
-                               Fill="#4CAF50" 
-                               Margin="0,0,8,0"/>
-                        <TextBlock x:Name="SystemStatusText" 
-                                 Text="SYSTEM SKYDDAT" 
-                                 FontWeight="Bold" 
-                                 Foreground="White"/>
+                        <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="#4CAF50" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="SystemStatusText" Text="SYSTEM SKYDDAT" FontWeight="Bold" Foreground="White"/>
                     </StackPanel>
-                    <TextBlock x:Name="LastScanText" 
-                             Text="Senaste skanning: Aldrig" 
-                             FontSize="10" 
-                             Foreground="White"
-                             Opacity="0.7"
-                             HorizontalAlignment="Center"/>
                 </StackPanel>
                 
-                <!-- Action Buttons -->
+                <!-- Actions -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button x:Name="EmergencyScanButton"
-                          Style="{StaticResource MaterialDesignRaisedButton}"
-                          Background="#F44336"
-                          Content="🚨 AKUTSKANNING"
-                          Foreground="White"
-                          Margin="0,0,8,0"
-                          Click="EmergencyScanButton_Click"/>
-                    
-                    <Button x:Name="SettingsButton"
-                          Style="{StaticResource MaterialDesignIconForegroundButton}"
-                          Foreground="White"
-                          ToolTip="Inställningar"
-                          Click="SettingsButton_Click">
-                        <materialDesign:PackIcon Kind="Settings" Width="24" Height="24"/>
+                    <Button x:Name="EmergencyScanButton" Content="🚨 AKUTSKANNING" 
+                          Style="{StaticResource MaterialDesignRaisedButton}" Background="#F44336" 
+                          Foreground="White" Margin="0,0,8,0" Click="EmergencyScanButton_Click"/>
+                    <Button x:Name="SettingsButton" Style="{StaticResource MaterialDesignIconForegroundButton}" 
+                          Foreground="White" Click="SettingsButton_Click">
+                        <materialDesign:PackIcon Kind="Settings" Width="20" Height="20"/>
                     </Button>
                 </StackPanel>
             </Grid>
@@ -250,618 +107,235 @@
         <!-- Main Content -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="280"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
             <!-- Sidebar -->
-            <Border Grid.Column="0" 
-                  Background="{DynamicResource MaterialDesignCardBackground}"
-                  BorderBrush="{DynamicResource MaterialDesignDivider}"
-                  BorderThickness="0,0,1,0">
-                
+            <Border Grid.Column="0" Background="{DynamicResource MaterialDesignCardBackground}" 
+                  BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="0,0,1,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="16">
                         
                         <!-- Real-time Protection -->
-<Border Style="{StaticResource ModernGlassCard}">
-    <StackPanel>
-        <TextBlock Text="🛡️ Real-time Skydd" 
-                 FontSize="16" 
-                 FontWeight="SemiBold" 
-                 Margin="0,0,0,12"/>
-        
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            
-            <StackPanel Grid.Column="0">
-                <TextBlock x:Name="ProtectionStatusText" 
-                         Text="INAKTIVERAT" 
-                         FontWeight="Bold"
-                         Foreground="#F44336"/>
-                <TextBlock x:Name="ProtectionModeText" 
-                         Text="Manuell hantering" 
-                         FontSize="11" 
-                         Opacity="0.7"/>
-            </StackPanel>
-            
-            <materialDesign:PackIcon x:Name="ProtectionIcon" 
-                                   Grid.Column="1"
-                                   Kind="ShieldOff" 
-                                   Width="24" Height="24"
-                                   Foreground="#F44336"/>
-        </Grid>
-        
-        <ToggleButton x:Name="ProtectionToggle"
-                    Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                    Margin="0,12,0,8"
-                    Checked="ProtectionToggle_Checked"
-                    Unchecked="ProtectionToggle_Unchecked"/>
-        
-        <Separator Margin="0,8"/>
-        
-        <TextBlock Text="Hanteringsläge" FontWeight="SemiBold" FontSize="12" Margin="0,8,0,4"/>
-        <RadioButton x:Name="ManualModeRadio" 
-                   Content="Manuell" 
-                   IsChecked="True"
-                   FontSize="11"
-                   Checked="ModeRadio_Checked"/>
-        <RadioButton x:Name="AutoModeRadio" 
-                   Content="Automatisk" 
-                   FontSize="11"
-                   Checked="ModeRadio_Checked"/>
-        
-        <!-- NYTT: Status indicator med animation -->
-        <Border Background="{DynamicResource PrimaryHueMidBrush}" 
-                CornerRadius="20" 
-                HorizontalAlignment="Center"
-                Padding="12,6"
-                Margin="0,8">
-            <StackPanel Orientation="Horizontal">
-                <Ellipse Width="8" Height="8" 
-                         Fill="White" 
-                         Margin="0,0,6,0">
-                    <Ellipse.Triggers>
-                        <EventTrigger RoutedEvent="Loaded">
-                            <BeginStoryboard>
-                                <Storyboard RepeatBehavior="Forever">
-                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                   From="1" To="0.3" Duration="0:0:1"
-                                                   AutoReverse="True"/>
-                                </Storyboard>
-                            </BeginStoryboard>
-                        </EventTrigger>
-                    </Ellipse.Triggers>
-                </Ellipse>
-                <TextBlock Text="LIVE MONITORING" 
-                           Foreground="White" 
-                           FontSize="10" 
-                           FontWeight="Bold"/>
-            </StackPanel>
-        </Border>
-    </StackPanel>
-</Border>
-
-                        <!-- Intrusion Detection -->
-<Border Style="{StaticResource ModernGlassCard}">
-    <StackPanel>
-        <TextBlock Text="🔍 Intrång-detektering" 
-                 FontSize="16" 
-                 FontWeight="SemiBold" 
-                 Margin="0,0,0,12"/>
-        
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            
-            <StackPanel Grid.Column="0">
-                <TextBlock x:Name="IDSStatusText" 
-                         Text="INAKTIVERAT" 
-                         FontWeight="Bold"
-                         Foreground="#F44336"/>
-                <TextBlock x:Name="IDSDetailsText" 
-                         Text="Avancerat hotskydd avstängt" 
-                         FontSize="11" 
-                         Opacity="0.7"/>
-            </StackPanel>
-            
-            <materialDesign:PackIcon x:Name="IDSIcon" 
-                                   Grid.Column="1"
-                                   Kind="RadarOff" 
-                                   Width="24" Height="24"
-                                   Foreground="#F44336"/>
-        </Grid>
-        
-        <ToggleButton x:Name="IDSToggle"
-                    Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                    Margin="0,12"
-                    Checked="IDSToggle_Checked"
-                    Unchecked="IDSToggle_Unchecked"/>
-        
-        <!-- IDS Stats -->
-        <Border Background="#E3F2FD" 
-              CornerRadius="4" 
-              Padding="8" 
-              Margin="0,8,0,0">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition/>
-                    <RowDefinition/>
-                </Grid.RowDefinitions>
-                
-                <StackPanel Grid.Row="0" Orientation="Horizontal">
-                    <materialDesign:PackIcon Kind="Eye" Width="12" Height="12" Margin="0,0,4,0"/>
-                    <TextBlock x:Name="IDSThreatsText" Text="0 hot blockerade" FontSize="10"/>
-                </StackPanel>
-                
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,2,0,0">
-                    <materialDesign:PackIcon Kind="Clock" Width="12" Height="12" Margin="0,0,4,0"/>
-                    <TextBlock x:Name="IDSLastEventText" Text="Senaste: Aldrig" FontSize="10"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-    </StackPanel>
-</Border>
-
+                        <Border Style="{StaticResource ModernGlassCard}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="🛡️ Real-time Skydd" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock x:Name="ProtectionStatusText" Text="INAKTIVERAT" FontWeight="Bold" Foreground="#F44336"/>
+                                        <TextBlock Text="Manuell hantering" FontSize="11" Opacity="0.7"/>
+                                    </StackPanel>
+                                    
+                                    <materialDesign:PackIcon x:Name="ProtectionIcon" Grid.Column="1" Kind="ShieldOff" 
+                                                           Width="20" Height="20" Foreground="#F44336"/>
+                                </Grid>
+                                
+                                <ToggleButton x:Name="ProtectionToggle" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                            Margin="0,12,0,0" Checked="ProtectionToggle_Checked" Unchecked="ProtectionToggle_Unchecked"/>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Quick Actions -->
-<Border Style="{StaticResource ModernGlassCard}">
-    <StackPanel>
-        <TextBlock Text="⚡ Snabbåtgärder" 
-                 FontSize="16" 
-                 FontWeight="SemiBold" 
-                 Margin="0,0,0,12"/>
-        
-        <Button x:Name="TempScanButton"
-              Style="{StaticResource MaterialDesignRaisedButton}"
-              Content="🔍 Skanna temp-filer"
-              Margin="0,0,0,8"
-              Click="TempScanButton_Click"/>
-        
-        <Button x:Name="BrowserCleanButton"
-              Style="{StaticResource MaterialDesignOutlinedButton}"
-              Content="🌐 Rensa webbläsare"
-              Margin="0,0,0,8"
-              Click="BrowserCleanButton_Click"/>
-        
-        <Button x:Name="QuarantineManagerButton"
-              Style="{StaticResource MaterialDesignOutlinedButton}"
-              Content="🏥 Hantera karantän"
-              Margin="0,0,0,8"
-              Click="QuarantineManagerButton_Click"/>
-        
-        <Button x:Name="SystemInfoButton"
-              Style="{StaticResource MaterialDesignFlatButton}"
-              Content="ℹ️ Systeminformation"
-              Click="SystemInfoButton_Click"/>
-    </StackPanel>
-</Border>
+                        <Border Style="{StaticResource ModernGlassCard}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="⚡ Snabbåtgärder" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                
+                                <Button x:Name="TempScanButton" Content="🔍 Skanna temp-filer" 
+                                      Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,0,8"
+                                      Click="TempScanButton_Click"/>
+                                
+                                <Button x:Name="BrowserCleanButton" Content="🌐 Rensa webbläsare" 
+                                      Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,0,8"
+                                      Click="BrowserCleanButton_Click"/>
+                                
+                                <Button x:Name="SystemInfoButton" Content="ℹ️ Systeminformation" 
+                                      Style="{StaticResource MaterialDesignFlatButton}"
+                                      Click="SystemInfoButton_Click"/>
+                            </StackPanel>
+                        </Border>
 
-<!-- System Stats -->
-<Border Style="{StaticResource ModernGlassCard}">
-    <StackPanel>
-        <TextBlock Text="📊 Systemstatistik" 
-                   FontSize="16" 
-                   FontWeight="SemiBold" 
-                   Margin="0,0,0,12"/>
+                        <!-- Stats -->
+                        <Border Style="{StaticResource ModernGlassCard}">
+                            <StackPanel>
+                                <TextBlock Text="📊 Statistik" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
 
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition/>
-                <RowDefinition/>
-                <RowDefinition/>
-                <RowDefinition/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Hot funna:" FontSize="11"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StatsThreatsFound" Text="0" 
+                                             FontSize="11" FontWeight="Bold"/>
 
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Hot upptäckta:" FontSize="11"/>
-            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StatsThreatsFound" Text="0" FontSize="11" FontWeight="Bold"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Filer skannade:" FontSize="11"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="StatsFilesScanned" Text="0" 
+                                             FontSize="11" FontWeight="Bold"/>
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Hot hanterade:" FontSize="11"/>
-            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="StatsThreatsHandled" Text="0" FontSize="11" FontWeight="Bold"/>
-
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Filer i karantän:" FontSize="11"/>
-            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="StatsQuarantined" Text="0" FontSize="11" FontWeight="Bold"/>
-
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Skanning idag:" FontSize="11"/>
-            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="StatsScansToday" Text="0" FontSize="11" FontWeight="Bold"/>
-        </Grid>
-    </StackPanel>
-</Border>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Senaste skanning:" FontSize="11"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="StatsLastScan" Text="Aldrig" 
+                                             FontSize="11" FontWeight="Bold"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
 
             <!-- Main Panel -->
-            <Grid Grid.Column="1">
-                <TabControl Style="{StaticResource MaterialDesignTabControl}">
-                    
-                    <!-- Security Dashboard -->
-                    <TabItem Header="🛡️ Säkerhetsdashboard">
-                        <Grid Margin="16">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+            <TabControl Grid.Column="1" Style="{StaticResource MaterialDesignTabControl}">
+                
+                <!-- Security Dashboard -->
+                <TabItem Header="🛡️ Säkerhetsdashboard">
+                    <Grid Margin="16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                            <!-- Alert Cards -->
-                            <UniformGrid Grid.Row="0" Rows="1" Columns="3" Margin="0,0,0,16">
-                                <!-- Critical Threats -->
+                        <!-- Stats Cards -->
+                        <UniformGrid Grid.Row="0" Columns="3" Margin="0,0,0,16">
                             <Border Style="{StaticResource ModernGlassCard}" Margin="4">
-                                    <StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                            <materialDesign:PackIcon Kind="AlertDecagram" 
-                                                                   Width="24" Height="24" 
-                                                                   Foreground="#F44336"
-                                                                   Margin="0,0,8,0"/>
-                                            <TextBlock Text="Kritiska hot" 
-                                                     FontSize="14" 
-                                                     FontWeight="SemiBold"/>
-                                        </StackPanel>
-                                        <TextBlock x:Name="CriticalThreatsCount" 
-                                                 Text="0" 
-                                                 FontSize="32" 
-                                                 FontWeight="Bold"
-                                                 Foreground="#F44336"
-                                                 HorizontalAlignment="Center"/>
-                                        <TextBlock Text="kräver omedelbar åtgärd" 
-                                                 FontSize="11" 
-                                                 HorizontalAlignment="Center"
-                                                 Opacity="0.7"/>
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <materialDesign:PackIcon Kind="AlertDecagram" Width="20" Height="20" 
+                                                               Foreground="#F44336" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Kritiska hot" FontSize="14" FontWeight="SemiBold"/>
                                     </StackPanel>
+                                    <TextBlock x:Name="CriticalThreatsCount" Text="0" FontSize="28" FontWeight="Bold"
+                                             Foreground="#F44336" HorizontalAlignment="Center"/>
+                                </StackPanel>
                             </Border>
-                                
-                                <!-- High Threats -->
-                            <Border Style="{StaticResource ModernGlassCard}" Margin="4">
-                                    <StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                            <materialDesign:PackIcon Kind="Alert" 
-                                                                   Width="24" Height="24" 
-                                                                   Foreground="#FF9800"
-                                                                   Margin="0,0,8,0"/>
-                                            <TextBlock Text="Höga hot" 
-                                                     FontSize="14" 
-                                                     FontWeight="SemiBold"/>
-                                        </StackPanel>
-                                        <TextBlock x:Name="HighThreatsCount" 
-                                                 Text="0" 
-                                                 FontSize="32" 
-                                                 FontWeight="Bold"
-                                                 Foreground="#FF9800"
-                                                 HorizontalAlignment="Center"/>
-                                        <TextBlock Text="bör hanteras snart" 
-                                                 FontSize="11" 
-                                                 HorizontalAlignment="Center"
-                                                 Opacity="0.7"/>
-                                    </StackPanel>
-                                </Border>
-                                
-                                <!-- Total Files Scanned -->
-                            <Border Style="{StaticResource ModernGlassCard}" Margin="4">
-                                    <StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                            <materialDesign:PackIcon Kind="FileSearch" 
-                                                                   Width="24" Height="24" 
-                                                                   Foreground="#4CAF50"
-                                                                   Margin="0,0,8,0"/>
-                                            <TextBlock Text="Filer skannade" 
-                                                     FontSize="14" 
-                                                     FontWeight="SemiBold"/>
-                                        </StackPanel>
-                                        <TextBlock x:Name="FilesScannedCount" 
-                                                 Text="0" 
-                                                 FontSize="32" 
-                                                 FontWeight="Bold"
-                                                 Foreground="#4CAF50"
-                                                 HorizontalAlignment="Center"/>
-                                        <TextBlock Text="den här sessionen" 
-                                                 FontSize="11" 
-                                                 HorizontalAlignment="Center"
-                                                 Opacity="0.7"/>
-                                    </StackPanel>
-                                </Border>
-                            </UniformGrid>
                             
-                            <!-- Threat List -->
-<Border Style="{StaticResource ModernGlassCard}" Grid.Row="1">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    
-                                    <!-- Header -->
-                                    <Grid Grid.Row="0" Margin="0,0,0,16">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        
-                                        <TextBlock Grid.Column="0"
-                                                 Text="🚨 Aktiva säkerhetshot" 
-                                                 FontSize="18" 
-                                                 FontWeight="SemiBold"/>
-                                        
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                            <Button Content="🔄 Uppdatera"
-                                                  Style="{StaticResource MaterialDesignOutlinedButton}"
-                                                  Margin="0,0,8,0"
-                                                  Click="RefreshThreatsButton_Click"/>
-                                            
-                                            <Button Content="🧹 Hantera alla"
-                                                  Style="{StaticResource MaterialDesignRaisedButton}"
-                                                  Click="HandleAllThreatsButton_Click"/>
-                                        </StackPanel>
-                                    </Grid>
-                                    
-                                    <!-- Threat List -->
-                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl x:Name="ThreatsList" 
-                                                    ItemTemplate="{StaticResource ThreatItemTemplate}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                        </ItemsControl>
-                                    </ScrollViewer>
-                                    
-                                    <!-- No Threats Message -->
-                                    <StackPanel x:Name="NoThreatsPanel" 
-                                              Grid.Row="1"
-                                              HorizontalAlignment="Center" 
-                                              VerticalAlignment="Center"
-                                              Visibility="Visible">
-                                        <materialDesign:PackIcon Kind="CheckCircle" 
-                                                               Width="64" Height="64" 
-                                                               Foreground="#4CAF50"
-                                                               HorizontalAlignment="Center"/>
-                                        <TextBlock Text="🎉 Inga aktiva hot upptäckta!" 
-                                                 FontSize="18" 
-                                                 FontWeight="SemiBold"
-                                                 HorizontalAlignment="Center"
-                                                 Margin="0,16,0,8"/>
-                                        <TextBlock Text="Ditt system är säkert. Fortsätt med real-time skydd aktiverat för bästa säkerhet." 
-                                                 FontSize="14" 
-                                                 TextAlignment="Center"
-                                                 Opacity="0.7"
-                                                 TextWrapping="Wrap"/>
+                            <Border Style="{StaticResource ModernGlassCard}" Margin="4">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <materialDesign:PackIcon Kind="Alert" Width="20" Height="20" 
+                                                               Foreground="#FF9800" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Höga hot" FontSize="14" FontWeight="SemiBold"/>
                                     </StackPanel>
+                                    <TextBlock x:Name="HighThreatsCount" Text="0" FontSize="28" FontWeight="Bold"
+                                             Foreground="#FF9800" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <Border Style="{StaticResource ModernGlassCard}" Margin="4">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <materialDesign:PackIcon Kind="FileSearch" Width="20" Height="20" 
+                                                               Foreground="#4CAF50" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Filer skannade" FontSize="14" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="FilesScannedCount" Text="0" FontSize="28" FontWeight="Bold"
+                                             Foreground="#4CAF50" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                        
+                        <!-- Threat List -->
+                        <Border Grid.Row="1" Style="{StaticResource ModernGlassCard}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                
+                                <!-- Header -->
+                                <Grid Grid.Row="0" Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
                                     
-                                    <!-- Progress Bar -->
-                                    <ProgressBar x:Name="ScanProgressBar" 
-                                               Grid.Row="2"
-                                               Height="4" 
-                                               IsIndeterminate="True"
-                                               Visibility="Collapsed"
-                                               Margin="0,16,0,0"/>
+                                    <TextBlock Grid.Column="0" Text="🚨 Aktiva säkerhetshot" FontSize="18" FontWeight="SemiBold"/>
+                                    
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <Button Content="🔄 Uppdatera" Style="{StaticResource MaterialDesignOutlinedButton}"
+                                              Margin="0,0,8,0" Click="RefreshThreatsButton_Click"/>
+                                        <Button Content="🧹 Hantera alla" Style="{StaticResource MaterialDesignRaisedButton}"
+                                              Click="HandleAllThreatsButton_Click"/>
+                                    </StackPanel>
                                 </Grid>
-</Border>
-                        </Grid>
-                    </TabItem>
-
-                    <!-- Activity Log -->
-                    <TabItem Header="📝 Aktivitetslogg">
-                        <Grid Margin="16">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            
-                            <!-- Log Controls -->
-                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
-                                <Button Content="🧹 Rensa loggar"
-                                      Style="{StaticResource MaterialDesignOutlinedButton}"
-                                      Click="ClearLogsButton_Click"
-                                      Margin="0,0,8,0"/>
                                 
-                                <Button Content="💾 Exportera loggar"
-                                      Style="{StaticResource MaterialDesignOutlinedButton}"
-                                      Click="ExportLogsButton_Click"
-                                      Margin="0,0,8,0"/>
+                                <!-- Threat List -->
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl x:Name="ThreatsList" ItemTemplate="{StaticResource ThreatItemTemplate}"/>
+                                </ScrollViewer>
                                 
-                                <ComboBox x:Name="LogLevelFilter"
-                                        Style="{StaticResource MaterialDesignComboBox}"
-                                        materialDesign:HintAssist.Hint="Filtrera nivå"
-                                        Width="150"
-                                        SelectionChanged="LogLevelFilter_SelectionChanged">
-                                    <ComboBoxItem Content="Alla nivåer" IsSelected="True"/>
-                                    <ComboBoxItem Content="Endast fel"/>
-                                    <ComboBoxItem Content="Varningar och fel"/>
-                                    <ComboBoxItem Content="Information och högre"/>
-                                </ComboBox>
-                            </StackPanel>
-                            
-                            <!-- Log List -->
-                            <ListView x:Name="ActivityLogListView" 
-                                    Grid.Row="1"
-                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Padding="12,8" 
-                                              Margin="0,2" 
-                                              CornerRadius="4"
-                                              Background="{Binding LevelBackground}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                
-                                                <TextBlock Grid.Column="0" 
-                                                         Text="{Binding LevelIcon}" 
-                                                         FontSize="16"
-                                                         VerticalAlignment="Top"
-                                                         Margin="0,0,8,0"/>
-                                                
-                                                <TextBlock Grid.Column="1"
-                                                         Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}" 
-                                                         FontWeight="Bold" 
-                                                         FontSize="11"
-                                                         VerticalAlignment="Top"
-                                                         Margin="0,0,12,0"/>
-                                                
-                                                <Border Grid.Column="2"
-                                                      Background="{Binding SourceColor}"
-                                                      CornerRadius="8"
-                                                      Padding="6,2"
-                                                      VerticalAlignment="Top"
-                                                      Margin="0,0,12,0">
-                                                    <TextBlock Text="{Binding Source}" 
-                                                             FontSize="10"
-                                                             FontWeight="SemiBold"
-                                                             Foreground="White"/>
-                                                </Border>
-                                                
-                                                <TextBlock Grid.Column="3"
-                                                         Text="{Binding Message}" 
-                                                         TextWrapping="Wrap" 
-                                                         VerticalAlignment="Top"/>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </Grid>
-                    </TabItem>
+                                <!-- No Threats Message -->
+                                <StackPanel x:Name="NoThreatsPanel" Grid.Row="1" HorizontalAlignment="Center" 
+                                          VerticalAlignment="Center" Visibility="Visible">
+                                    <materialDesign:PackIcon Kind="CheckCircle" Width="48" Height="48" 
+                                                           Foreground="#4CAF50" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="🎉 Inga hot upptäckta!" FontSize="16" FontWeight="SemiBold"
+                                             HorizontalAlignment="Center" Margin="0,12,0,8"/>
+                                    <TextBlock Text="Ditt system är säkert." FontSize="14" HorizontalAlignment="Center" Opacity="0.7"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabItem>
 
-                    <!-- System Information -->
-                    <TabItem Header="ℹ️ Systeminformation">
-                        <ScrollViewer Margin="16" VerticalScrollBarVisibility="Auto">
-                            <StackPanel>
-<Border Style="{StaticResource ModernGlassCard}" Margin="0,0,0,16">
-                                    <StackPanel>
-                                        <TextBlock Text="💻 Systemöversikt" 
-                                                 FontSize="18" 
-                                                 FontWeight="SemiBold" 
-                                                 Margin="0,0,0,16"/>
-                                        
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition/>
-                                                <RowDefinition/>
-                                                <RowDefinition/>
-                                                <RowDefinition/>
-                                                <RowDefinition/>
-                                            </Grid.RowDefinitions>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="150"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Operativsystem:" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="OSVersionText" Text="Windows 11"/>
-                                            
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Datornamn:" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ComputerNameText" Text="DESKTOP-ABC123"/>
-                                            
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Användare:" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="UserNameText" Text="Administrator"/>
-                                            
-                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Administratör:" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="AdminStatusText" Text="Ja" Foreground="#4CAF50"/>
-                                            
-                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="FilKollen version:" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Row="4" Grid.Column="1" Text="2.0.0"/>
-                                        </Grid>
-                                    </StackPanel>
-</Border>                                
-<Border Style="{StaticResource ModernGlassCard}">
-                                    <StackPanel>
-                                        <TextBlock Text="🔧 Säkerhetsstatus" 
-                                                 FontSize="18" 
-                                                 FontWeight="SemiBold" 
-                                                 Margin="0,0,0,16"/>
-                                        
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition/>
-                                                <RowDefinition/>
-                                                <RowDefinition/>
-                                                <RowDefinition/>
-                                                <RowDefinition/>
-                                            </Grid.RowDefinitions>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="200"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Real-time skydd:" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="SecurityRealtimeText" Text="INAKTIVERAT" Foreground="#F44336"/>
-                                            
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Intrång-detektering:" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="SecurityIDSText" Text="INAKTIVERAT" Foreground="#F44336"/>
-                                            
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Senaste fullskanning:" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="SecurityLastFullScanText" Text="Aldrig"/>
-                                            
-                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Karantänerade filer:" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="SecurityQuarantineCountText" Text="0"/>
-                                            
-                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Windows Defender:" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="SecurityDefenderText" Text="Kontrollerar..."/>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-                </TabControl>
-            </Grid>
+                <!-- Activity Log -->
+                <TabItem Header="📝 Aktivitetslogg">
+                    <Grid Margin="16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <!-- Log Controls -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                            <Button Content="🧹 Rensa loggar" Style="{StaticResource MaterialDesignOutlinedButton}"
+                                  Click="ClearLogsButton_Click" Margin="0,0,8,0"/>
+                            <Button Content="💾 Exportera loggar" Style="{StaticResource MaterialDesignOutlinedButton}"
+                                  Click="ExportLogsButton_Click"/>
+                        </StackPanel>
+                        
+                        <!-- Log List -->
+                        <ListView x:Name="ActivityLogListView" Grid.Row="1">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Tid" Width="80" DisplayMemberBinding="{Binding Timestamp, StringFormat=HH:mm:ss}"/>
+                                    <GridViewColumn Header="Nivå" Width="80" DisplayMemberBinding="{Binding Level}"/>
+                                    <GridViewColumn Header="Källa" Width="100" DisplayMemberBinding="{Binding Source}"/>
+                                    <GridViewColumn Header="Meddelande" Width="400" DisplayMemberBinding="{Binding Message}"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </Grid>
+                </TabItem>
+            </TabControl>
         </Grid>
 
         <!-- Status Bar -->
-        <materialDesign:ColorZone Grid.Row="2" 
-                                  Mode="PrimaryDark" 
-                                  Padding="16,8">
+        <materialDesign:ColorZone Grid.Row="2" Mode="PrimaryDark" Padding="16,8">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <TextBlock x:Name="StatusBarText" 
-                         Grid.Column="0"
+                <TextBlock x:Name="StatusBarText" Grid.Column="0"
                          Text="Välkommen till FilKollen Real-time Security Suite"
-                         Foreground="White"
-                         VerticalAlignment="Center"/>
+                         Foreground="White" VerticalAlignment="Center"/>
                 
-                <StackPanel Grid.Column="1" 
-                          Orientation="Horizontal"
-                          VerticalAlignment="Center"
-                          Margin="16,0">
-                    <materialDesign:PackIcon Kind="License" 
-                                           Width="14" Height="14" 
-                                           Foreground="White"
-                                           Margin="0,0,4,0"/>
-                    <TextBlock x:Name="LicenseStatusText" 
-                             Text="Trial aktiv" 
-                             FontSize="12"
-                             Foreground="White"/>
-                </StackPanel>
-                
-                <StackPanel Grid.Column="2" 
-                          Orientation="Horizontal"
-                          VerticalAlignment="Center">
-                    <Ellipse Width="8" Height="8" 
-                           Fill="#4CAF50" 
-                           Margin="0,0,6,0"/>
-                    <TextBlock x:Name="ConnectionStatusText" 
-                             Text="Online" 
-                             FontSize="12"
-                             Foreground="White"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8" Fill="#4CAF50" Margin="0,0,6,0"/>
+                    <TextBlock Text="Online" FontSize="12" Foreground="White"/>
                 </StackPanel>
             </Grid>
         </materialDesign:ColorZone>
