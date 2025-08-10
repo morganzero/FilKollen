@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using Microsoft.Win32;
+using System.Linq;
 
 namespace FilKollen.Services
 {
@@ -101,40 +102,45 @@ namespace FilKollen.Services
             }
         }
 
-        private void ApplyThemeToApplication()
+private void ApplyThemeToApplication()
+{
+    try
+    {
+        Application.Current?.Dispatcher.Invoke(() =>
         {
-            try
-            {
-                Application.Current?.Dispatcher.Invoke(() =>
-                {
-                    var resources = Application.Current?.Resources;
-                    if (resources?.MergedDictionaries == null) return;
+            var resources = Application.Current?.Resources;
+            if (resources?.MergedDictionaries == null) return;
 
-                    // Replace the first dictionary (colors) while keeping Glass.xaml
-                    var colorDictionary = new ResourceDictionary
-                    {
-                        Source = new Uri(IsDarkTheme
-                            ? "Themes/Colors.Dark.xaml"
-                            : "Themes/Colors.Light.xaml",
-                            UriKind.Relative)
-                    };
-
-                    // Replace first dictionary (colors)
-                    if (resources.MergedDictionaries.Count > 0)
-                    {
-                        resources.MergedDictionaries[0] = colorDictionary;
-                    }
-                    else
-                    {
-                        resources.MergedDictionaries.Add(colorDictionary);
-                    }
-                });
-            }
-            catch (Exception ex)
+            var newColors = new ResourceDictionary
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to apply theme: {ex.Message}");
+                Source = new Uri(IsDarkTheme
+                    ? "Themes/Theme.Dark.xaml"
+                    : "Themes/Theme.Light.xaml",
+                    UriKind.Relative)
+            };
+
+            // hitta existerande Colors.* dictionary
+            var existing = resources.MergedDictionaries
+                .FirstOrDefault(d => d.Source != null &&
+                                     d.Source.OriginalString.Contains("Themes/Colors.", StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                var idx = resources.MergedDictionaries.IndexOf(existing);
+                resources.MergedDictionaries[idx] = newColors;
             }
-        }
+            else
+            {
+                // säkerställ att färger ligger först (före styles som använder dem)
+                resources.MergedDictionaries.Insert(0, newColors);
+            }
+        });
+    }
+    catch (Exception ex)
+    {
+        System.Diagnostics.Debug.WriteLine($"Failed to apply theme: {ex.Message}");
+    }
+}
 
         private void LoadThemeConfiguration()
         {

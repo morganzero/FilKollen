@@ -37,7 +37,16 @@ namespace FilKollen.Services
             _protectionService.ProtectionStatusChanged += OnProtectionStatusChanged;
             _protectionService.ThreatDetected += OnThreatDetected;
         }
-
+private static Icon? LoadIconFromResource(string packUri)
+{
+    try
+    {
+        var sri = Application.GetResourceStream(new Uri(packUri, UriKind.Absolute));
+        if (sri?.Stream != null) return new Icon(sri.Stream);
+    }
+    catch { /* ignore */ }
+    return null;
+}
         private void InitializeIcons()
         {
             try
@@ -46,6 +55,15 @@ namespace FilKollen.Services
                 _protectedIcon = CreateIcon(Color.Green, "✓");
                 _unprotectedIcon = CreateIcon(Color.Red, "!");  
                 _alertIcon = CreateIcon(Color.Orange, "⚠");
+
+                //_protectedIcon   = LoadIconFromResource("pack://application:,,,/Assets/Icons/filkollen_ok.ico")
+                //       ?? SystemIcons.Shield;
+//
+                //_unprotectedIcon = LoadIconFromResource("pack://application:,,,/Assets/Icons/filkollen_off.ico")
+                //       ?? SystemIcons.Error;
+//
+                //_alertIcon       = LoadIconFromResource("pack://application:,,,/Assets/Icons/filkollen_alert.ico")
+                //       ?? SystemIcons.Warning;
             }
             catch
             {

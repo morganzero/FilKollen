@@ -6,7 +6,7 @@
                 <ResourceDictionary>
                         <ResourceDictionary.MergedDictionaries>
                                 <!-- Colors will be set dynamically by ThemeService -->
-                                <ResourceDictionary Source="Themes/Colors.Dark.xaml"/>
+                                <ResourceDictionary Source="Themes/Theme.Light.xaml"/>
                                 <!-- Glass styles -->
                                 <ResourceDictionary Source="Themes/Glass.xaml"/>
                         </ResourceDictionary.MergedDictionaries>

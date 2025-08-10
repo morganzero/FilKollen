@@ -9,42 +9,50 @@ using Serilog;
 
 namespace FilKollen
 {
-    public partial class App : System.Windows.Application
-    {
-        private ILogger? _logger;
+
+public partial class App : Application
+{
+
+            private ILogger? _logger;
         private LicenseService? _licenseService;
         private BrandingService? _brandingService;
         private ThemeService? _themeService;
 
-        protected override async void OnStartup(StartupEventArgs e)
-        {
-            try
-            {
-                // KRITISKT: Säker logging-initiation som aldrig kraschar
-                await InitializeLoggingSafelyAsync();
+protected override void OnStartup(StartupEventArgs e)
+{
+    Log.Logger = new LoggerConfiguration()
+        .MinimumLevel.Debug()
+        .WriteTo.File("logs\\filkollen-.log", rollingInterval: RollingInterval.Day)
+        .CreateLogger(); // eller .WriteTo.Debug() om du installerat paketet
+    base.OnStartup(e);
 
-                _logger?.Information("=== FilKollen Säkerhetsscanner startar (MINIMALISTISK UI MODE) ===");
+    var theme = new ThemeService();
+    var license = new LicenseService(Log.Logger);   // <— skicka loggern
+    var branding = new BrandingService(Log.Logger); // <— skicka loggern
 
-                // KRITISKT: Failsafe service initialization
-                await InitializeServicesSafelyAsync();
+    var main = new MainWindow(license, branding, theme);
+    main.Show();
+}
 
-                // KRITISKT: Säker tema-hantering (ny metod)
-                ApplyInitialThemeSafely();
+public App()
+{
 
-                // KRITISKT: Säker licens-hantering
-                await HandleLicensingSafelyAsync();
+    this.DispatcherUnhandledException += (s, e) =>
+    {
+        Log.Error(e.Exception, "UI-fel");
+        MessageBox.Show(e.Exception.Message, "Fel", MessageBoxButton.OK, MessageBoxImage.Error);
+        e.Handled = true; // eller false om du vill låta appen stängas
+    };
 
-                // KRITISKT: Säker huvudapplikation-start
-                StartMainApplicationSafely();
+    AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+        Log.Fatal(e.ExceptionObject as Exception, "Ohanterat fel");
 
-                _logger?.Information("=== FilKollen startup slutförd framgångsrikt (MINIMALISTISK UI MODE) ===");
-            }
-            catch (Exception ex)
-            {
-                // ULTRA-SÄKER: Hantera även kritiska startup-fel
-                await HandleCriticalStartupErrorAsync(ex);
-            }
-        }
+    TaskScheduler.UnobservedTaskException += (s, e) =>
+    {
+        Log.Error(e.Exception, "Task-fel");
+        e.SetObserved();
+    };
+}
 
         private async Task InitializeLoggingSafelyAsync()
         {

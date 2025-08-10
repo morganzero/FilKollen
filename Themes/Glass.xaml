@@ -1,133 +1,127 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Glass Card Style -->
-    <Style x:Key="FK.Style.GlassCard"
-            TargetType="Border">
-        <Setter Property="Background"
-                Value="{DynamicResource FK.Brush.CardGradient}"/>
-        <Setter Property="BorderBrush"
-                Value="{DynamicResource FK.Brush.Border}"/>
-        <Setter Property="BorderThickness"
-                Value="1"/>
-        <Setter Property="CornerRadius"
-                Value="16"/>
-        <Setter Property="Padding"
-                Value="20"/>
+    <!-- === MAIN WINDOW STYLE === -->
+    <Style x:Key="FK.Style.MainWindow" TargetType="Window">
+        <Setter Property="AllowsTransparency" Value="True"/>
+        <Setter Property="WindowStyle" Value="None"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="UseLayoutRounding" Value="True"/>
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
         <Setter Property="Effect">
             <Setter.Value>
                 <DropShadowEffect Color="#000000"
-                        Direction="270"
-                        ShadowDepth="8"
-                        BlurRadius="18"
-                        Opacity="0.35"/>
+                                  Direction="270"
+                                  ShadowDepth="12"
+                                  BlurRadius="25"
+                                  Opacity="0.25"/>
             </Setter.Value>
         </Setter>
     </Style>
 
-    <!-- Glass Button Style -->
-    <Style x:Key="FK.Style.GlassButton"
-            TargetType="Button">
-        <Setter Property="Background"
-                Value="{DynamicResource FK.Brush.CardGradient}"/>
-        <Setter Property="Foreground"
-                Value="{DynamicResource FK.Brush.Text}"/>
-        <Setter Property="BorderBrush"
-                Value="{DynamicResource FK.Brush.Border}"/>
-        <Setter Property="BorderThickness"
-                Value="1"/>
-        <Setter Property="Padding"
-                Value="16,10"/>
-        <Setter Property="FontWeight"
-                Value="SemiBold"/>
-        <Setter Property="FontSize"
-                Value="13"/>
-        <Setter Property="Cursor"
-                Value="Hand"/>
+    <!-- === GLASS CARD STYLE === -->
+    <Style x:Key="FK.Style.GlassCard" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource FK.Brush.Surface}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FK.Brush.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="18"/>
+        <Setter Property="Padding" Value="20"/>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#000000"
+                                  Direction="270"
+                                  ShadowDepth="8"
+                                  BlurRadius="16"
+                                  Opacity="0.15"/>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect Color="#000000"
+                                          Direction="270"
+                                          ShadowDepth="12"
+                                          BlurRadius="24"
+                                          Opacity="0.25"/>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- === GLASS BUTTON STYLE === -->
+    <Style x:Key="FK.Style.GlassButton" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource FK.Brush.Surface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource FK.Brush.Text}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FK.Brush.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="16,12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border Background="{TemplateBinding Background}"
+                    <Border x:Name="ButtonBorder"
+                            Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="12"
                             Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="Center"
-                                VerticalAlignment="Center"/>
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        <Border.Effect>
+                            <DropShadowEffect Color="#000000"
+                                              Direction="270"
+                                              ShadowDepth="4"
+                                              BlurRadius="8"
+                                              Opacity="0.10"/>
+                        </Border.Effect>
                     </Border>
+
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver"
-                                Value="True">
-                            <Setter Property="Background"
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background"
                                     Value="{DynamicResource FK.Brush.Primary}"/>
-                        </Trigger>
-                        <Trigger Property="IsPressed"
-                                Value="True">
-                            <Setter Property="RenderTransform">
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter TargetName="ButtonBorder" Property="Effect">
                                 <Setter.Value>
-                                    <ScaleTransform ScaleX="0.96"
-                                            ScaleY="0.96"/>
+                                    <DropShadowEffect Color="#000000"
+                                                      Direction="270"
+                                                      ShadowDepth="6"
+                                                      BlurRadius="12"
+                                                      Opacity="0.20"/>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
 
-    <!-- Danger Glass Button -->
-    <Style x:Key="FK.Style.DangerGlassButton"
-            TargetType="Button"
-            BasedOn="{StaticResource FK.Style.GlassButton}">
-        <Setter Property="BorderBrush"
-                Value="{DynamicResource FK.Brush.Danger}"/>
-        <Setter Property="Foreground"
-                Value="{DynamicResource FK.Brush.Danger}"/>
-    </Style>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background"
+                                    Value="{DynamicResource FK.Brush.PrimaryHover}"/>
+                            <Setter Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
 
-    <!-- Protection Toggle Style -->
-    <Style x:Key="FK.Style.ProtectionToggle"
-            TargetType="ToggleButton">
-        <Setter Property="Width"
-                Value="120"/>
-        <Setter Property="Height"
-                Value="50"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="ToggleButton">
-                    <Border Name="Track"
-                            Background="{DynamicResource FK.Brush.CardGradient}"
-                            CornerRadius="25"
-                            BorderThickness="2"
-                            BorderBrush="{DynamicResource FK.Brush.Danger}">
-                        <StackPanel Orientation="Horizontal"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center">
-                            <TextBlock Text="🛡️"
-                                    FontSize="16"
-                                    Margin="8,0,4,0"
-                                    Opacity="0.9"/>
-                            <TextBlock Name="StatusText"
-                                    Text="AV"
-                                    FontSize="12"
-                                    FontWeight="Bold"
-                                       Foreground="{DynamicResource FK.Brush.Danger}"
-                                    Margin="0,0,8,0"/>
-                        </StackPanel>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsChecked"
-                                Value="True">
-                            <Setter TargetName="Track"
-                                    Property="BorderBrush"
-                                    Value="{DynamicResource FK.Brush.Success}"/>
-                            <Setter TargetName="StatusText"
-                                    Property="Text"
-                                    Value="PÅ"/>
-                            <Setter TargetName="StatusText"
-                                    Property="Foreground"
-                                    Value="{DynamicResource FK.Brush.Success}"/>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.55"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+
+                        <!-- focus ring -->
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="BorderBrush"
+                                    Value="{DynamicResource FK.Brush.Primary}"/>
+                            <Setter TargetName="ButtonBorder" Property="BorderThickness" Value="2"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -135,69 +129,134 @@
         </Setter>
     </Style>
 
-    <!-- Theme Toggle Style -->
-    <Style x:Key="FK.Style.ThemeToggle"
-            TargetType="ComboBox">
-        <Setter Property="Width"
-                Value="120"/>
-        <Setter Property="Height"
-                Value="40"/>
-        <Setter Property="Background"
-                Value="{DynamicResource FK.Brush.CardGradient}"/>
-        <Setter Property="BorderBrush"
-                Value="{DynamicResource FK.Brush.Border}"/>
-        <Setter Property="BorderThickness"
-                Value="1"/>
-        <Setter Property="Foreground"
-                Value="{DynamicResource FK.Brush.Text}"/>
-        <Setter Property="Padding"
-                Value="12,8"/>
-        <Setter Property="FontSize"
-                Value="12"/>
+    <!-- === THEME COMBO STYLE (glassy) === -->
+    <Style x:Key="FK.Style.ThemeToggle" TargetType="ComboBox">
+        <Setter Property="Foreground" Value="{DynamicResource FK.Brush.Text}"/>
+        <Setter Property="Background" Value="{DynamicResource FK.Brush.Surface}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FK.Brush.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="10,6"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBox">
-                    <Border Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="20">
-                        <Grid>
-                            <ContentPresenter Name="ContentSite"
-                                    IsHitTestVisible="False"
-                                              Content="{TemplateBinding SelectionBoxItem}"
-                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
-                                              Margin="{TemplateBinding Padding}"
-                                              VerticalAlignment="Center"
-                                              HorizontalAlignment="Center"/>
-                            <ToggleButton Name="ToggleButton"
-                                    Template="{x:Null}"
-                                          Focusable="False"
-                                    IsTabStop="False"
-                                    ClickMode="Press"
-                                          IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                          Background="Transparent"
-                                    BorderThickness="0"/>
-                            <Popup Name="Popup"
-                                    Placement="Bottom"
-                                    IsOpen="{TemplateBinding IsDropDownOpen}"
-                                   AllowsTransparency="True"
-                                    Focusable="False"
-                                    PopupAnimation="Slide">
-                                <Border Background="{DynamicResource FK.Brush.Surface}"
-                                        BorderBrush="{DynamicResource FK.Brush.Border}"
-                                        BorderThickness="1"
-                                        CornerRadius="12"
-                                        MinWidth="{TemplateBinding ActualWidth}">
-                                    <ScrollViewer Margin="4,6,4,6"
-                                            SnapsToDevicePixels="True">
-                                        <StackPanel IsItemsHost="True"
-                                                KeyboardNavigation.DirectionalNavigation="Contained"/>
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                    </Border>
+                    <Grid>
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12"
+                                Padding="{TemplateBinding Padding}">
+                            <DockPanel>
+                                <ContentPresenter Margin="4,0,24,0"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True"/>
+                                <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                                      Width="8" Height="4"
+                                      Stretch="Fill"
+                                      Fill="{DynamicResource FK.Brush.Subtext}"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      Margin="0,0,6,0"/>
+                            </DockPanel>
+                        </Border>
+                        <Popup Name="PART_Popup"
+                               Placement="Bottom"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               PopupAnimation="Fade">
+                            <Border Background="{DynamicResource FK.Brush.Surface}"
+                                    BorderBrush="{DynamicResource FK.Brush.Border}"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    SnapsToDevicePixels="True"
+                                    Padding="6">
+                                <ScrollViewer CanContentScroll="True" >
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- === BIG PILL PROTECTION TOGGLE === -->
+    <Style x:Key="FK.Style.ProtectionToggle" TargetType="ToggleButton">
+        <Setter Property="Width" Value="140"/>
+        <Setter Property="Height" Value="44"/>
+        <Setter Property="Background" Value="#1F000000"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FK.Brush.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <Border x:Name="Track"
+                                CornerRadius="22"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Grid Margin="8,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="AV" Grid.Column="0"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Left"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource FK.Brush.Subtext}"/>
+                                <TextBlock Text="PÅ" Grid.Column="1"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Right"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource FK.Brush.Subtext}"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- thumb -->
+                        <Border x:Name="Thumb"
+                                Width="64" Height="36"
+                                CornerRadius="18"
+                                Background="{DynamicResource FK.Brush.Danger}"
+                                HorizontalAlignment="Left"
+                                Margin="4"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000"
+                                                  Direction="270"
+                                                  ShadowDepth="4"
+                                                  BlurRadius="10"
+                                                  Opacity="0.25"/>
+                            </Border.Effect>
+                            <Grid>
+                                <TextBlock x:Name="ThumbText"
+                                           Text="AV"
+                                           Foreground="White"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Thumb" Property="Background"
+                                    Value="{DynamicResource FK.Brush.Success}"/>
+                            <Setter TargetName="ThumbText" Property="Text" Value="PÅ"/>
+                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                            <Setter TargetName="Track" Property="BorderBrush"
+                                    Value="{DynamicResource FK.Brush.Success}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.55"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

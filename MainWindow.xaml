@@ -1,532 +1,351 @@
 <Window x:Class="FilKollen.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:FilKollen.Converters"
         Title="FilKollen Säkerhetsscanner"
         Height="800"
         Width="1200"
         MinHeight="600"
         MinWidth="900"
         WindowStartupLocation="CenterScreen"
-        Background="#F6FAFF">
+        Style="{DynamicResource FK.Style.MainWindow}"
+        Background="{DynamicResource FK.Brush.Bg}"
+        Icon="Resources/Icons/filkollen.ico">
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="80"/>
-            <!-- Header -->
-            <RowDefinition Height="*"/>
-            <!-- Main content -->
-            <RowDefinition Height="50"/>
-            <!-- Footer -->
-        </Grid.RowDefinitions>
+    <Window.Resources>
+        <converters:WidthToColumnConverter x:Key="WidthToColumnConverter"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
-        <!-- HEADER -->
-        <Border Grid.Row="0"
-                Background="#E0F0FF"
-                BorderBrush="#D6E6F5"
-                BorderThickness="0,0,0,1">
-            <Grid Margin="30,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+        <!-- Responsiv layoutmarkör via Tag="SingleColumn" -->
+        <Style x:Key="ResponsiveGrid" TargetType="Grid">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ActualWidth, RelativeSource={RelativeSource Self}, Converter={StaticResource WidthToColumnConverter}}" Value="True">
+                    <Setter Property="Tag" Value="SingleColumn"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
 
-                <!-- Logo and Title -->
-                <StackPanel Grid.Column="0"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center">
-                    <TextBlock Text="🛡️"
-                            FontSize="28"
-                            Margin="0,0,16,0"/>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="FILKOLLEN"
-                                FontSize="20"
-                                FontWeight="Black"
-                                Foreground="#0B1B2B"/>
-                        <TextBlock Text="Säkerhetsscanner"
-                                FontSize="11"
-                                Foreground="#6CC1F0"
-                                FontWeight="Medium"/>
+    <!-- Custom Window Chrome -->
+    <Border Background="{DynamicResource FK.Brush.Bg}" CornerRadius="12">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="72"/>   <!-- Header -->
+                <RowDefinition Height="*"/>    <!-- Body -->
+                <RowDefinition Height="Auto"/> <!-- Footer -->
+            </Grid.RowDefinitions>
+
+            <!-- === TOP BAR === -->
+            <Border Grid.Row="0"
+                    Background="{DynamicResource FK.Brush.Surface}"
+                    CornerRadius="12,12,0,0"
+                    BorderBrush="{DynamicResource FK.Brush.Border}"
+                    BorderThickness="1,1,1,0">
+                <Grid Margin="24,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Logo & Brand -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Image Width="40" Height="40" Margin="0,0,16,0"
+                            Source="pack://application:,,,/Resources/Icons/filkollen.png"
+                               Stretch="Uniform" SnapsToDevicePixels="True"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="FILKOLLEN" FontSize="18" FontWeight="Black"
+                                       Foreground="{DynamicResource FK.Brush.Text}"/>
+                            <TextBlock Text="Anti-bluff och hackare" FontSize="11" FontWeight="Medium"
+                                       Foreground="{DynamicResource FK.Brush.Primary}" Margin="0,-2,0,0"/>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
 
-                <!-- Status Display -->
-                <StackPanel Grid.Column="1"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal"
-                            HorizontalAlignment="Center">
-                        <Ellipse x:Name="StatusIndicator"
-                                Width="12"
-                                Height="12"
-                                Fill="#FF6B7D"
-                                Margin="0,0,10,0"/>
-                        <TextBlock x:Name="SystemStatusText"
-                                Text="SKYDD INAKTIVERAT"
-                                FontWeight="Bold"
-                                FontSize="14"
-                                Foreground="#FF6B7D"/>
+                    <!-- Status Chip -->
+                    <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Background="{DynamicResource FK.Brush.CardGradient}"
+                            BorderBrush="{DynamicResource FK.Brush.Border}" BorderThickness="1"
+                            CornerRadius="20" Padding="16,8">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="StatusIndicator" Width="10" Height="10"
+                                     Fill="{DynamicResource FK.Brush.Danger}" Margin="0,0,8,0"/>
+                            <TextBlock x:Name="SystemStatusText" Text="SKYDD INAKTIVERAT"
+                                       FontWeight="SemiBold" FontSize="13"
+                                       Foreground="{DynamicResource FK.Brush.Text}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Theme Selector -->
+                    <ComboBox Grid.Column="2" x:Name="ThemeSelector" Width="140" Height="40" Margin="0,0,20,0"
+                              Style="{DynamicResource FK.Style.ThemeToggle}"
+                              SelectionChanged="ThemeSelector_SelectionChanged">
+                        <ComboBoxItem Content="🖥️ System"/>
+                        <ComboBoxItem Content="☀️ Ljust"/>
+                        <ComboBoxItem Content="🌙 Mörkt"/>
+                    </ComboBox>
+
+                    <!-- Window Controls -->
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="−" Width="32" Height="32" Style="{DynamicResource FK.Style.GlassButton}"
+                                FontSize="16" Margin="4,0" Click="MinimizeButton_Click" ToolTip="Minimera"/>
+                        <Button Content="✕" Width="32" Height="32" Style="{DynamicResource FK.Style.GlassButton}"
+                                FontSize="14" Click="CloseButton_Click" ToolTip="Stäng"/>
                     </StackPanel>
-                    <TextBlock x:Name="LastScanText"
-                            Text="Senaste skanning: Aldrig"
-                            FontSize="10"
-                            Foreground="#3A546A"
-                            HorizontalAlignment="Center"
-                            Margin="0,4,0,0"/>
-                </StackPanel>
-
-                <!-- Theme Selector -->
-                <ComboBox Grid.Column="2"
-                        x:Name="ThemeSelector"
-                        Width="120"
-                        Height="40"
-                        Margin="0,0,20,0"
-                        ToolTip="Välj tema"
-                        SelectionChanged="ThemeSelector_SelectionChanged">
-                    <ComboBoxItem Content="🖥️ System"/>
-                    <ComboBoxItem Content="☀️ Ljust"/>
-                    <ComboBoxItem Content="🌙 Mörkt"/>
-                </ComboBox>
-
-                <!-- Window Controls -->
-                <StackPanel Grid.Column="3"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center">
-                    <Button Content="−"
-                            Width="30"
-                            Height="30"
-                            Padding="0"
-                            Margin="4,0"
-                            Click="MinimizeButton_Click"
-                            ToolTip="Minimera"/>
-                    <Button Content="✕"
-                            Width="30"
-                            Height="30"
-                            Padding="0"
-                            Click="CloseButton_Click"
-                            ToolTip="Stäng"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- MAIN CONTENT -->
-        <Grid Grid.Row="1"
-                Margin="20">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"
-                        MinWidth="280"
-                        MaxWidth="320"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- SIDEBAR -->
-            <Border Grid.Column="0"
-                    Background="#FFFFFF"
-                    CornerRadius="16"
-                    Padding="20"
-                    Margin="0,0,20,0"
-                    BorderBrush="#D6E6F5"
-                    BorderThickness="1">
-                <StackPanel>
-
-                    <!-- Real-time Protection -->
-                    <Border Background="#F0F8FF"
-                            CornerRadius="16"
-                            Padding="20"
-                            Margin="0,0,0,20"
-                            BorderBrush="#D6E6F5"
-                            BorderThickness="1">
-                        <StackPanel>
-                            <TextBlock Text="🛡️ REALTIDSSKYDD"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Foreground="#0B1B2B"
-                                    HorizontalAlignment="Center"
-                                    Margin="0,0,0,20"/>
-
-                            <ToggleButton x:Name="ProtectionToggle"
-                                    Width="120"
-                                    Height="50"
-                                    HorizontalAlignment="Center"
-                                    Checked="ProtectionToggle_Checked"
-                                    Unchecked="ProtectionToggle_Unchecked">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Border Name="Track"
-                                                Background="#F0F8FF"
-                                                CornerRadius="25"
-                                                BorderThickness="2"
-                                                BorderBrush="#FF6B7D"
-                                                Padding="10">
-                                            <StackPanel Orientation="Horizontal"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center">
-                                                <TextBlock Text="🛡️"
-                                                        FontSize="16"
-                                                        Margin="8,0,4,0"/>
-                                                <TextBlock Name="StatusText"
-                                                        Text="AV"
-                                                        FontSize="12"
-                                                        FontWeight="Bold"
-                                                        Foreground="#FF6B7D"
-                                                        Margin="0,0,8,0"/>
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsChecked"
-                                                    Value="True">
-                                                <Setter TargetName="Track"
-                                                        Property="BorderBrush"
-                                                        Value="#2DD4BF"/>
-                                                <Setter TargetName="StatusText"
-                                                        Property="Text"
-                                                        Value="PÅ"/>
-                                                <Setter TargetName="StatusText"
-                                                        Property="Foreground"
-                                                        Value="#2DD4BF"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-
-                            <Border Background="#FFF0F0"
-                                    CornerRadius="15"
-                                    Padding="15"
-                                    Margin="0,20,0,0"
-                                    BorderBrush="#FF6B7D"
-                                    BorderThickness="1">
-                                <StackPanel Orientation="Horizontal"
-                                        HorizontalAlignment="Center">
-                                    <Ellipse Width="8"
-                                            Height="8"
-                                            Fill="#FF6B7D"
-                                            Margin="0,0,8,0"/>
-                                    <TextBlock Text="SYSTEMET ÄR SÅRBART"
-                                            Foreground="#FF6B7D"
-                                            FontSize="11"
-                                            FontWeight="Bold"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Quick Actions -->
-                    <Border Background="#F0F8FF"
-                            CornerRadius="16"
-                            Padding="20"
-                            Margin="0,0,0,20"
-                            BorderBrush="#D6E6F5"
-                            BorderThickness="1">
-                        <StackPanel>
-                            <TextBlock Text="⚡ SNABBÅTGÄRDER"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Foreground="#0B1B2B"
-                                    HorizontalAlignment="Center"
-                                    Margin="0,0,0,20"/>
-
-                            <Button x:Name="TempScanButton"
-                                    Content="🔍 SKANNA TEMP-FILER"
-                                    Margin="0,0,0,12"
-                                    Padding="10"
-                                    Click="TempScanButton_Click"/>
-                            <Button x:Name="BrowserCleanButton"
-                                    Content="🌐 RENSA BLUFFNOTISER"
-                                    Margin="0,0,0,12"
-                                    Padding="10"
-                                    Click="BrowserCleanButton_Click"/>
-                            <Button x:Name="SystemInfoButton"
-                                    Content="ℹ️ SYSTEMINFORMATION"
-                                    Padding="10"
-                                    Click="SystemInfoButton_Click"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Statistics -->
-                    <Border Background="#F0F8FF"
-                            CornerRadius="16"
-                            Padding="20"
-                            BorderBrush="#D6E6F5"
-                            BorderThickness="1">
-                        <StackPanel>
-                            <TextBlock Text="📊 STATISTIK"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Foreground="#0B1B2B"
-                                    HorizontalAlignment="Center"
-                                    Margin="0,0,0,20"/>
-
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition/>
-                                    <RowDefinition/>
-                                    <RowDefinition/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <TextBlock Grid.Row="0"
-                                        Grid.Column="0"
-                                        Text="Hot funna:"
-                                        Foreground="#3A546A"
-                                        FontSize="12"/>
-                                <TextBlock Grid.Row="0"
-                                        Grid.Column="1"
-                                        x:Name="StatsThreatsFound"
-                                        Text="0"
-                                        FontSize="16"
-                                        FontWeight="Bold"
-                                        Foreground="#FF6B7D"/>
-
-                                <TextBlock Grid.Row="1"
-                                        Grid.Column="0"
-                                        Text="Filer skannade:"
-                                        Foreground="#3A546A"
-                                        FontSize="12"
-                                        Margin="0,8,0,0"/>
-                                <TextBlock Grid.Row="1"
-                                        Grid.Column="1"
-                                        x:Name="StatsFilesScanned"
-                                        Text="0"
-                                        FontSize="16"
-                                        FontWeight="Bold"
-                                        Foreground="#6CC1F0"
-                                        Margin="0,8,0,0"/>
-
-                                <TextBlock Grid.Row="2"
-                                        Grid.Column="0"
-                                        Text="Senaste skanning:"
-                                        Foreground="#3A546A"
-                                        FontSize="12"
-                                        Margin="0,8,0,0"/>
-                                <TextBlock Grid.Row="2"
-                                        Grid.Column="1"
-                                        x:Name="StatsLastScan"
-                                        Text="Aldrig"
-                                        FontSize="12"
-                                        FontWeight="Bold"
-                                        Foreground="#3A546A"
-                                        Margin="0,8,0,0"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+                </Grid>
             </Border>
 
-            <!-- MAIN PANEL -->
-            <ScrollViewer Grid.Column="1"
-                    VerticalScrollBarVisibility="Auto">
-                <Border Background="#FFFFFF"
-                        CornerRadius="16"
-                        Padding="20"
-                        BorderBrush="#D6E6F5"
-                        BorderThickness="1">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+            <!-- === MAIN BODY === -->
+            <Grid Grid.Row="1" Margin="20" Style="{StaticResource ResponsiveGrid}">
+                <!-- Rader för 1-kolumnsläget -->
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- vänsterkort överst -->
+                    <RowDefinition Height="20"/>    <!-- spacer -->
+                    <RowDefinition Height="*"/>     <!-- högerhuvud -->
+                </Grid.RowDefinitions>
 
-                        <!-- Header -->
-                        <Grid Grid.Row="0"
-                                Margin="0,0,0,20">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Grid.Column="0"
-                                    Text="🚨 IDENTIFIERADE SÄKERHETSHOT"
-                                    FontSize="18"
-                                    FontWeight="Bold"
-                                    Foreground="#0B1B2B"/>
-
-                            <StackPanel Grid.Column="1"
-                                    Orientation="Horizontal">
-                                <Button Content="🔄 UPPDATERA"
-                                        Margin="0,0,12,0"
-                                        Padding="10"
-                                        Click="RefreshThreatsButton_Click"/>
-                                <Button Content="🧹 HANTERA ALLA"
-                                        Padding="10"
-                                        Click="HandleAllThreatsButton_Click"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Summary Stats -->
-                        <Grid Grid.Row="1"
-                                Margin="0,0,0,20">
-                            <UniformGrid Columns="2">
-                                <!-- Threats Found Card -->
-                                <Border Background="#FFF0F0"
-                                        CornerRadius="16"
-                                        Padding="20"
-                                        Margin="0,0,10,0"
-                                        BorderBrush="#FF6B7D"
-                                        BorderThickness="1">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <Border Width="60"
-                                                Height="60"
-                                                CornerRadius="30"
-                                                Background="#FF6B7D"
-                                                HorizontalAlignment="Center">
-                                            <TextBlock Text="⚠️"
-                                                    FontSize="30"
-                                                    Foreground="White"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"/>
-                                        </Border>
-                                        <TextBlock Text="SUSPEKTA FILER"
-                                                FontSize="12"
-                                                FontWeight="Bold"
-                                                Foreground="#0B1B2B"
-                                                HorizontalAlignment="Center"
-                                                Margin="0,12,0,4"/>
-                                        <TextBlock x:Name="SuspiciousFilesCount"
-                                                Text="0"
-                                                FontSize="32"
-                                                FontWeight="Black"
-                                                Foreground="#FF6B7D"
-                                                HorizontalAlignment="Center"/>
-                                        <TextBlock Text="kräver omedelbar åtgärd"
-                                                FontSize="10"
-                                                HorizontalAlignment="Center"
-                                                Foreground="#3A546A"
-                                                TextAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Files Scanned Card -->
-                                <Border Background="#F0FFF0"
-                                        CornerRadius="16"
-                                        Padding="20"
-                                        Margin="10,0,0,0"
-                                        BorderBrush="#2DD4BF"
-                                        BorderThickness="1">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <Border Width="60"
-                                                Height="60"
-                                                CornerRadius="30"
-                                                Background="#2DD4BF"
-                                                HorizontalAlignment="Center">
-                                            <TextBlock Text="🔍"
-                                                    FontSize="30"
-                                                    Foreground="White"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"/>
-                                        </Border>
-                                        <TextBlock Text="SKANNADE FILER"
-                                                FontSize="12"
-                                                FontWeight="Bold"
-                                                Foreground="#0B1B2B"
-                                                HorizontalAlignment="Center"
-                                                Margin="0,12,0,4"/>
-                                        <TextBlock x:Name="FilesScannedCount"
-                                                Text="0"
-                                                FontSize="32"
-                                                FontWeight="Black"
-                                                Foreground="#2DD4BF"
-                                                HorizontalAlignment="Center"/>
-                                        <TextBlock Text="analyserade den här sessionen"
-                                                FontSize="10"
-                                                HorizontalAlignment="Center"
-                                                Foreground="#3A546A"
-                                                TextAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                            </UniformGrid>
-                        </Grid>
-
-                        <!-- Threat List / No Threats Message -->
-                        <Grid Grid.Row="2">
-                            <!-- No Threats Message (Visible by default) -->
-                            <StackPanel x:Name="NoThreatsPanel"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Visibility="Visible">
-                                <Border Width="100"
-                                        Height="100"
-                                        CornerRadius="50"
-                                        Background="#2DD4BF"
-                                        HorizontalAlignment="Center">
-                                    <TextBlock Text="✓"
-                                            FontSize="50"
-                                            Foreground="White"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="🎉 INGA AKTIVA HOT UPPTÄCKTA!"
-                                        FontSize="22"
-                                        FontWeight="Bold"
-                                        HorizontalAlignment="Center"
-                                        Foreground="#2DD4BF"
-                                        Margin="0,24,0,8"/>
-                                <TextBlock Text="Ditt system är säkert. Håll realtidsskyddet aktiverat för maximal säkerhet."
-                                        FontSize="13"
-                                        TextAlignment="Center"
-                                        Foreground="#3A546A"
-                                        TextWrapping="Wrap"
-                                        MaxWidth="400"/>
-                            </StackPanel>
-                        </Grid>
-                    </Grid>
-                </Border>
-            </ScrollViewer>
-        </Grid>
-
-        <!-- FOOTER -->
-        <Border Grid.Row="2"
-                Background="#E0F0FF"
-                CornerRadius="0,0,20,20"
-                BorderBrush="#D6E6F5"
-                BorderThickness="0,1,0,0">
-            <Grid Margin="30,0">
+                <!-- Kolumner för brett läge -->
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="320" MinWidth="280" MaxWidth="320"/>
+                    <ColumnDefinition Width="20"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock x:Name="StatusBarText"
-                        Grid.Column="0"
-                        Text="Välkommen till FilKollen Säkerhetsscanner - Avancerat hotskydd för Windows"
-                        Foreground="#3A546A"
-                        VerticalAlignment="Center"
-                        FontSize="12"/>
+                <!-- LEFT PANEL -->
+                <ScrollViewer Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="1"
+                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ScrollViewer.Style>
+                        <Style TargetType="ScrollViewer">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType=Grid}}" Value="SingleColumn">
+                                    <Setter Property="Grid.Column" Value="0"/>
+                                    <Setter Property="Grid.ColumnSpan" Value="3"/>
+                                    <Setter Property="Grid.Row" Value="0"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ScrollViewer.Style>
 
-                <StackPanel Grid.Column="1"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center"
-                        Margin="20,0">
-                    <TextBlock Text="🔑"
-                            FontSize="14"
-                            Margin="0,0,6,0"/>
-                    <TextBlock x:Name="LicenseStatusText"
-                            Text="TRIAL AKTIVT"
-                            FontSize="11"
-                            Foreground="#6CC1F0"
-                            FontWeight="Medium"/>
-                </StackPanel>
+                    <StackPanel>
+                        <!-- Real-time Protection Card -->
+                        <Border Style="{DynamicResource FK.Style.GlassCard}" Margin="0,0,0,20">
+                            <StackPanel>
+                                <TextBlock Text="🛡️ REALTIDSSKYDD" FontSize="16" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource FK.Brush.Text}" HorizontalAlignment="Center"
+                                           Margin="0,0,0,20"/>
+                                <ToggleButton x:Name="ProtectionToggle"
+                                              Style="{DynamicResource FK.Style.ProtectionToggle}"
+                                              HorizontalAlignment="Center" Margin="0,0,0,16"
+                                              Checked="ProtectionToggle_Checked"
+                                              Unchecked="ProtectionToggle_Unchecked"/>
+                                <Border x:Name="ProtectionStatusBadge" Background="{DynamicResource FK.Brush.Danger}"
+                                        CornerRadius="12" Padding="12,8" HorizontalAlignment="Center" Opacity="0.9">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="6" Height="6" Fill="White" Margin="0,0,6,0"/>
+                                        <TextBlock x:Name="ProtectionStatusText" Text="SYSTEMET ÄR SÅRBART"
+                                                   Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
 
-                <StackPanel Grid.Column="2"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center">
-                    <Ellipse Width="6"
-                            Height="6"
-                            Fill="#2DD4BF"
-                            Margin="0,0,6,0"/>
-                    <TextBlock x:Name="ConnectionStatusText"
-                            Text="ONLINE"
-                            FontSize="11"
-                            Foreground="#2DD4BF"
-                            FontWeight="Bold"/>
-                </StackPanel>
+                        <!-- Quick Actions Card -->
+                        <Border Style="{DynamicResource FK.Style.GlassCard}" Margin="0,0,0,20">
+                            <StackPanel>
+                                <TextBlock Text="⚡ SNABBÅTGÄRDER" FontSize="16" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource FK.Brush.Text}" HorizontalAlignment="Center"
+                                           Margin="0,0,0,20"/>
+                                <Button x:Name="TempScanButton" Content="🔍 Skanna suspekta-filer"
+                                        Style="{DynamicResource FK.Style.GlassButton}" Margin="0,0,0,12"
+                                        Click="TempScanButton_Click"/>
+                                <Button x:Name="BrowserCleanButton" Content="🌐 Rensa bluffnotiser"
+                                        Style="{DynamicResource FK.Style.GlassButton}" Margin="0,0,0,12"
+                                        Click="BrowserCleanButton_Click"/>
+                                <Button x:Name="SystemInfoButton" Content="ℹ️ Systeminformation"
+                                        Style="{DynamicResource FK.Style.GlassButton}"
+                                        Click="SystemInfoButton_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Statistics Card -->
+                        <Border Style="{DynamicResource FK.Style.GlassCard}">
+                            <StackPanel>
+                                <TextBlock Text="📊 STATISTIK" FontSize="16" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource FK.Brush.Text}" HorizontalAlignment="Center"
+                                           Margin="0,0,0,20"/>
+
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Suspekta filer:"
+                                               Foreground="{DynamicResource FK.Brush.Subtext}" FontSize="13"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StatsThreatsFound" Text="0"
+                                               FontSize="18" FontWeight="Bold"
+                                               Foreground="{DynamicResource FK.Brush.Danger}"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Skannade filer:"
+                                               Foreground="{DynamicResource FK.Brush.Subtext}" FontSize="13" Margin="0,12,0,0"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="StatsFilesScanned" Text="0"
+                                               FontSize="18" FontWeight="Bold"
+                                               Foreground="{DynamicResource FK.Brush.Primary}" Margin="0,12,0,0"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Senaste skanning:"
+                                               Foreground="{DynamicResource FK.Brush.Subtext}" FontSize="13" Margin="0,12,0,0"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="StatsLastScan" Text="Aldrig"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource FK.Brush.Subtext}" Margin="0,12,0,0"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- RIGHT MAIN AREA -->
+                <Grid Grid.Column="2" Grid.Row="0" Grid.ColumnSpan="1">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType=Grid}}" Value="SingleColumn">
+                                    <Setter Property="Grid.Column" Value="0"/>
+                                    <Setter Property="Grid.ColumnSpan" Value="3"/>
+                                    <Setter Property="Grid.Row" Value="2"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <Grid Grid.Row="0" Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="🚨 SÄKERHETSSTATUS"
+                                   FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource FK.Brush.Text}"/>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="🔄 Uppdatera" Style="{DynamicResource FK.Style.GlassButton}"
+                                    Margin="0,0,12,0" Click="RefreshThreatsButton_Click"/>
+                            <Button Content="🧹 Rensa alla" Style="{DynamicResource FK.Style.GlassButton}"
+                                    Click="HandleAllThreatsButton_Click"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Summary Stats Cards -->
+                    <UniformGrid Grid.Row="1" Columns="2" Margin="0,0,0,20">
+                        <Border Style="{DynamicResource FK.Style.GlassCard}" Margin="0,0,10,0"
+                                BorderBrush="{DynamicResource FK.Brush.Danger}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <Border Width="60" Height="60" CornerRadius="30"
+                                        Background="{DynamicResource FK.Brush.Danger}"
+                                        HorizontalAlignment="Center" Margin="0,0,0,12">
+                                    <TextBlock Text="⚠️" FontSize="28" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="SUSPEKTA FILER" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource FK.Brush.Text}" HorizontalAlignment="Center"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock x:Name="SuspiciousFilesCount" Text="0" FontSize="32" FontWeight="Black"
+                                           Foreground="{DynamicResource FK.Brush.Danger}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="kräver omedelbar åtgärd" FontSize="10" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource FK.Brush.Subtext}" TextAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{DynamicResource FK.Style.GlassCard}" Margin="10,0,0,0"
+                                BorderBrush="{DynamicResource FK.Brush.Success}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <Border Width="60" Height="60" CornerRadius="30"
+                                        Background="{DynamicResource FK.Brush.Success}"
+                                        HorizontalAlignment="Center" Margin="0,0,0,12">
+                                    <TextBlock Text="🔍" FontSize="28" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="SKANNADE FILER" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource FK.Brush.Text}" HorizontalAlignment="Center"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock x:Name="FilesScannedCount" Text="0" FontSize="32" FontWeight="Black"
+                                           Foreground="{DynamicResource FK.Brush.Success}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="analyserade denna session" FontSize="10" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource FK.Brush.Subtext}" TextAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Main Status Area -->
+                    <Border Grid.Row="2" Style="{DynamicResource FK.Style.GlassCard}">
+                        <Grid>
+                            <StackPanel x:Name="NoThreatsPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Visible">
+                                <Border Width="100" Height="100" CornerRadius="50"
+                                        Background="{DynamicResource FK.Brush.Success}"
+                                        HorizontalAlignment="Center" Margin="0,0,0,24">
+                                    <TextBlock Text="✓" FontSize="50" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="🎉 INGA AKTIVA HOT UPPTÄCKTA!"
+                                           FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource FK.Brush.Success}" Margin="0,0,0,12"/>
+                                <TextBlock Text="Ditt system är säkert. Håll realtidsskyddet aktiverat för maximal säkerhet."
+                                           FontSize="14" TextAlignment="Center" Foreground="{DynamicResource FK.Brush.Subtext}"
+                                           TextWrapping="Wrap" MaxWidth="400" LineHeight="20"/>
+                            </StackPanel>
+
+                            <ScrollViewer x:Name="ThreatsPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                                <StackPanel x:Name="ThreatsListPanel"/>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
             </Grid>
-        </Border>
-    </Grid>
+
+            <!-- === FOOTER === -->
+            <Border Grid.Row="2"
+                    VerticalAlignment="Bottom"
+                    Background="{DynamicResource FK.Brush.Surface}"
+                    CornerRadius="0,0,12,12"
+                    BorderBrush="{DynamicResource FK.Brush.Border}"
+                    BorderThickness="1,0,1,1"
+                    Height="50" Margin="0,0,0,0">
+                <Grid Margin="24,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock x:Name="StatusBarText" Grid.Column="0"
+                               Text="Välkommen till FilKollen Säkerhetsscanner - Aktivera realtidsskydd för fullständig säkerhet"
+                               Foreground="{DynamicResource FK.Brush.Subtext}" VerticalAlignment="Center" FontSize="12"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0">
+                        <TextBlock Text="🔑" FontSize="14" Margin="0,0,6,0"/>
+                        <TextBlock x:Name="LicenseStatusText" Text="TRIAL AKTIVT" FontSize="11"
+                                   Foreground="{DynamicResource FK.Brush.Primary}" FontWeight="Medium"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Fill="{DynamicResource FK.Brush.Success}" Margin="0,0,6,0"/>
+                        <TextBlock x:Name="ConnectionStatusText" Text="ONLINE" FontSize="11"
+                                   Foreground="{DynamicResource FK.Brush.Success}" FontWeight="Bold"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>  <!-- outer grid -->
+    </Border>    <!-- outer border -->
 </Window>

@@ -74,6 +74,12 @@ namespace FilKollen
                 }
 
                 InitializeComponent();
+
+                if (_themeService != null && ThemeSelector != null)
+                {
+                    ThemeSelector.SelectedIndex = (int)_themeService.Mode; // 0:System, 1:Light, 2:Dark
+                    _themeService.ThemeChanged += OnThemeChanged;
+                }
                 DataContext = this;
 
                 // Status update timer
@@ -146,8 +152,8 @@ namespace FilKollen
                 if (StatusBarText != null)
                     StatusBarText.Text = "FilKollen Säkerhetsscanner - Redo för aktivering";
 
-                if (LastScanText != null)
-                    LastScanText.Text = "Senaste skanning: Aldrig";
+if (StatsLastScan != null)
+    StatsLastScan.Text = "Senaste aktivitet: Aldrig";
 
                 // Tema-selector setup
                 if (_themeService != null && ThemeSelector != null)
@@ -490,8 +496,9 @@ namespace FilKollen
                         SuspiciousFilesCount.Text = stats.TotalThreatsFound.ToString();
                 }
 
-                if (LastScanText != null)
-                    LastScanText.Text = $"Senaste aktivitet: {DateTime.Now:HH:mm:ss}";
+// UpdateStatistics()
+if (StatsLastScan != null)
+    StatsLastScan.Text = $"Senaste aktivitet: {DateTime.Now:HH:mm:ss}";
             }
             catch (Exception ex)
             {
@@ -736,8 +743,8 @@ namespace FilKollen
                     _logViewer?.AddLogEntry(LogLevel.Information, "Skanning",
                         $"✅ Temp-skanning slutförd: {suspiciousFiles.Count} suspekta filer funna av {results?.Count ?? 0} totalt");
 
-                    if (LastScanText != null)
-                        LastScanText.Text = $"Senaste skanning: {DateTime.Now:HH:mm:ss}";
+if (StatsLastScan != null)
+    StatsLastScan.Text = $"Senaste skanning: {DateTime.Now:HH:mm:ss}";
                 }
                 else
                 {

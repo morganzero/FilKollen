@@ -10,8 +10,8 @@ namespace FilKollen.Converters
         {
             if (value is double width)
             {
-                // Return true if width is less than 900px (should use 1 column)
-                return width < 900;
+                // Return true if width is less than 1100px (should use 1 column layout)
+                return width < 1100;
             }
             return false;
         }
