@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using FilKollen.Services;
 using FilKollen.Windows;
+using FilKollen.Models;
 using Serilog;
 
 namespace FilKollen
@@ -21,8 +22,8 @@ namespace FilKollen
             {
                 // KRITISKT: Säker logging-initiation som aldrig kraschar
                 await InitializeLoggingSafelyAsync();
-                
-                _logger?.Information("=== FilKollen Real-time Security startar (SÄKER MODE) ===");
+
+                _logger?.Information("=== FilKollen Säkerhetsscanner startar (AKTIV MODE) ===");
 
                 // KRITISKT: Failsafe service initialization
                 await InitializeServicesSafelyAsync();
@@ -30,13 +31,13 @@ namespace FilKollen
                 // KRITISKT: Säker tema-hantering
                 ApplySystemThemeSafely();
 
-                // KRITISKT: Säker licens-hantering (hoppa över för nu)
-                _logger?.Information("Hoppar över licensvalidering för säker start");
+                // KRITISKT: Säker licens-hantering
+                await HandleLicensingSafelyAsync();
 
                 // KRITISKT: Säker huvudapplikation-start
                 StartMainApplicationSafely();
 
-                _logger?.Information("=== FilKollen startup completed successfully (SÄKER MODE) ===");
+                _logger?.Information("=== FilKollen startup slutförd framgångsrikt (AKTIV MODE) ===");
             }
             catch (Exception ex)
             {
@@ -57,7 +58,7 @@ namespace FilKollen
                 }
 
                 _logger = new LoggerConfiguration()
-                    .WriteTo.File(System.IO.Path.Combine(logsDir, "filkollen-.log"), 
+                    .WriteTo.File(System.IO.Path.Combine(logsDir, "filkollen-.log"),
                         rollingInterval: RollingInterval.Day,
                         retainedFileCountLimit: 30)
                     .WriteTo.Console()
@@ -69,70 +70,65 @@ namespace FilKollen
             catch
             {
                 // Om logging misslyckas helt, använd enkel console output
-                System.Console.WriteLine("WARNING: Could not initialize file logging - using console only");
+                System.Console.WriteLine("VARNING: Kunde inte initiera fil-logging - använder endast console");
                 _logger = new LoggerConfiguration()
                     .WriteTo.Console()
                     .CreateLogger();
             }
         }
 
-// App.xaml.cs - KORRIGERING för CS8604 null reference warning
-// Ersätt rad 112 i InitializeServicesSafelyAsync metoden
+        private async Task InitializeServicesSafelyAsync()
+        {
+            try
+            {
+                _logger?.Information("Initierar kärntjänster...");
 
-private async Task InitializeServicesSafelyAsync()
-{
-    try
-    {
-        _logger?.Information("Initializing core services...");
+                // ThemeService - säker initiation
+                try
+                {
+                    _themeService = new ThemeService();
+                    _logger?.Information("✅ ThemeService initierad säkert");
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Warning($"ThemeService init misslyckades: {ex.Message} - använder standard");
+                    _themeService = null;
+                }
 
-        // ThemeService - säker initiation
-        try
-        {
-            _themeService = new ThemeService();
-            _logger?.Information("✅ ThemeService initialized safely");
-        }
-        catch (Exception ex)
-        {
-            _logger?.Warning($"ThemeService init failed: {ex.Message} - using defaults");
-            _themeService = null; // Kommer att använda fallback
-        }
+                // BrandingService - säker initiation med null-check
+                try
+                {
+                    _brandingService = new BrandingService(_logger ?? Log.Logger ??
+                        new LoggerConfiguration().WriteTo.Console().CreateLogger());
+                    _logger?.Information("✅ BrandingService initierad säkert");
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Warning($"BrandingService init misslyckades: {ex.Message} - använder standard");
+                    _brandingService = null;
+                }
 
-        // BrandingService - säker initiation med null-check
-        try
-        {
-            // KORRIGERAT: Säker null-hantering för logger
-            _brandingService = new BrandingService(_logger ?? Log.Logger ?? 
-                new LoggerConfiguration().WriteTo.Console().CreateLogger());
-            _logger?.Information("✅ BrandingService initialized safely");
-        }
-        catch (Exception ex)
-        {
-            _logger?.Warning($"BrandingService init failed: {ex.Message} - using defaults");
-            _brandingService = null; // MainWindow kommer att hantera null
-        }
+                // LicenseService - säker initiation med null-check
+                try
+                {
+                    _licenseService = new LicenseService(_logger ?? Log.Logger ??
+                        new LoggerConfiguration().WriteTo.Console().CreateLogger());
+                    _logger?.Information("✅ LicenseService initierad säkert");
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Warning($"LicenseService init misslyckades: {ex.Message} - använder trial mode");
+                    _licenseService = null;
+                }
 
-        // LicenseService - säker initiation med null-check
-        try
-        {
-            // KORRIGERAT: Säker null-hantering för logger (rad 112 fix)
-            _licenseService = new LicenseService(_logger ?? Log.Logger ?? 
-                new LoggerConfiguration().WriteTo.Console().CreateLogger());
-            _logger?.Information("✅ LicenseService initialized safely");
+                await Task.Delay(10); // Yield
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error($"Tjänstinitiering misslyckades: {ex.Message}");
+                // Fortsätt ändå - MainWindow kan hantera null services
+            }
         }
-        catch (Exception ex)
-        {
-            _logger?.Warning($"LicenseService init failed: {ex.Message} - using trial mode");
-            _licenseService = null; // MainWindow kommer att hantera null
-        }
-
-        await Task.Delay(10); // Yield
-    }
-    catch (Exception ex)
-    {
-        _logger?.Error($"Service initialization failed: {ex.Message}");
-        // Fortsätt ändå - MainWindow kan hantera null services
-    }
-}
 
         private void ApplySystemThemeSafely()
         {
@@ -140,39 +136,63 @@ private async Task InitializeServicesSafelyAsync()
             {
                 if (_themeService != null)
                 {
-                    _logger?.Information("Applying system theme...");
-                    var isDarkTheme = _themeService.ShouldUseDarkTheme();
-                    
-                    // Försök sätta tema via MaterialDesign
-                    try
-                    {
-                        var bundledTheme = Resources.MergedDictionaries
-                            .OfType<MaterialDesignThemes.Wpf.BundledTheme>()
-                            .FirstOrDefault();
-                        
-                        if (bundledTheme != null)
-                        {
-                            bundledTheme.BaseTheme = isDarkTheme ? 
-                                MaterialDesignThemes.Wpf.BaseTheme.Dark : 
-                                MaterialDesignThemes.Wpf.BaseTheme.Light;
-                            
-                            _logger?.Information($"Theme applied: {(isDarkTheme ? "Dark" : "Light")}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.Warning($"MaterialDesign theme application failed: {ex.Message}");
-                        // Fortsätt med standard-tema
-                    }
+                    _logger?.Information("Applicerar systemtema...");
+
+                    // Tillämpa tema baserat på systemeinställningar eller sparade preferenser
+                    var shouldUseDark = _themeService.ShouldUseDarkTheme();
+                    _themeService.SetTheme(shouldUseDark);
+
+                    _logger?.Information($"Tema tillämpat: {(shouldUseDark ? "Mörkt" : "Ljust")}");
                 }
                 else
                 {
-                    _logger?.Information("ThemeService not available - using default theme");
+                    _logger?.Information("ThemeService inte tillgänglig - använder standardtema");
                 }
             }
             catch (Exception ex)
             {
-                _logger?.Warning($"Theme application failed: {ex.Message} - using default");
+                _logger?.Warning($"Tema-tillämpning misslyckades: {ex.Message} - använder standard");
+            }
+        }
+
+        private async Task HandleLicensingSafelyAsync()
+        {
+            try
+            {
+                if (_licenseService != null)
+                {
+                    _logger?.Information("Kontrollerar licensstatus...");
+
+                    var licenseStatus = await _licenseService.ValidateLicenseAsync();
+                    _logger?.Information($"Licensstatus: {licenseStatus}");
+
+                    // Om trial har gått ut eller ingen licens finns, visa licensfönster
+                    if (licenseStatus == LicenseStatus.TrialExpired ||
+                        licenseStatus == LicenseStatus.Expired ||
+                        licenseStatus == LicenseStatus.Invalid)
+                    {
+                        _logger?.Information("Licensregistrering krävs - visar licensfönster");
+
+                        var licenseWindow = new LicenseRegistrationWindow(_licenseService, _logger!);
+                        var licenseResult = licenseWindow.ShowDialog();
+
+                        if (licenseResult != true)
+                        {
+                            // Användaren avbröt eller stängde licensfönstret
+                            _logger?.Warning("Licensregistrering avbruten - avslutar applikation");
+                            Shutdown();
+                            return;
+                        }
+                    }
+                }
+                else
+                {
+                    _logger?.Information("Ingen licensstjänst - kör i begränsat läge");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warning($"Licenshantering misslyckades: {ex.Message} - fortsätter med trial");
             }
         }
 
@@ -180,16 +200,16 @@ private async Task InitializeServicesSafelyAsync()
         {
             try
             {
-                _logger?.Information("Creating main window safely...");
-                
+                _logger?.Information("Skapar huvudfönster säkert...");
+
                 // SÄKER: Skapa MainWindow med null-kontroller
                 var mainWindow = new MainWindow(
                     _licenseService, // Kan vara null
                     _brandingService, // Kan vara null  
                     _themeService // Kan vara null
                 );
-                
-                _logger?.Information("MainWindow created successfully");
+
+                _logger?.Information("MainWindow skapad framgångsrikt");
 
                 // Säker titel-sättning
                 try
@@ -197,31 +217,32 @@ private async Task InitializeServicesSafelyAsync()
                     var branding = _brandingService?.GetCurrentBranding();
                     if (branding != null)
                     {
-                        mainWindow.Title = $"{branding.ProductName} - Modern Säkerhetsscanner";
+                        mainWindow.Title = $"{branding.ProductName} - {branding.CompanyName}";
                     }
                     else
                     {
-                        mainWindow.Title = "FilKollen - Real-time Security Suite v2.0";
+                        mainWindow.Title = "FilKollen Säkerhetsscanner - Real-time Skydd v2.0";
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Warning($"Could not set window title: {ex.Message}");
-                    mainWindow.Title = "FilKollen Security Scanner";
+                    _logger?.Warning($"Kunde inte sätta fönstretitel: {ex.Message}");
+                    mainWindow.Title = "FilKollen Säkerhetsscanner";
                 }
-                
+
                 // Kontrollera command line args säkert
                 bool startMinimized = false;
                 try
                 {
-                    startMinimized = Environment.GetCommandLineArgs().Contains("--minimized");
+                    startMinimized = Environment.GetCommandLineArgs().Contains("--minimized") ||
+                                   Environment.GetCommandLineArgs().Contains("--tray");
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Warning($"Could not check command line args: {ex.Message}");
+                    _logger?.Warning($"Kunde inte kontrollera kommandoradsargument: {ex.Message}");
                 }
-                
-                _logger?.Information($"Showing window (minimized: {startMinimized})...");
+
+                _logger?.Information($"Visar fönster (minimerat: {startMinimized})...");
 
                 // Visa fönster säkert
                 try
@@ -231,19 +252,21 @@ private async Task InitializeServicesSafelyAsync()
                         mainWindow.WindowState = WindowState.Minimized;
                         mainWindow.Show();
                         mainWindow.Hide(); // Direkt till tray
+                        _logger?.Information("Applikation startad i systemfältet");
                     }
                     else
                     {
                         mainWindow.Show();
+                        _logger?.Information("Huvudfönster visas");
                     }
 
                     MainWindow = mainWindow;
-                    _logger?.Information("✅ Main application window created and shown successfully");
+                    _logger?.Information("✅ Huvudapplikationsfönster skapat och visat framgångsrikt");
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Error($"Failed to show main window: {ex.Message}");
-                    
+                    _logger?.Error($"Misslyckades att visa huvudfönster: {ex.Message}");
+
                     // FALLBACK: Visa enkel felmeddelande
                     MessageBox.Show($"Kunde inte visa huvudfönster:\n\n{ex.Message}\n\nApplikationen kommer att avslutas.",
                         "FilKollen Startfel", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -252,8 +275,8 @@ private async Task InitializeServicesSafelyAsync()
             }
             catch (Exception ex)
             {
-                _logger?.Error($"CRITICAL: Failed to start main application: {ex.Message}");
-                
+                _logger?.Error($"KRITISKT: Misslyckades att starta huvudapplikation: {ex.Message}");
+
                 // KRITISK FALLBACK
                 try
                 {
@@ -266,27 +289,27 @@ private async Task InitializeServicesSafelyAsync()
                     try
                     {
                         var errorFile = $"critical-startup-error-{DateTime.Now:yyyyMMdd-HHmmss}.log";
-                        System.IO.File.WriteAllText(errorFile, 
-                            $"CRITICAL STARTUP ERROR: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}");
+                        System.IO.File.WriteAllText(errorFile,
+                            $"KRITISKT STARTFEL: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}");
                     }
                     catch { }
                 }
-                
+
                 Shutdown();
             }
         }
 
         private async Task HandleCriticalStartupErrorAsync(Exception ex)
         {
-            var errorMsg = $"KRITISKT STARTUPFEL: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}";
-            
+            var errorMsg = $"KRITISKT STARTFEL: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}";
+
             // Försök logga
             try
             {
-                _logger?.Fatal(ex, "Critical startup error");
+                _logger?.Fatal(ex, "Kritiskt startfel");
             }
             catch { }
-            
+
             // Skriv alltid till crash-fil
             try
             {
@@ -306,11 +329,11 @@ private async Task InitializeServicesSafelyAsync()
                     "• Radera gamla konfigurationsfiler\n" +
                     "• Kontakta support med crash-loggen\n\n" +
                     $"Feldetaljer: {ex.Message}",
-                    "FilKollen - Kritiskt Startfel", 
+                    "FilKollen - Kritiskt Startfel",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch { }
-            
+
             Shutdown();
         }
 
@@ -324,7 +347,7 @@ private async Task InitializeServicesSafelyAsync()
             }
             catch (Exception ex)
             {
-                _logger?.Warning($"Could not check for other instances: {ex.Message}");
+                _logger?.Warning($"Kunde inte kontrollera andra instanser: {ex.Message}");
                 return false;
             }
         }
@@ -333,10 +356,10 @@ private async Task InitializeServicesSafelyAsync()
         {
             try
             {
-                _logger?.Information("FilKollen Real-time Security avslutas");
+                _logger?.Information("FilKollen Säkerhetsscanner avslutas");
             }
             catch { }
-            
+
             base.OnExit(e);
         }
     }

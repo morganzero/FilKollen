@@ -14,8 +14,8 @@ namespace FilKollen.Services
         private bool _isDarkTheme;
         private readonly object _lockObject = new object();
 
-        public bool IsDarkTheme 
-        { 
+        public bool IsDarkTheme
+        {
             get => _isDarkTheme;
             private set
             {
@@ -65,7 +65,7 @@ namespace FilKollen.Services
             {
                 using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
                 var appsUseLightTheme = key?.GetValue("AppsUseLightTheme");
-                
+
                 if (appsUseLightTheme is int lightTheme)
                 {
                     return lightTheme == 0;
@@ -85,86 +85,120 @@ namespace FilKollen.Services
             {
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
+                    var resources = Application.Current?.Resources;
+                    if (resources == null) return;
+
+                    // Uppdatera MaterialDesign tema
                     var paletteHelper = new PaletteHelper();
                     var theme = paletteHelper.GetTheme();
 
-                    // KORRIGERAT: Använd rätt variabelnamn
                     IBaseTheme baseTheme = IsDarkTheme
                         ? new MaterialDesignDarkTheme()
                         : new MaterialDesignLightTheme();
 
                     theme.SetBaseTheme(baseTheme);
 
-                    // FÖRBÄTTRADE färger för FilKollen
+                    // FÖRBÄTTRADE TRANSPARENTA FÄRGER
                     if (IsDarkTheme)
                     {
-                        // Mörka tema-färger - moderna blå/turkos nyanser
-                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(59, 130, 246));   // Blue-500
-                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(6, 182, 212));  // Cyan-500
-                        
-                        // Anpassa Paper och Card bakgrunder för mörkt tema
-                        theme.Paper = System.Windows.Media.Color.FromRgb(15, 23, 42);  // Slate-900
-                        theme.CardBackground = System.Windows.Media.Color.FromRgb(30, 41, 59);    // Slate-800
+                        // Mörka tema-färger med transparency
+                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(102, 126, 234));   // #667eea
+                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(0, 212, 170));   // #00d4aa
+
+                        // Dynamiska färger för mörkt tema
+                        resources["AppBackgroundColor"] = System.Windows.Media.Color.FromRgb(10, 10, 10);      // #0a0a0a
+                        resources["AppSurfaceColor"] = System.Windows.Media.Color.FromArgb(64, 22, 22, 41);    // #40161629
+                        resources["AppCardColor"] = System.Windows.Media.Color.FromArgb(96, 26, 26, 53);       // #601a1a35
+                        resources["AppTextColor"] = System.Windows.Media.Color.FromRgb(255, 255, 255);         // #ffffff
+                        resources["AppTextSecondaryColor"] = System.Windows.Media.Color.FromRgb(184, 198, 219); // #b8c6db
                     }
                     else
                     {
-                        // Ljusa tema-färger - livfulla men professionella
-                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(37, 99, 235));    // Blue-600
-                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(8, 145, 178));  // Cyan-600
-                        
-                        // Ljusa bakgrunder
-                        theme.Paper = System.Windows.Media.Color.FromRgb(248, 250, 252);  // Slate-50
-                        theme.CardBackground = System.Windows.Media.Color.FromRgb(255, 255, 255); // White
+                        // Ljusa tema-färger med transparency
+                        theme.SetPrimaryColor(System.Windows.Media.Color.FromRgb(59, 130, 246));    // #3b82f6
+                        theme.SetSecondaryColor(System.Windows.Media.Color.FromRgb(6, 182, 212));   // #06b6d4
+
+                        // Dynamiska färger för ljust tema
+                        resources["AppBackgroundColor"] = System.Windows.Media.Color.FromRgb(248, 250, 252);   // #f8fafc
+                        resources["AppSurfaceColor"] = System.Windows.Media.Color.FromArgb(96, 255, 255, 255); // #60ffffff
+                        resources["AppCardColor"] = System.Windows.Media.Color.FromArgb(128, 255, 255, 255);   // #80ffffff
+                        resources["AppTextColor"] = System.Windows.Media.Color.FromRgb(30, 41, 59);            // #1e293b
+                        resources["AppTextSecondaryColor"] = System.Windows.Media.Color.FromRgb(71, 85, 105);  // #475569
                     }
 
                     paletteHelper.SetTheme(theme);
 
-                    // Uppdatera även custom resurser
-                    UpdateCustomResources();
+                    // Uppdatera glassmorfism-effekter
+                    UpdateGlassmorphismEffects();
                 });
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to apply theme: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Misslyckades att tillämpa tema: {ex.Message}");
             }
         }
 
-        private void UpdateCustomResources()
+        private void UpdateGlassmorphismEffects()
         {
             try
             {
                 var resources = Application.Current?.Resources;
                 if (resources == null) return;
 
-                // Uppdatera custom tema-resurser baserat på aktuellt tema
                 if (IsDarkTheme)
                 {
-                    // Mörka tema-resurser
-                    resources["ModernWindowBackground"] = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(15, 23, 42));   // Slate-900
-                    resources["ModernCardBackground"] = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(30, 41, 59));   // Slate-800
-                    resources["ModernTextPrimary"] = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(248, 250, 252)); // Slate-50
-                    resources["ModernTextSecondary"] = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(203, 213, 225)); // Slate-300
+                    // Mörka glassmorfism-effekter
+                    var darkGlassGradient = new System.Windows.Media.LinearGradientBrush();
+                    darkGlassGradient.StartPoint = new System.Windows.Point(0, 0);
+                    darkGlassGradient.EndPoint = new System.Windows.Point(1, 1);
+                    darkGlassGradient.GradientStops.Add(new System.Windows.Media.GradientStop(
+                        System.Windows.Media.Color.FromArgb(32, 255, 255, 255), 0));
+                    darkGlassGradient.GradientStops.Add(new System.Windows.Media.GradientStop(
+                        System.Windows.Media.Color.FromArgb(16, 255, 255, 255), 0.5));
+                    darkGlassGradient.GradientStops.Add(new System.Windows.Media.GradientStop(
+                        System.Windows.Media.Color.FromArgb(8, 255, 255, 255), 1));
+
+                    resources["GlassMorphGradient"] = darkGlassGradient;
+
+                    var darkGlassBorder = new System.Windows.Media.LinearGradientBrush();
+                    darkGlassBorder.StartPoint = new System.Windows.Point(0, 0);
+                    darkGlassBorder.EndPoint = new System.Windows.Point(1, 1);
+                    darkGlassBorder.GradientStops.Add(new System.Windows.Media.GradientStop(
+                        System.Windows.Media.Color.FromArgb(64, 0, 212, 170), 0));  // Cyan
+                    darkGlassBorder.GradientStops.Add(new System.Windows.Media.GradientStop(
+                        System.Windows.Media.Color.FromArgb(32, 102, 126, 234), 1)); // Purple
+
+                    resources["GlassMorphBorder"] = darkGlassBorder;
                 }
                 else
                 {
-                    // Ljusa tema-resurser
-                    resources["ModernWindowBackground"] = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(248, 249, 250)); // Gray-50
-                    resources["ModernCardBackground"] = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(255, 255, 255)); // White
-                    resources["ModernTextPrimary"] = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(33, 37, 41));    // Gray-900
-                    resources["ModernTextSecondary"] = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(108, 117, 125)); // Gray-600
+                    // Ljusa glassmorfism-effekter
+                    var lightGlassGradient = new System.Windows.Media.LinearGradientBrush();
+                    lightGlassGradient.StartPoint = new System.Windows.Point(0, 0);
+                    lightGlassGradient.EndPoint = new System.Windows.Point(1, 1);
+                    lightGlassGradient.GradientStops.Add(new System.Windows.Media.GradientStop(
+                        System.Windows.Media.Color.FromArgb(48, 255, 255, 255), 0));
+                    lightGlassGradient.GradientStops.Add(new System.Windows.Media.GradientStop(
+                        System.Windows.Media.Color.FromArgb(24, 255, 255, 255), 0.5));
+                    lightGlassGradient.GradientStops.Add(new System.Windows.Media.GradientStop(
+                        System.Windows.Media.Color.FromArgb(12, 255, 255, 255), 1));
+
+                    resources["GlassMorphGradient"] = lightGlassGradient;
+
+                    var lightGlassBorder = new System.Windows.Media.LinearGradientBrush();
+                    lightGlassBorder.StartPoint = new System.Windows.Point(0, 0);
+                    lightGlassBorder.EndPoint = new System.Windows.Point(1, 1);
+                    lightGlassBorder.GradientStops.Add(new System.Windows.Media.GradientStop(
+                        System.Windows.Media.Color.FromArgb(80, 59, 130, 246), 0));   // Blue
+                    lightGlassBorder.GradientStops.Add(new System.Windows.Media.GradientStop(
+                        System.Windows.Media.Color.FromArgb(40, 6, 182, 212), 1));    // Cyan
+
+                    resources["GlassMorphBorder"] = lightGlassBorder;
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to update custom resources: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Misslyckades att uppdatera glassmorfism: {ex.Message}");
             }
         }
 
@@ -176,7 +210,7 @@ namespace FilKollen.Services
                 {
                     var json = File.ReadAllText(ThemeConfigFile);
                     var config = JsonSerializer.Deserialize<ThemeConfig>(json);
-                    
+
                     if (config != null)
                     {
                         _isDarkTheme = config.IsDarkTheme;
@@ -193,7 +227,7 @@ namespace FilKollen.Services
             }
             catch
             {
-                _isDarkTheme = false;
+                _isDarkTheme = true; // Default till mörkt tema
             }
         }
 
