@@ -393,7 +393,6 @@
                                                         Width="{TemplateBinding Width}"
                                                         Height="{TemplateBinding Height}"
                                                         CornerRadius="22"
-                                                        <!-- Increased from 16 to 22 -->
                                                         Background="{TemplateBinding Background}">
                                                         <Grid Margin="8,6">
                                                                 <Grid.ColumnDefinitions>
@@ -406,9 +405,8 @@
                                                                            HorizontalAlignment="Left"
                                                                            FontWeight="SemiBold"
                                                                            FontSize="7"
-                                                                                <!-- Smaller due to size reduction -->
-                                                                                Foreground="White"
-                                                                                Opacity="0.7"/>
+                                                                           Foreground="White"
+                                                                           Opacity="0.7"/>
                                                                 <TextBlock Text="PÅ"
                                                                            Grid.Column="1"
                                                                            VerticalAlignment="Center"
@@ -421,13 +419,11 @@
                                                 </Border>
                                                 <Border x:Name="Thumb"
                                                         Width="22"
-                                                        <!-- Was 26: 26 * 0.85 = ~22 -->
                                                         Height="22"
                                                         CornerRadius="18"
-                                                        <!-- Increased from 16 to 18 -->
                                                         Background="White"
-                                                                HorizontalAlignment="Left"
-                                                                Margin="3"
+                                                        HorizontalAlignment="Left"
+                                                        Margin="3"
                                                         RenderTransformOrigin="0.5,0.5">
                                                         <Border.Effect>
                                                                 <DropShadowEffect x:Name="ThumbShadow"
@@ -436,16 +432,14 @@
                                                                                   ShadowDepth="0"
                                                                                   BlurRadius="6"
                                                                                   Opacity="0"/>
-                                                                <!-- No shadow by default -->
                                                         </Border.Effect>
                                                         <TextBlock x:Name="ThumbIcon"
                                                                    Text="✕"
                                                                    FontSize="10"
-                                                                        <!-- Smaller due to size reduction -->
-                                                                        FontWeight="Bold"
+                                                                   FontWeight="Bold"
                                                                    Foreground="{DynamicResource FK.Brush.StatusNeutral}"
                                                                    HorizontalAlignment="Center"
-                                                                        VerticalAlignment="Center"/>
+                                                                   VerticalAlignment="Center"/>
                                                 </Border>
                                         </Grid>
                                         <ControlTemplate.Triggers>
@@ -463,13 +457,15 @@
                                                         <Setter TargetName="Thumb"
                                                                 Property="HorizontalAlignment"
                                                                 Value="Right"/>
-                                                        <!-- Add shadow only in ON state (premium contrast) -->
-                                                        <Setter TargetName="ThumbShadow"
-                                                                Property="ShadowDepth"
-                                                                Value="2"/>
-                                                        <Setter TargetName="ThumbShadow"
-                                                                Property="Opacity"
-                                                                Value="0.15"/>
+                                                        <Setter Property="Effect">
+                                                                <Setter.Value>
+                                                                        <DropShadowEffect Color="#000000"
+                                                                                          Direction="270"
+                                                                                          ShadowDepth="2"
+                                                                                          BlurRadius="6"
+                                                                                          Opacity="0.15"/>
+                                                                </Setter.Value>
+                                                        </Setter>
                                                 </Trigger>
                                                 <Trigger Property="IsEnabled"
                                                          Value="False">

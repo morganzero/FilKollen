@@ -18,22 +18,22 @@ namespace FilKollen.Windows
         private readonly LicenseKeyGenerator _keyGenerator;
         private readonly ILogger _logger;
         private LicenseKeyInfo? _currentLicenseInfo;
-        
+
         public bool IsTrialMode { get; set; }
 
         public LicenseRegistrationWindow(LicenseService licenseService, ILogger logger)
         {
             InitializeComponent();
-            
+
             _licenseService = licenseService;
             _keyGenerator = new LicenseKeyGenerator(logger);
             _logger = logger;
-            
+
             DataContext = this;
-            
+
             // Kontrollera om vi är i trial-läge
             CheckTrialStatus();
-            
+
             _logger.Information("License registration window opened");
         }
 
@@ -41,27 +41,27 @@ namespace FilKollen.Windows
         {
             var trialTime = _licenseService.GetRemainingTrialTime();
             IsTrialMode = trialTime.HasValue && trialTime.GetValueOrDefault() > TimeSpan.Zero;
-            
+
             if (IsTrialMode)
             {
                 TrialTimeRemainingText.Text = FormatTimeSpan(trialTime.GetValueOrDefault());
                 TrialExpiryDateText.Text = DateTime.UtcNow.Add(trialTime.GetValueOrDefault()).ToString("yyyy-MM-dd");
-                StatusHeaderText.Text = "Trial-period aktiv - Registrera licens för fortsatt användning";
+                // REMOVED: StatusHeaderText reference (not in premium XAML)
             }
             else
             {
-                StatusHeaderText.Text = "Trial-period har gått ut - Licensregistrering krävs";
+                // REMOVED: StatusHeaderText reference (not in premium XAML)
                 TrialStatusCard.Visibility = Visibility.Collapsed;
                 ContinueTrialButton.Visibility = Visibility.Collapsed;
             }
-            
+
             OnPropertyChanged(nameof(IsTrialMode));
         }
 
         private void LicenseKeyTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
             var licenseKey = LicenseKeyTextBox.Text?.Trim().ToUpper() ?? string.Empty;
-            
+
             // Auto-formattering av licensnyckel
             if (licenseKey.Length > 0 && !licenseKey.Contains("-"))
             {
@@ -69,7 +69,7 @@ namespace FilKollen.Windows
                 LicenseKeyTextBox.Text = licenseKey;
                 LicenseKeyTextBox.SelectionStart = licenseKey.Length;
             }
-            
+
             ValidateLicenseKeyAsync(licenseKey);
         }
 
@@ -77,10 +77,10 @@ namespace FilKollen.Windows
         {
             // Ta bort alla icke-alfanumeriska tecken
             var cleaned = Regex.Replace(input, @"[^A-Z0-9]", "");
-            
+
             if (cleaned.Length <= 4)
                 return "FILK";
-            
+
             // Formatera som FILK-XXXX-XXXX-XXXX-XXXX
             var formatted = "FILK";
             for (int i = 4; i < cleaned.Length && i < 20; i += 4)
@@ -88,81 +88,81 @@ namespace FilKollen.Windows
                 var group = cleaned.Substring(i, Math.Min(4, cleaned.Length - i));
                 formatted += "-" + group;
             }
-            
+
             return formatted;
         }
 
-private async void ValidateLicenseKeyAsync(string licenseKey)
-{
-    try
-    {
-        LicenseKeyValidationText.Visibility = Visibility.Collapsed;
-        LicenseInfoPanel.Visibility = Visibility.Collapsed;
-        RegisterButton.IsEnabled = false;
-        
-        if (string.IsNullOrEmpty(licenseKey) || licenseKey.Length < 24)
+        private async void ValidateLicenseKeyAsync(string licenseKey)
         {
-            return;
-        }
-
-        // KORRIGERAT: Lägg till await för Task.Yield() för att uppfylla async contract
-        await Task.Yield();
-
-        // Validera licensnyckel
-        var isValid = _keyGenerator.ValidateLicenseKey(licenseKey);
-        
-        if (isValid)
-        {
-            _currentLicenseInfo = _keyGenerator.ExtractLicenseInfo(licenseKey);
-            
-            if (_currentLicenseInfo != null)
+            try
             {
-                // Visa licensinformation
-                LicenseTypeText.Text = _currentLicenseInfo.TypeDisplayName;
-                LicenseExpiryText.Text = _currentLicenseInfo.FormattedExpiryDate;
-                LicenseStatusText.Text = _currentLicenseInfo.IsValid ? "✅ Giltig" : "❌ Utgången";
-                LicenseStatusText.Foreground = _currentLicenseInfo.IsValid ? 
-                    Brushes.Green : Brushes.Red;
-                
-                LicenseInfoPanel.Visibility = Visibility.Visible;
-                
-                if (_currentLicenseInfo.IsValid)
+                LicenseKeyValidationText.Visibility = Visibility.Collapsed;
+                LicenseInfoPanel.Visibility = Visibility.Collapsed;
+                RegisterButton.IsEnabled = false;
+
+                if (string.IsNullOrEmpty(licenseKey) || licenseKey.Length < 24)
                 {
-                    LicenseKeyValidationText.Text = "✅ Giltig licensnyckel";
-                    LicenseKeyValidationText.Foreground = Brushes.Green;
-                    RegisterButton.IsEnabled = CanRegister();
+                    return;
+                }
+
+                // KORRIGERAT: Lägg till await för Task.Yield() för att uppfylla async contract
+                await Task.Yield();
+
+                // Validera licensnyckel
+                var isValid = _keyGenerator.ValidateLicenseKey(licenseKey);
+
+                if (isValid)
+                {
+                    _currentLicenseInfo = _keyGenerator.ExtractLicenseInfo(licenseKey);
+
+                    if (_currentLicenseInfo != null)
+                    {
+                        // Visa licensinformation
+                        LicenseTypeText.Text = _currentLicenseInfo.TypeDisplayName;
+                        LicenseExpiryText.Text = _currentLicenseInfo.FormattedExpiryDate;
+                        LicenseStatusText.Text = _currentLicenseInfo.IsValid ? "✅ Giltig" : "❌ Utgången";
+                        LicenseStatusText.Foreground = _currentLicenseInfo.IsValid ?
+                            Brushes.Green : Brushes.Red;
+
+                        LicenseInfoPanel.Visibility = Visibility.Visible;
+
+                        if (_currentLicenseInfo.IsValid)
+                        {
+                            LicenseKeyValidationText.Text = "✅ Giltig licensnyckel";
+                            LicenseKeyValidationText.Foreground = Brushes.Green;
+                            RegisterButton.IsEnabled = CanRegister();
+                        }
+                        else
+                        {
+                            LicenseKeyValidationText.Text = "❌ Licensnyckeln har gått ut";
+                            LicenseKeyValidationText.Foreground = Brushes.Red;
+                        }
+
+                        LicenseKeyValidationText.Visibility = Visibility.Visible;
+                    }
                 }
                 else
                 {
-                    LicenseKeyValidationText.Text = "❌ Licensnyckeln har gått ut";
+                    LicenseKeyValidationText.Text = "❌ Ogiltig licensnyckel";
                     LicenseKeyValidationText.Foreground = Brushes.Red;
+                    LicenseKeyValidationText.Visibility = Visibility.Visible;
+                    _currentLicenseInfo = null;
                 }
-                
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"License key validation error: {ex.Message}");
+                LicenseKeyValidationText.Text = "❌ Fel vid validering av licensnyckel";
+                LicenseKeyValidationText.Foreground = Brushes.Red;
                 LicenseKeyValidationText.Visibility = Visibility.Visible;
             }
         }
-        else
-        {
-            LicenseKeyValidationText.Text = "❌ Ogiltig licensnyckel";
-            LicenseKeyValidationText.Foreground = Brushes.Red;
-            LicenseKeyValidationText.Visibility = Visibility.Visible;
-            _currentLicenseInfo = null;
-        }
-    }
-    catch (Exception ex)
-    {
-        _logger.Error($"License key validation error: {ex.Message}");
-        LicenseKeyValidationText.Text = "❌ Fel vid validering av licensnyckel";
-        LicenseKeyValidationText.Foreground = Brushes.Red;
-        LicenseKeyValidationText.Visibility = Visibility.Visible;
-    }
-}
 
         private bool CanRegister()
         {
             return _currentLicenseInfo != null &&
                    _currentLicenseInfo.IsValid &&
-                   !string.IsNullOrWhiteSpace(CustomerNameTextBox.Text) &&
+                   // FIXED: Only email required now (premium spec)
                    !string.IsNullOrWhiteSpace(CustomerEmailTextBox.Text) &&
                    IsValidEmail(CustomerEmailTextBox.Text);
         }
@@ -184,7 +184,7 @@ private async void ValidateLicenseKeyAsync(string licenseKey)
         {
             if (_currentLicenseInfo == null || !CanRegister())
             {
-                MessageBox.Show("Kontrollera att alla fält är korrekt ifyllda.", 
+                MessageBox.Show("Kontrollera att alla fält är korrekt ifyllda.",
                     "Ofullständig information", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -194,20 +194,24 @@ private async void ValidateLicenseKeyAsync(string licenseKey)
                 RegisterButton.IsEnabled = false;
                 RegisterButton.Content = "🔄 Registrerar...";
 
+                // FIXED: Use email as name (premium spec - only email required)
+                var customerName = CustomerEmailTextBox.Text; // Use email as name
+                var customerEmail = CustomerEmailTextBox.Text;
+
                 var success = await _licenseService.RegisterLicenseAsync(
                     LicenseKeyTextBox.Text,
-                    CustomerNameTextBox.Text,
-                    CustomerEmailTextBox.Text);
+                    customerName,
+                    customerEmail);
 
                 if (success)
                 {
                     _logger.Information($"License successfully registered for {CustomerEmailTextBox.Text}");
-                    
+
                     MessageBox.Show(
                         $"🎉 LICENSREGISTRERING SLUTFÖRD!\n\n" +
                         $"✅ Licens: {_currentLicenseInfo.TypeDisplayName}\n" +
                         $"📅 Giltig till: {_currentLicenseInfo.FormattedExpiryDate}\n" +
-                        $"👤 Registrerad på: {CustomerNameTextBox.Text}\n\n" +
+                        $"👤 Registrerad på: {customerEmail}\n\n" +
                         $"FilKollen Pro-funktioner är nu aktiverade!\n" +
                         $"Applikationen startar om för att tillämpa licensändringarna.",
                         "Licensregistrering Slutförd",
@@ -240,14 +244,14 @@ private async void ValidateLicenseKeyAsync(string licenseKey)
             finally
             {
                 RegisterButton.IsEnabled = CanRegister();
-                RegisterButton.Content = "🔑 Registrera Licens";
+                RegisterButton.Content = "Registrera licens";
             }
         }
 
         private void ContinueTrialButton_Click(object sender, RoutedEventArgs e)
         {
             var remainingTime = _licenseService.GetRemainingTrialTime();
-            
+
             if (remainingTime.HasValue && remainingTime.GetValueOrDefault() > TimeSpan.Zero)
             {
                 _logger.Information("User chose to continue trial period");
@@ -269,7 +273,8 @@ private async void ValidateLicenseKeyAsync(string licenseKey)
         {
             try
             {
-                var purchaseUrl = "https://filkollen.com/purchase";
+                // FIXED: Updated to .se domain (premium spec)
+                var purchaseUrl = "https://filkollen.se";
                 Process.Start(new ProcessStartInfo(purchaseUrl) { UseShellExecute = true });
                 _logger.Information("User navigated to purchase page");
             }
@@ -278,7 +283,7 @@ private async void ValidateLicenseKeyAsync(string licenseKey)
                 _logger.Error($"Failed to open purchase URL: {ex.Message}");
                 MessageBox.Show(
                     "Kunde inte öppna köpsidan.\n\n" +
-                    "Besök manuellt: https://filkollen.com/purchase",
+                    "Besök manuellt: https://filkollen.se",
                     "Webbläsarfel",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
@@ -287,29 +292,40 @@ private async void ValidateLicenseKeyAsync(string licenseKey)
 
         private void HelpButton_Click(object sender, RoutedEventArgs e)
         {
-            var helpMessage = 
-                "🔑 LICENSREGISTRERING HJÄLP\n\n" +
-                "Licensnyckel format:\n" +
-                "FILK-XXXX-XXXX-XXXX-XXXX\n\n" +
-                "Vanliga problem:\n" +
-                "• Kontrollera att nyckeln är korrekt inskriven\n" +
-                "• Säkerställ internetanslutning för validering\n" +
-                "• Använd den e-postadress som användes vid köpet\n\n" +
-                "Trial-period:\n" +
-                "• 14 dagar från första start\n" +
-                "• Alla funktioner tillgängliga under trial\n" +
-                "• Automatisk påminnelse 3 dagar före utgång\n\n" +
-                "Support: support@filkollen.com";
+            try
+            {
+                // FIXED: Updated to .se domain (premium spec)
+                var helpUrl = "https://wiki.filkollen.se";
+                Process.Start(new ProcessStartInfo(helpUrl) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to open help URL: {ex.Message}");
+                var helpMessage =
+                    "🔑 LICENSREGISTRERING HJÄLP\n\n" +
+                    "Licensnyckel format:\n" +
+                    "FILK-XXXX-XXXX-XXXX-XXXX\n\n" +
+                    "Vanliga problem:\n" +
+                    "• Kontrollera att nyckeln är korrekt inskriven\n" +
+                    "• Säkerställ internetanslutning för validering\n" +
+                    "• Använd den e-postadress som användes vid köpet\n\n" +
+                    "Trial-period:\n" +
+                    "• 14 dagar från första start\n" +
+                    "• Alla funktioner tillgängliga under trial\n" +
+                    "• Automatisk påminnelse 3 dagar före utgång\n\n" +
+                    "Support: support@filkollen.se";
 
-            MessageBox.Show(helpMessage, "Licensregistrering Hjälp", 
-                MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(helpMessage, "Licensregistrering Hjälp",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         private void ContactButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var contactUrl = "mailto:support@filkollen.com?subject=FilKollen Licenssupport";
+                // FIXED: Updated to .se domain (premium spec)
+                var contactUrl = "mailto:support@filkollen.se?subject=FilKollen Licenssupport";
                 Process.Start(new ProcessStartInfo(contactUrl) { UseShellExecute = true });
             }
             catch (Exception ex)
@@ -317,14 +333,14 @@ private async void ValidateLicenseKeyAsync(string licenseKey)
                 _logger.Error($"Failed to open email client: {ex.Message}");
                 MessageBox.Show(
                     "Kunde inte öppna e-postklient.\n\n" +
-                    "Kontakta support direkt: support@filkollen.com",
+                    "Kontakta support direkt: support@filkollen.se",
                     "E-postfel",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             }
         }
 
-private void RestartApplication()
+        private void RestartApplication()
         {
             try
             {
@@ -342,7 +358,7 @@ private void RestartApplication()
                     "Omstartfel",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
-                
+
                 Application.Current.Shutdown();
             }
         }
