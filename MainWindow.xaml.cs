@@ -1029,6 +1029,44 @@ namespace FilKollen
                 }
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",
+                    "🧹 Tar bort alla upptäckta hot automatiskt");
+
+                var threatsToHandle = new List<ScanResult>(_currentThreats);
+                int handledCount = 0;
+
+                foreach (var threat in threatsToHandle)
+                {
+                    try
+                    {
+                        if (_quarantine != null)
+                        {
+                            var success = await _quarantine.DeleteFileAsync(threat);
+                            if (success)
+                            {
+                                handledCount++;
+                                _currentThreats.Remove(threat);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warning($"Kunde inte hantera hot {threat.FileName}: {ex.Message}");
+                    }
+                }
+
+                // Uppdatera UI
+                UpdateThreatsDisplay(_currentThreats);
+
+                if (ThreatsHandledText != null)
+                {
+                    var currentHandled = int.Parse(ThreatsHandledText.Text);
+                    ThreatsHandledText.Text = (currentHandled + handledCount).ToString();
+                }
+
+                var message = $"✅ {handledCount} hot har tagits bort";
+                ShowInAppNotification(message, NotificationType.Success);
+
+                _logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",
                     $"✅ {handledCount} hot har hanterats framgångsrikt");
             }
             catch (Exception ex)
@@ -1321,41 +1359,3 @@ namespace FilKollen
         }
     }
 }
-"🧹 Tar bort alla upptäckta hot automatiskt");
-
-var threatsToHandle = new List<ScanResult>(_currentThreats);
-int handledCount = 0;
-
-foreach (var threat in threatsToHandle)
-{
-    try
-    {
-        if (_quarantine != null)
-        {
-            var success = await _quarantine.DeleteFileAsync(threat);
-            if (success)
-            {
-                handledCount++;
-                _currentThreats.Remove(threat);
-            }
-        }
-    }
-    catch (Exception ex)
-    {
-        _logger.Warning($"Kunde inte hantera hot {threat.FileName}: {ex.Message}");
-    }
-}
-
-// Uppdatera UI
-UpdateThreatsDisplay(_currentThreats);
-
-if (ThreatsHandledText != null)
-{
-    var currentHandled = int.Parse(ThreatsHandledText.Text);
-    ThreatsHandledText.Text = (currentHandled + handledCount).ToString();
-}
-
-var message = $"✅ {handledCount} hot har tagits bort";
-ShowInAppNotification(message, NotificationType.Success);
-
-_logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",
