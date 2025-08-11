@@ -315,7 +315,7 @@
                                                 <Border x:Name="Track"
                                                         Width="{TemplateBinding Width}"
                                                         Height="{TemplateBinding Height}"
-                                                        CornerRadius="20"
+                                                        CornerRadius="16"
                                                         Background="{TemplateBinding Background}">
                                                         <Grid Margin="8,6">
                                                                 <Grid.ColumnDefinitions>
@@ -343,7 +343,7 @@
                                                 <Border x:Name="Thumb"
                                                         Width="26"
                                                                 Height="26"
-                                                                CornerRadius="16"
+                                                                CornerRadius="13"
                                                         Background="White"
                                                                 HorizontalAlignment="Left"
                                                                 Margin="3"
@@ -353,7 +353,7 @@
                                                                                 Direction="270"
                                                                                 ShadowDepth="2"
                                                                                 BlurRadius="6"
-                                                                                Opacity="0"/>
+                                                                                Opacity="0.2"/>
                                                         </Border.Effect>
                                                         <TextBlock x:Name="ThumbIcon"
                                                                         Text="✕"
@@ -379,12 +379,6 @@
                                                         <Setter TargetName="Thumb"
                                                                         Property="HorizontalAlignment"
                                                                         Value="Right"/>
-                                                        <Setter TargetName="Thumb"
-                                                                Property="Effect">
-                                                            <Setter.Value>
-                                                                <DropShadowEffect Color="{DynamicResource FK.Color.Black}" Direction="270" ShadowDepth="2" BlurRadius="10" Opacity="0.2"/>
-                                                            </Setter.Value>
-                                                        </Setter>
                                                 </Trigger>
                                                 <Trigger Property="IsEnabled"
                                                                 Value="False">

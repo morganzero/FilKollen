@@ -109,6 +109,7 @@
                             Value="Underline"/>
                 </Trigger>
             </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <!-- Root chrome med FilKollen tema -->
@@ -146,12 +147,7 @@
                         VerticalAlignment="Center"
                         Margin="24,0,0,0">
                     <!-- Logga (visas ENDAST när den finns, centrerad) -->
-                    <Image x:Name="BrandLogo"
-                           Height="40"
-                           VerticalAlignment="Center"
-                           Visibility="Collapsed"
-                           Stretch="Uniform"
-                           HorizontalAlignment="Left"/>
+                    <Button x:Name="BrandLogo" Background="Transparent" BorderThickness="0" Padding="0" Click="BrandLogo_Click" Visibility="Collapsed"><Image Height="46" SnapsToDevicePixels="True" UseLayoutRounding="True" Stretch="Uniform"/></Button>
 
                     <!-- Fallback till text (visas ENDAST när INGEN logga finns) -->
                     <StackPanel x:Name="BrandFallback"
@@ -252,6 +248,8 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="24"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Auto-skydd panel -->
@@ -275,8 +273,8 @@
                         <ToggleButton Grid.Row="1"
                                 x:Name="ProtectionToggle"
                                       Style="{DynamicResource FK.Style.ProtectionToggle}"
-                                      Width="90"
-                                Height="45"
+                                      Width="76"
+                                Height="38"
                                 HorizontalAlignment="Center"
                                 Margin="0,0,0,12"
                                       Checked="ProtectionToggle_Checked"
@@ -314,8 +312,8 @@
                         <ToggleButton Grid.Row="1"
                                 x:Name="IpProtectionToggle"
                                       Style="{DynamicResource FK.Style.ProtectionToggle}"
-                                      Width="90"
-                                Height="45"
+                                      Width="76"
+                                Height="38"
                                 HorizontalAlignment="Center"
                                 Margin="0,0,0,12"
                                       Checked="IpProtectionToggle_Checked"
@@ -331,293 +329,159 @@
                                 MaxWidth="160"/>
                     </Grid>
                 </Border>
-            </Grid>
-
-            <!-- === STATUS OCH STATISTIK === -->
-            <Grid Grid.Row="2"
-                    Margin="24,0,24,20">
-                <Border Style="{DynamicResource FK.Style.StatusCard}">
+                <!-- Webbläsarskydd panel -->
+                <Border Grid.Column="4"
+                        Style="{DynamicResource FK.Style.ProtectionCard}">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                        <!-- Status indikator och text -->
-                        <StackPanel Grid.Column="0"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center">
-                            <Ellipse x:Name="StatusIndicator"
-                                    Width="20"
-                                    Height="20"
-                                     Fill="{DynamicResource FK.Brush.StatusNeutral}"
-                                    Margin="0,0,16,0"/>
-
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock x:Name="StatusMainText"
-                                            Text="SYSTEMET ÄR SÄKERT"
-                                               FontSize="18"
-                                            FontWeight="Bold"
-                                            Foreground="{DynamicResource FK.Brush.Text}"/>
-
-                                    <!-- Hot-räknare -->
-                                    <Border x:Name="ThreatCounter"
-                                            Background="{DynamicResource FK.Brush.Danger}"
-                                            CornerRadius="16"
-                                            Padding="12,4"
-                                            Margin="16,0,0,0"
-                                            Visibility="Collapsed">
-                                        <TextBlock x:Name="ThreatCountText"
-                                                Text="2 HOT"
-                                                FontSize="13"
-                                                FontWeight="Bold"
-                                                Foreground="White"/>
-                                    </Border>
-                                </StackPanel>
-
-                                <TextBlock x:Name="StatusSubText"
-                                        Text="0 hot funna • Auto-skydd inaktivt"
-                                           FontSize="13"
-                                        Opacity="0.7"
-                                        Foreground="{DynamicResource FK.Brush.Subtext}"/>
-                            </StackPanel>
-                        </StackPanel>
-
-                        <!-- Statistik -->
-                        <Border Grid.Column="2"
-                                Background="{DynamicResource FK.Brush.Surface}"
-                                CornerRadius="8"
-                                Padding="16,10"
-                                Margin="16,0">
-                            <StackPanel>
-                                <TextBlock Text="SENASTE SKANNING"
-                                        FontSize="10"
-                                        FontWeight="SemiBold"
-                                           Foreground="{DynamicResource FK.Brush.Subtext}"
-                                        HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="LastScanText"
-                                        Text="Aldrig"
-                                        FontSize="14"
-                                        FontWeight="Medium"
-                                           Foreground="{DynamicResource FK.Brush.Text}"
-                                        HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Column="3"
-                                Background="{DynamicResource FK.Brush.Surface}"
-                                CornerRadius="8"
-                                Padding="16,10"
-                                Margin="8,0">
-                            <StackPanel>
-                                <TextBlock Text="HOT HANTERADE"
-                                        FontSize="10"
-                                        FontWeight="SemiBold"
-                                           Foreground="{DynamicResource FK.Brush.Subtext}"
-                                        HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="ThreatsHandledText"
-                                        Text="0"
-                                        FontSize="14"
-                                        FontWeight="Medium"
-                                           Foreground="{DynamicResource FK.Brush.Text}"
-                                        HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Åtgärdsknappar -->
-                        <StackPanel Grid.Column="4"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Margin="16,0,0,0">
-                            <Button x:Name="QuickScanButton"
-                                    Content="🔍 Sök efter hot"
-                                    Style="{DynamicResource FK.Style.PrimaryButton}"
-                                    Margin="0,0,12,0"
-                                    Click="QuickScanButton_Click"/>
-
-                            <Button x:Name="BrowserCleanButton"
-                                    Content="🌐 Rensa falska aviseringar"
-                                    Style="{DynamicResource FK.Style.SecondaryButton}"
-                                    Click="BrowserCleanButton_Click"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </Grid>
-
-            <!-- === HUVUDINNEHÅLL === -->
-            <Grid Grid.Row="3"
-                    Margin="24,0,24,20">
-                <Border Style="{DynamicResource FK.Style.ContentCard}">
-                    <Grid>
-                        <!-- Säker status -->
-                        <StackPanel x:Name="SafeStatusPanel"
-                                Visibility="Visible">
-                            <Border Width="100"
-                                    Height="100"
-                                    CornerRadius="50"
-                                    Background="{DynamicResource FK.Brush.Success}"
-                                    HorizontalAlignment="Center"
-                                    Margin="0,60,0,24">
-                                <TextBlock Text="✓"
-                                        FontSize="48"
-                                        Foreground="White"
-                                           HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"/>
-                            </Border>
-
-                            <TextBlock Text="ALLT SER BRA UT!"
-                                    FontSize="24"
-                                    FontWeight="Bold"
-                                       HorizontalAlignment="Center"
-                                    Foreground="{DynamicResource FK.Brush.Success}"
-                                       Margin="0,0,0,12"/>
-
-                            <TextBlock Text="Ditt system är säkert. Aktivera auto-skydd för kontinuerlig övervakning."
-                                       FontSize="16"
-                                    TextAlignment="Center"
-                                    Foreground="{DynamicResource FK.Brush.Subtext}"
-                                       TextWrapping="Wrap"
-                                    MaxWidth="500"
-                                    LineHeight="24"
-                                    HorizontalAlignment="Center"/>
-                        </StackPanel>
-
-                        <!-- Hot-lista -->
-                        <StackPanel x:Name="ThreatsPanel"
-                                Visibility="Collapsed">
-                            <!-- Åtgärda alla-knapp överst -->
-                            <DockPanel Margin="0,0,0,20">
-                                <Button x:Name="HandleAllThreatsButton"
-                                        Content="🧹 Ta bort alla hot"
-                                        Style="{DynamicResource FK.Style.PrimaryButton}"
-                                        DockPanel.Dock="Left"
-                                        Click="HandleAllThreatsButton_Click"/>
-
-                                <Button x:Name="RefreshScanButton"
-                                        Content="🔄 Skanna om"
-                                        Style="{DynamicResource FK.Style.SecondaryButton}"
-                                        DockPanel.Dock="Right"
-                                        Margin="12,0,0,0"
-                                        Click="RefreshScanButton_Click"/>
-                            </DockPanel>
-
-                            <!-- Hot-tabell header -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2*"/>
-                                    <!-- Filnamn -->
-                                    <ColumnDefinition Width="80"/>
-                                    <!-- Typ -->
-                                    <ColumnDefinition Width="80"/>
-                                    <!-- Storlek -->
-                                    <ColumnDefinition Width="100"/>
-                                    <!-- Skapad -->
-                                    <ColumnDefinition Width="80"/>
-                                    <!-- Risk -->
-                                    <ColumnDefinition Width="100"/>
-                                    <!-- Åtgärd -->
-                                </Grid.ColumnDefinitions>
-
-                                <TextBlock Grid.Column="0"
-                                        Text="FILNAMN"
-                                        FontSize="11"
-                                        FontWeight="SemiBold"
-                                           Foreground="{DynamicResource FK.Brush.Subtext}"/>
-                                <TextBlock Grid.Column="1"
-                                        Text="TYP"
-                                        FontSize="11"
-                                        FontWeight="SemiBold"
-                                           Foreground="{DynamicResource FK.Brush.Subtext}"/>
-                                <TextBlock Grid.Column="2"
-                                        Text="STORLEK"
-                                        FontSize="11"
-                                        FontWeight="SemiBold"
-                                           Foreground="{DynamicResource FK.Brush.Subtext}"/>
-                                <TextBlock Grid.Column="3"
-                                        Text="SKAPAD"
-                                        FontSize="11"
-                                        FontWeight="SemiBold"
-                                           Foreground="{DynamicResource FK.Brush.Subtext}"/>
-                                <TextBlock Grid.Column="4"
-                                        Text="RISK"
-                                        FontSize="11"
-                                        FontWeight="SemiBold"
-                                           Foreground="{DynamicResource FK.Brush.Subtext}"/>
-                                <TextBlock Grid.Column="5"
-                                        Text="ÅTGÄRD"
-                                        FontSize="11"
-                                        FontWeight="SemiBold"
-                                           Foreground="{DynamicResource FK.Brush.Subtext}"/>
-                            </Grid>
-
-                            <!-- Separator -->
-                            <Border Height="1"
-                                    Background="{DynamicResource FK.Brush.Border}"
-                                    Opacity="0.5"
-                                    Margin="0,0,0,16"/>
-
-                            <!-- Hot-lista (scroll) -->
-                            <ScrollViewer MaxHeight="350"
-                                    VerticalScrollBarVisibility="Auto">
-                                <StackPanel x:Name="ThreatsList">
-                                    <!-- Dynamiska hot-rader läggs till här -->
-                                </StackPanel>
-                            </ScrollViewer>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </Grid>
-
-            <!-- === FOOTER MED LICENSSTATUS === -->
-            <Border Grid.Row="4"
-                    Background="{DynamicResource FK.Brush.Surface}"
-                    BorderBrush="{DynamicResource FK.Brush.Border}"
-                    CornerRadius="0,0,16,16"
-                    BorderThickness="0,1,0,0">
-                <Grid Margin="24,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Vänster: Connection status -->
-                    <StackPanel Grid.Column="0"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center">
-                        <Ellipse Width="8"
-                                Height="8"
-                                Margin="0,0,8,0"
-                                Fill="{DynamicResource FK.Brush.Success}"/>
-                        <TextBlock x:Name="ConnectionStatusText"
-                                Text="ONLINE"
-                                FontSize="12"
+                        <TextBlock Grid.Row="0"
+                                Text="WEBBLÄSARSKYDD"
+                                FontSize="16"
                                 FontWeight="SemiBold"
-                                   Foreground="{DynamicResource FK.Brush.Success}"/>
-                    </StackPanel>
+                                Foreground="{DynamicResource FK.Brush.Text}"
+                                HorizontalAlignment="Center"
+                                Margin="0,0,0,12"/>
 
-                    <!-- Center: Licensstatus (klickbar och centrerad) -->
-                    <Button Grid.Column="1"
-                            x:Name="LicenseStatusButton"
-                            Click="LicenseStatusButton_Click"
-                            Style="{DynamicResource FK.Style.SecondaryButton}"
-                            Padding="20,12">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🔑"
-                                    FontSize="16"
-                                    Margin="0,0,10,0"/>
-                            <TextBlock x:Name="LicenseStatusText"
-                                    Text="TRIAL AKTIVT"
-                                       FontSize="12"
-                                    FontWeight="SemiBold"/>
-                        </StackPanel>
-                    </Button>
+                        <Button Grid.Row="1"
+                                x:Name="BrowserCleanTileButton"
+                                Content="🌐 Rensa bluffnotiser"
+                                Style="{DynamicResource FK.Style.PrimaryButton}"
+                                HorizontalAlignment="Center"
+                                Padding="16,8"
+                                Click="BrowserCleanButton_Click"/>
 
-                    <!-- Höger: Version info -->
+                        <TextBlock Grid.Row="2"
+                                Text="Rensar falska skrämsel-/bluffnotiser i dina webbläsare."
+                                FontSize="12"
+                                Opacity="0.7"
+                                Foreground="{DynamicResource FK.Brush.Subtext}"
+                                HorizontalAlignment="Center"
+                                TextWrapping="Wrap"
+                                MaxWidth="220"/>
+                    </Grid>
+                </Border>
+
+            </Grid>
+
+                        <!-- === STATUS OCH STATISTIK === -->
+                        <Grid Grid.Row="2"
+                              Margin="24,0,24,20">
+                                <Border Style="{DynamicResource FK.Style.StatusCard}">
+                                        <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Status indikator och text -->
+                                                <StackPanel Grid.Column="0"
+                                                            Orientation="Horizontal"
+                                                            VerticalAlignment="Center">
+                                                        <Ellipse x:Name="StatusIndicator"
+                                                                 Width="20"
+                                                                 Height="20"
+                                                                 Fill="{DynamicResource FK.Brush.StatusNeutral}"
+                                                                 Margin="0,0,16,0"/>
+
+                                                        <StackPanel>
+                                                                <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock x:Name="StatusMainText"
+                                                                                   Text="SYSTEMET ÄR SÄKERT"
+                                                                                   FontSize="18"
+                                                                                   FontWeight="Bold"
+                                                                                   Foreground="{DynamicResource FK.Brush.Text}"/>
+                                                                        <!-- Hot-räknare -->
+                                                                        <Border x:Name="ThreatCounter"
+                                                                                Background="{DynamicResource FK.Brush.Danger}"
+                                                                                CornerRadius="16"
+                                                                                Padding="12,4"
+                                                                                Margin="16,0,0,0"
+                                                                                Visibility="Collapsed">
+                                                                                <TextBlock x:Name="ThreatCountText"
+                                                                                           Text="2 HOT"
+                                                                                           FontSize="13"
+                                                                                           FontWeight="Bold"
+                                                                                           Foreground="White"/>
+                                                                        </Border>
+                                                                </StackPanel>
+                                                                <TextBlock x:Name="StatusSubText"
+                                                                           Text="0 hot funna • Auto-skydd inaktivt"
+                                                                           FontSize="13"
+                                                                           Opacity="0.7"
+                                                                           Foreground="{DynamicResource FK.Brush.Subtext}"/>
+                                                        </StackPanel>
+                                                </StackPanel>
+
+                                                <!-- Statistik -->
+                                                <Border Grid.Column="2"
+                                                        Background="{DynamicResource FK.Brush.Surface}"
+                                                        CornerRadius="8"
+                                                        Padding="16,10"
+                                                        Margin="16,0">
+                                                        <StackPanel>
+                                                                <TextBlock Text="SENASTE SKANNING"
+                                                                           FontSize="10"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="{DynamicResource FK.Brush.Subtext}"
+                                                                           HorizontalAlignment="Center"/>
+                                                                <TextBlock x:Name="LastScanText"
+                                                                           Text="Aldrig"
+                                                                           FontSize="14"
+                                                                           FontWeight="Medium"
+                                                                           Foreground="{DynamicResource FK.Brush.Text}"
+                                                                           HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+                                                </Border>
+
+                                                <Border Grid.Column="3"
+                                                        Background="{DynamicResource FK.Brush.Surface}"
+                                                        CornerRadius="8"
+                                                        Padding="16,10"
+                                                        Margin="8,0">
+                                                        <StackPanel>
+                                                                <TextBlock Text="HOT HANTERADE"
+                                                                           FontSize="10"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="{DynamicResource FK.Brush.Subtext}"
+                                                                           HorizontalAlignment="Center"/>
+                                                                <TextBlock x:Name="ThreatsHandledText"
+                                                                           Text="0"
+                                                                           FontSize="14"
+                                                                           FontWeight="Medium"
+                                                                           Foreground="{DynamicResource FK.Brush.Text}"
+                                                                           HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+                                                </Border>
+
+                                                <!-- Åtgärdsknappar -->
+                                                <StackPanel Grid.Column="4"
+                                                            Orientation="Horizontal"
+                                                            VerticalAlignment="Center"
+                                                            Margin="16,0,0,0">
+                                                        <Button x:Name="QuickScanButton"
+                                                                Content="🔍 Sök efter hot"
+                                                                Style="{DynamicResource FK.Style.PrimaryButton}"
+                                                                Margin="0,0,12,0"
+                                                                Click="QuickScanButton_Click"/>
+                                                        <!-- Version info -->
+                                                        <TextBlock Text="FilKollen v2.1"
+                                                                   FontSize="12"
+                                                                   Opacity="0.7"
+                                                                   Foreground="{DynamicResource FK.Brush.Subtext}"
+                                                                   VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                        </Grid>
+                                </Border>
+                        </Grid>
+                        <!-- Höger: Version info -->
                     <TextBlock Grid.Column="2"
                             Text="FilKollen v2.1"
                             FontSize="12"
