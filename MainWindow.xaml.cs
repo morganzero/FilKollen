@@ -46,7 +46,7 @@ namespace FilKollen
             try
             {
                 _logger = Log.Logger ?? throw new InvalidOperationException("Logger inte initierad");
-                _logger.Information("MainWindow startar med förbättrad UI v2.1");
+                _logger.Information("MainWindow startar med återställd elegant design v2.1");
 
                 _licenseService = licenseService;
                 _brandingService = brandingService;
@@ -55,7 +55,7 @@ namespace FilKollen
                 _config = InitializeConfig();
                 InitializeServices();
                 InitializeComponent();
-                InitializeBranding();
+                InitializeBrandingFixed(); // KORRIGERAD metod
                 InitializeTheme();
 
                 DataContext = this;
@@ -80,7 +80,7 @@ namespace FilKollen
                 {
                     Environment.GetEnvironmentVariable("TEMP") ?? System.IO.Path.GetTempPath(),
                     System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Temp"),
-                    @"C:\Windows\Temp"
+                    @"C:\Windows\Temp" // FÖRBÄTTRAT: Explicit sökväg för bättre upptäckt
                 },
                 SuspiciousExtensions = new List<string> { ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".scr" }
             };
@@ -102,38 +102,64 @@ namespace FilKollen
             }
         }
 
-        private void InitializeBranding()
+        /// <summary>
+        /// KORRIGERAD logotyphantering enligt krav:
+        /// - Visa ENDAST text när ingen logga finns
+        /// - Visa ENDAST logga när den finns (ersätter texten helt)
+        /// </summary>
+        private void InitializeBrandingFixed()
         {
             try
             {
                 var branding = _brandingService?.GetCurrentBranding();
-                if (branding != null && File.Exists(branding.LogoPath))
+                var logoPath = "Resources/Branding/default-logo.png";
+
+                // Kontrollera om logga-fil faktiskt finns och är läsbar
+                bool logoExists = File.Exists(logoPath);
+                bool logoLoadable = false;
+
+                if (logoExists)
                 {
-                    // Visa logga och dölj fallback-text
+                    try
+                    {
+                        // Testa att ladda bilden för att se om den är giltig
+                        var testImage = new System.Windows.Media.Imaging.BitmapImage(new Uri(logoPath, UriKind.RelativeOrAbsolute));
+                        logoLoadable = testImage.PixelWidth > 1 && testImage.PixelHeight > 1;
+                    }
+                    catch
+                    {
+                        logoLoadable = false;
+                    }
+                }
+
+                if (logoExists && logoLoadable)
+                {
+                    // VISA ENDAST LOGGA (dölj text helt)
                     if (BrandLogo != null && BrandFallback != null)
                     {
-                        BrandLogo.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(branding.LogoPath, UriKind.RelativeOrAbsolute));
+                        BrandLogo.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(logoPath, UriKind.RelativeOrAbsolute));
                         BrandLogo.Visibility = Visibility.Visible;
                         BrandFallback.Visibility = Visibility.Collapsed;
 
-                        _logger.Information($"Branding logo laddad: {branding.LogoPath}");
+                        _logger.Information($"Branding logo visas: {logoPath}");
                     }
                 }
                 else
                 {
-                    // Visa fallback-text och dölj logo
+                    // VISA ENDAST TEXT (dölj logga helt)
                     if (BrandLogo != null && BrandFallback != null)
                     {
                         BrandLogo.Visibility = Visibility.Collapsed;
                         BrandFallback.Visibility = Visibility.Visible;
 
-                        _logger.Information("Använder fallback branding (FILKOLLEN-text)");
+                        _logger.Information("Använder FILKOLLEN-text (ingen giltig logga hittades)");
                     }
                 }
             }
             catch (Exception ex)
             {
                 _logger.Warning($"Kunde inte ladda branding: {ex.Message}");
+                // Fallback till text
                 if (BrandLogo != null && BrandFallback != null)
                 {
                     BrandLogo.Visibility = Visibility.Collapsed;
@@ -144,10 +170,33 @@ namespace FilKollen
 
         private void InitializeTheme()
         {
-            if (_themeService != null && ThemeSelector != null)
+            if (_themeService != null && ThemeToggle != null)
             {
-                ThemeSelector.SelectedIndex = (int)_themeService.Mode;
+                // Sätt toggle baserat på systemets färgschema vid uppstart
+                var isDarkTheme = _themeService.Mode == ThemeMode.Dark ||
+                                 (_themeService.Mode == ThemeMode.System && DetectSystemDarkMode());
+
+                ThemeToggle.IsChecked = isDarkTheme;
                 _themeService.ThemeChanged += OnThemeChanged;
+
+                _logger.Information($"Tema initierat: {(isDarkTheme ? "Mörkt" : "Ljust")} tema");
+            }
+        }
+
+        /// <summary>
+        /// Detekterar om systemet använder mörkt tema
+        /// </summary>
+        private bool DetectSystemDarkMode()
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+                var appsUseLightTheme = key?.GetValue("AppsUseLightTheme");
+                return appsUseLightTheme is int lightTheme && lightTheme == 0;
+            }
+            catch
+            {
+                return false; // Fallback till ljust tema
             }
         }
 
@@ -160,10 +209,10 @@ namespace FilKollen
                 await InitializeProtectionAsync();
                 await InitializeTrayAsync();
 
-                // Kör automatisk skanning vid start
-                _ = Task.Run(async () => await PerformStartupScanAsync());
+                // Kör förbättrad automatisk skanning vid start
+                _ = Task.Run(async () => await PerformEnhancedStartupScanAsync());
 
-                _logger.Information("MainWindow fullständigt initierat med förbättrad UI");
+                _logger.Information("MainWindow fullständigt initierat med elegant design");
             }
             catch (Exception ex)
             {
@@ -172,7 +221,10 @@ namespace FilKollen
             }
         }
 
-        private async Task PerformStartupScanAsync()
+        /// <summary>
+        /// FÖRBÄTTRAD uppstartsskanning som inkluderar C:\Windows\Temp
+        /// </summary>
+        private async Task PerformEnhancedStartupScanAsync()
         {
             try
             {
@@ -184,9 +236,9 @@ namespace FilKollen
                         ScanProgress.Value = 0;
                 });
 
-                _logViewer?.AddLogEntry(LogLevel.Information, "Startup", "🔍 Automatisk uppstartsskanning startad");
+                _logViewer?.AddLogEntry(LogLevel.Information, "Startup", "🔍 Förbättrad uppstartsskanning startad");
 
-                // Logga vilka sökvägar som kommer att skannas
+                // Logga alla sökvägar som ska skannas
                 foreach (var path in _config.ScanPaths)
                 {
                     var expandedPath = Environment.ExpandEnvironmentVariables(path);
@@ -208,7 +260,7 @@ namespace FilKollen
 
                     var status = exists ? (accessible ? "✅ OK" : "⚠️ Ej tillgänglig") : "❌ Finns ej";
                     _logViewer?.AddLogEntry(LogLevel.Information, "Scan",
-                        $"Sökväg: {expandedPath} - {status}");
+                        $"Skannar: {expandedPath} - {status}");
                 }
 
                 // Simulera progress under skanning
@@ -334,24 +386,24 @@ namespace FilKollen
             var row = new Border
             {
                 Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
-                CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(12, 8, 12, 8),
-                Margin = new Thickness(0, 0, 0, 4)
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(16, 12, 16, 12),
+                Margin = new Thickness(0, 0, 0, 8)
             };
 
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
 
             // Filnamn
             var fileName = new TextBlock
             {
                 Text = threat.FileName,
-                FontSize = 12,
+                FontSize = 13,
                 FontWeight = FontWeights.Medium,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis
@@ -360,10 +412,10 @@ namespace FilKollen
             Grid.SetColumn(fileName, 0);
             grid.Children.Add(fileName);
 
-            // Typ
+            // Typ (förbättrad detection)
             var fileType = new TextBlock
             {
-                Text = Path.GetExtension(threat.FileName)?.ToUpper() ?? "OKÄND",
+                Text = GetFileTypeDisplay(threat.FileName),
                 FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -397,8 +449,8 @@ namespace FilKollen
             var riskBadge = new Border
             {
                 Background = GetThreatLevelBrush(threat.ThreatLevel),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(8, 2, 8, 2),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 4, 10, 4),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
 
@@ -414,12 +466,12 @@ namespace FilKollen
             Grid.SetColumn(riskBadge, 4);
             grid.Children.Add(riskBadge);
 
-            // Åtgärd-knapp
+            // Ta bort-knapp (endast denna, ingen karantän enligt krav)
             var deleteButton = new Button
             {
                 Content = "Ta bort",
-                FontSize = 11,
-                Padding = new Thickness(8, 4, 8, 4),
+                FontSize = 12,
+                Padding = new Thickness(12, 6, 12, 6),
                 Tag = threat,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -430,6 +482,19 @@ namespace FilKollen
 
             row.Child = grid;
             return row;
+        }
+
+        /// <summary>
+        /// Förbättrad filtyp-visning
+        /// </summary>
+        private string GetFileTypeDisplay(string fileName)
+        {
+            var extension = Path.GetExtension(fileName);
+
+            if (string.IsNullOrEmpty(extension))
+                return "EXTENSIONSLÖS";
+
+            return extension.ToUpper().TrimStart('.');
         }
 
         private string FormatFileSize(long bytes)
@@ -475,55 +540,22 @@ namespace FilKollen
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    if (NotificationArea == null) return;
-
-                    var notification = new Border
+                    // För elegant design, visa bara i logg istället för popup
+                    var logLevel = type switch
                     {
-                        Background = GetNotificationBrush(type),
-                        CornerRadius = new CornerRadius(8),
-                        Padding = new Thickness(16, 12, 16, 12),
-                        Margin = new Thickness(0, 0, 0, 8)
+                        NotificationType.Success => LogLevel.Information,
+                        NotificationType.Warning => LogLevel.Warning,
+                        NotificationType.Error => LogLevel.Error,
+                        _ => LogLevel.Information
                     };
 
-                    var textBlock = new TextBlock
-                    {
-                        Text = message,
-                        Foreground = Brushes.White,
-                        FontWeight = FontWeights.Medium,
-                        FontSize = 13
-                    };
-
-                    notification.Child = textBlock;
-                    NotificationArea.Children.Add(notification);
-
-                    // Auto-remove efter 5 sekunder
-                    var timer = new System.Windows.Threading.DispatcherTimer
-                    {
-                        Interval = TimeSpan.FromSeconds(5)
-                    };
-                    timer.Tick += (s, e) =>
-                    {
-                        timer.Stop();
-                        NotificationArea.Children.Remove(notification);
-                    };
-                    timer.Start();
+                    _logViewer?.AddLogEntry(logLevel, "System", message);
                 });
             }
             catch (Exception ex)
             {
                 _logger.Warning($"Kunde inte visa notifikation: {ex.Message}");
             }
-        }
-
-        private Brush GetNotificationBrush(NotificationType type)
-        {
-            return type switch
-            {
-                NotificationType.Success => new SolidColorBrush(Color.FromRgb(34, 197, 94)),
-                NotificationType.Warning => new SolidColorBrush(Color.FromRgb(245, 158, 11)),
-                NotificationType.Error => new SolidColorBrush(Color.FromRgb(239, 68, 68)),
-                _ => new SolidColorBrush(Color.FromRgb(59, 130, 246))
-            };
         }
 
         private async Task InitializeServicesAsync()
@@ -572,7 +604,7 @@ namespace FilKollen
                 if (ThreatsHandledText != null)
                     ThreatsHandledText.Text = "0";
 
-                _logger.Information("UI initierat med förbättrad design");
+                _logger.Information("UI initierat med elegant design");
             }
             catch (Exception ex)
             {
@@ -622,25 +654,7 @@ namespace FilKollen
                         Application.Current.Shutdown();
                     };
 
-                    // Nya event handlers för förbättrad tray-meny
-                    _trayService.QuickScanRequested += async (s, e) =>
-                    {
-                        await PerformQuickScanFromTray();
-                    };
-
-                    _trayService.ClearThreatsRequested += async (s, e) =>
-                    {
-                        await ClearAllThreatsFromTray();
-                    };
-
-                    _trayService.ShowSettingsRequested += (s, e) =>
-                    {
-                        Show();
-                        WindowState = WindowState.Normal;
-                        Activate();
-                    };
-
-                    _logger.Information("System tray service initierat med förbättrad meny");
+                    _logger.Information("System tray service initierat");
                 }
             }
             catch (Exception ex)
@@ -649,118 +663,6 @@ namespace FilKollen
             }
 
             await Task.Delay(10);
-        }
-
-        private async Task PerformQuickScanFromTray()
-        {
-            try
-            {
-                _trayService?.ShowNotification("FilKollen", "Snabbskanning startad...",
-                    System.Windows.Forms.ToolTipIcon.Info);
-
-                if (_fileScanner != null)
-                {
-                    var results = await _fileScanner.ScanTempDirectoriesAsync();
-                    var threats = results?.Where(r => r.ThreatLevel >= ThreatLevel.Medium).ToList() ?? new List<ScanResult>();
-
-                    // Uppdatera huvudfönstret
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        UpdateThreatsDisplay(threats);
-                        if (LastScanText != null)
-                            LastScanText.Text = DateTime.Now.ToString("HH:mm");
-                    });
-
-                    // Uppdatera tray threats status
-                    _trayService?.UpdateThreatsStatus(threats.Any());
-
-                    if (threats.Any())
-                    {
-                        _trayService?.ShowNotification("Skanning slutförd",
-                            $"{threats.Count} hot upptäckta! Öppna FilKollen för att se detaljer.",
-                            System.Windows.Forms.ToolTipIcon.Warning, 8000);
-                    }
-                    else
-                    {
-                        _trayService?.ShowNotification("Skanning slutförd",
-                            "Inga hot funna - systemet är säkert!",
-                            System.Windows.Forms.ToolTipIcon.Info);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Tray snabbskanning misslyckades: {ex.Message}");
-                _trayService?.ShowNotification("Skanning misslyckades",
-                    "Ett fel uppstod vid skanningen", System.Windows.Forms.ToolTipIcon.Error);
-            }
-        }
-
-        private async Task ClearAllThreatsFromTray()
-        {
-            try
-            {
-                if (!_currentThreats.Any())
-                {
-                    _trayService?.ShowNotification("Inga hot",
-                        "Det finns inga hot att rensa", System.Windows.Forms.ToolTipIcon.Info);
-                    return;
-                }
-
-                var threatsCount = _currentThreats.Count;
-                var threatsToHandle = new List<ScanResult>(_currentThreats);
-                int handledCount = 0;
-
-                _trayService?.ShowNotification("Rensar hot",
-                    $"Tar bort {threatsCount} hot...", System.Windows.Forms.ToolTipIcon.Info);
-
-                foreach (var threat in threatsToHandle)
-                {
-                    try
-                    {
-                        if (_quarantine != null)
-                        {
-                            var success = await _quarantine.DeleteFileAsync(threat);
-                            if (success)
-                            {
-                                handledCount++;
-                                _currentThreats.Remove(threat);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Warning($"Kunde inte hantera hot från tray {threat.FileName}: {ex.Message}");
-                    }
-                }
-
-                // Uppdatera UI
-                await Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    UpdateThreatsDisplay(_currentThreats);
-                    if (ThreatsHandledText != null)
-                    {
-                        var currentHandled = int.Parse(ThreatsHandledText.Text);
-                        ThreatsHandledText.Text = (currentHandled + handledCount).ToString();
-                    }
-                });
-
-                // Uppdatera tray threats status
-                _trayService?.UpdateThreatsStatus(_currentThreats.Any());
-
-                _trayService?.ShowNotification("Hot rensade",
-                    $"{handledCount} hot har tagits bort framgångsrikt!",
-                    System.Windows.Forms.ToolTipIcon.Info);
-
-                _logViewer?.AddLogEntry(LogLevel.Information, "TrayAction",
-                    $"🧹 {handledCount} hot rensade via system tray");
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Tray hot-rensning misslyckades: {ex.Message}");
-                _trayService?.ShowNotification("Rensning misslyckades",
-                    "Ett fel uppstod vid rensningen", System.Windows.Forms.ToolTipIcon.Error);
-            }
         }
 
         private void UpdateSecurityStatus(bool isSecure, int threatsCount, string? customMessage = null)
@@ -775,6 +677,28 @@ namespace FilKollen
                         StatusMainText.Text = "SYSTEMET ÄR SÄKERT";
                         StatusMainText.Foreground = new SolidColorBrush(Colors.Green);
                         StatusSubText.Text = customMessage ?? $"0 hot funna • Auto-skydd {(_isProtectionActive ? "aktivt" : "inaktivt")}";
+                        if (ThreatCounter != null)
+                            ThreatCounter.Visibility = Visibility.Collapsed;
+                    }
+                    else if (threatsCount > 0)
+                    {
+                        StatusIndicator.Fill = new SolidColorBrush(Colors.Orange);
+                        StatusMainText.Text = "HOT UPPTÄCKTA";
+                        StatusMainText.Foreground = new SolidColorBrush(Colors.Orange);
+                        StatusSubText.Text = customMessage ?? "Kräver omedelbar åtgärd";
+                        if (ThreatCounter != null)
+                        {
+                            ThreatCounter.Visibility = Visibility.Visible;
+                            if (ThreatCountText != null)
+                                ThreatCountText.Text = $"{threatsCount} HOT";
+                        }
+                    }
+                    else
+                    {
+                        StatusIndicator.Fill = new SolidColorBrush(Colors.Gray);
+                        StatusMainText.Text = "AUTO-SKYDD INAKTIVERAT";
+                        StatusMainText.Foreground = new SolidColorBrush(Colors.Gray);
+                        StatusSubText.Text = "Aktivera auto-skydd för säkerhet";
                         if (ThreatCounter != null)
                             ThreatCounter.Visibility = Visibility.Collapsed;
                     }
@@ -806,24 +730,43 @@ namespace FilKollen
             _logger.Information($"Tema ändrat via ThemeService");
         }
 
-        private void ThemeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        /// <summary>
+        /// NYTT: Hantering för ljus/mörk tema-toggle
+        /// </summary>
+        private void ThemeToggle_Checked(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (_themeService != null && ThemeSelector != null)
+                if (_themeService != null)
                 {
-                    var selectedMode = (ThemeMode)ThemeSelector.SelectedIndex;
-                    _themeService.ApplyTheme(selectedMode);
-
-                    _logger.Information($"Tema växlat till: {selectedMode}");
-                    _logViewer?.AddLogEntry(LogLevel.Information, "UI", $"🎨 Tema ändrat till {selectedMode}");
-
-                    ShowInAppNotification($"Tema ändrat till {selectedMode}", NotificationType.Info);
+                    _themeService.ApplyTheme(ThemeMode.Dark);
+                    _logger.Information("Växlat till mörkt tema");
+                    _logViewer?.AddLogEntry(LogLevel.Information, "UI", "🌙 Växlat till mörkt tema");
+                    ShowInAppNotification("🌙 Mörkt tema aktiverat", NotificationType.Info);
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error($"Tema-växling misslyckades: {ex.Message}");
+                _logger.Error($"Fel vid växling till mörkt tema: {ex.Message}");
+                ShowInAppNotification("❌ Tema-växling misslyckades", NotificationType.Error);
+            }
+        }
+
+        private void ThemeToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_themeService != null)
+                {
+                    _themeService.ApplyTheme(ThemeMode.Light);
+                    _logger.Information("Växlat till ljust tema");
+                    _logViewer?.AddLogEntry(LogLevel.Information, "UI", "☀️ Växlat till ljust tema");
+                    ShowInAppNotification("☀️ Ljust tema aktiverat", NotificationType.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Fel vid växling till ljust tema: {ex.Message}");
                 ShowInAppNotification("❌ Tema-växling misslyckades", NotificationType.Error);
             }
         }
@@ -1034,7 +977,7 @@ namespace FilKollen
                 }
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "BrowserClean",
-                    "🌐 RENSA FALSKA NOTISER STARTAD");
+                    "🌐 RENSA FALSKA AVISERINGAR STARTAD");
 
                 if (_browserCleaner != null)
                 {
@@ -1042,13 +985,13 @@ namespace FilKollen
 
                     if (result.Success)
                     {
-                        var message = $"✅ {result.MalwareNotificationsRemoved} falska notiser rensade";
+                        var message = $"✅ {result.MalwareNotificationsRemoved} falska aviseringar rensade";
                         ShowInAppNotification(message, NotificationType.Success);
 
                         _logViewer?.AddLogEntry(LogLevel.Information, "BrowserClean",
-                            $"✅ Falska notiser rensade: {result.MalwareNotificationsRemoved} st");
+                            $"✅ Falska aviseringar rensade: {result.MalwareNotificationsRemoved} st");
 
-                        _trayService?.ShowNotification("Falska notiser rensade",
+                        _trayService?.ShowNotification("Falska aviseringar rensade",
                             $"{result.MalwareNotificationsRemoved} malware-notiser borttagna",
                             System.Windows.Forms.ToolTipIcon.Info);
                     }
@@ -1069,7 +1012,7 @@ namespace FilKollen
             {
                 if (BrowserCleanButton != null)
                 {
-                    BrowserCleanButton.Content = "🌐 Rensa falska notiser";
+                    BrowserCleanButton.Content = "🌐 Rensa falska aviseringar";
                     BrowserCleanButton.IsEnabled = true;
                 }
             }
@@ -1084,44 +1027,6 @@ namespace FilKollen
                     HandleAllThreatsButton.Content = "🔄 Tar bort alla...";
                     HandleAllThreatsButton.IsEnabled = false;
                 }
-
-                _logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",
-                    "🧹 Tar bort alla upptäckta hot automatiskt");
-
-                var threatsToHandle = new List<ScanResult>(_currentThreats);
-                int handledCount = 0;
-
-                foreach (var threat in threatsToHandle)
-                {
-                    try
-                    {
-                        if (_quarantine != null)
-                        {
-                            var success = await _quarantine.DeleteFileAsync(threat);
-                            if (success)
-                            {
-                                handledCount++;
-                                _currentThreats.Remove(threat);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Warning($"Kunde inte hantera hot {threat.FileName}: {ex.Message}");
-                    }
-                }
-
-                // Uppdatera UI
-                UpdateThreatsDisplay(_currentThreats);
-
-                if (ThreatsHandledText != null)
-                {
-                    var currentHandled = int.Parse(ThreatsHandledText.Text);
-                    ThreatsHandledText.Text = (currentHandled + handledCount).ToString();
-                }
-
-                var message = $"✅ {handledCount} hot har tagits bort";
-                ShowInAppNotification(message, NotificationType.Success);
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",
                     $"✅ {handledCount} hot har hanterats framgångsrikt");
@@ -1416,26 +1321,41 @@ namespace FilKollen
         }
     }
 }
-Collapsed;
-                    }
-                    else if (threatsCount > 0)
+"🧹 Tar bort alla upptäckta hot automatiskt");
+
+var threatsToHandle = new List<ScanResult>(_currentThreats);
+int handledCount = 0;
+
+foreach (var threat in threatsToHandle)
 {
-    StatusIndicator.Fill = new SolidColorBrush(Colors.Orange);
-    StatusMainText.Text = "HOT UPPTÄCKTA";
-    StatusMainText.Foreground = new SolidColorBrush(Colors.Orange);
-    StatusSubText.Text = customMessage ?? "Kräver omedelbar åtgärd";
-    if (ThreatCounter != null)
+    try
     {
-        ThreatCounter.Visibility = Visibility.Visible;
-        if (ThreatCountText != null)
-            ThreatCountText.Text = $"{threatsCount} HOT";
+        if (_quarantine != null)
+        {
+            var success = await _quarantine.DeleteFileAsync(threat);
+            if (success)
+            {
+                handledCount++;
+                _currentThreats.Remove(threat);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        _logger.Warning($"Kunde inte hantera hot {threat.FileName}: {ex.Message}");
     }
 }
-else
+
+// Uppdatera UI
+UpdateThreatsDisplay(_currentThreats);
+
+if (ThreatsHandledText != null)
 {
-    StatusIndicator.Fill = new SolidColorBrush(Colors.Gray);
-    StatusMainText.Text = "AUTO-SKYDD INAKTIVERAT";
-    StatusMainText.Foreground = new SolidColorBrush(Colors.Gray);
-    StatusSubText.Text = "Aktivera auto-skydd för säkerhet";
-    if (ThreatCounter != null)
-        ThreatCounter.Visibility = Visibility.
+    var currentHandled = int.Parse(ThreatsHandledText.Text);
+    ThreatsHandledText.Text = (currentHandled + handledCount).ToString();
+}
+
+var message = $"✅ {handledCount} hot har tagits bort";
+ShowInAppNotification(message, NotificationType.Success);
+
+_logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",

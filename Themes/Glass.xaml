@@ -74,7 +74,7 @@
                                 Value="{DynamicResource FK.Effect.CardShadow}"/>
         </Style>
 
-        <!-- === ACTION CARD (vänster panel) === -->
+        <!-- === ACTION CARD === -->
         <Style x:Key="FK.Style.ActionCard"
                         TargetType="Border">
                 <Setter Property="Background"
@@ -91,7 +91,7 @@
                                 Value="{DynamicResource FK.Effect.CardShadow}"/>
         </Style>
 
-        <!-- === CONTENT CARD (höger panel) === -->
+        <!-- === CONTENT CARD === -->
         <Style x:Key="FK.Style.ContentCard"
                         TargetType="Border">
                 <Setter Property="Background"
@@ -131,17 +131,17 @@
                         <Setter.Value>
                                 <ControlTemplate TargetType="Button">
                                         <Border x:Name="ButtonBorder"
-                                                        Background="{TemplateBinding Background}"
-                                                        CornerRadius="10"
-                                                        Padding="{TemplateBinding Padding}">
+                                                Background="{TemplateBinding Background}"
+                                                CornerRadius="10"
+                                                Padding="{TemplateBinding Padding}">
                                                 <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                                VerticalAlignment="Center"/>
+                                                                  VerticalAlignment="Center"/>
                                                 <Border.Effect>
                                                         <DropShadowEffect Color="{Binding Background.Color, RelativeSource={RelativeSource AncestorType=Border}}"
-                                                                        Direction="270"
-                                                                        ShadowDepth="3"
-                                                                        BlurRadius="8"
-                                                                        Opacity="0.3"/>
+                                                                          Direction="270"
+                                                                          ShadowDepth="3"
+                                                                          BlurRadius="8"
+                                                                          Opacity="0.3"/>
                                                 </Border.Effect>
                                         </Border>
                                         <ControlTemplate.Triggers>
@@ -201,13 +201,13 @@
                         <Setter.Value>
                                 <ControlTemplate TargetType="Button">
                                         <Border x:Name="ButtonBorder"
-                                                        Background="{TemplateBinding Background}"
-                                                        BorderBrush="{TemplateBinding BorderBrush}"
-                                                        BorderThickness="{TemplateBinding BorderThickness}"
-                                                        CornerRadius="10"
-                                                        Padding="{TemplateBinding Padding}">
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="10"
+                                                Padding="{TemplateBinding Padding}">
                                                 <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                                VerticalAlignment="Center"/>
+                                                                  VerticalAlignment="Center"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver"
@@ -257,9 +257,9 @@
                         <Setter.Value>
                                 <ControlTemplate TargetType="Button">
                                         <Border x:Name="ButtonBorder"
-                                                        Background="{TemplateBinding Background}"
-                                                        CornerRadius="8"
-                                                        Padding="{TemplateBinding Padding}">
+                                                Background="{TemplateBinding Background}"
+                                                CornerRadius="8"
+                                                Padding="{TemplateBinding Padding}">
                                                 <ContentPresenter HorizontalAlignment="Center"
                                                                 VerticalAlignment="Center"/>
                                         </Border>
@@ -295,13 +295,13 @@
                 </Setter>
         </Style>
 
-        <!-- === PROTECTION TOGGLE (mindre storlek) === -->
+        <!-- === PROTECTION TOGGLE (30% mindre) === -->
         <Style x:Key="FK.Style.ProtectionToggle"
                         TargetType="ToggleButton">
                 <Setter Property="Width"
-                                Value="90"/>
+                                Value="63"/>
                 <Setter Property="Height"
-                                Value="45"/>
+                                Value="32"/>
                 <Setter Property="Background"
                                 Value="{DynamicResource FK.Brush.StatusNeutral}"/>
                 <Setter Property="BorderThickness"
@@ -312,13 +312,12 @@
                         <Setter.Value>
                                 <ControlTemplate TargetType="ToggleButton">
                                         <Grid>
-                                                <!-- Track -->
                                                 <Border x:Name="Track"
-                                                                Width="90"
-                                                                Height="45"
-                                                                CornerRadius="22.5"
-                                                                Background="{TemplateBinding Background}">
-                                                        <Grid Margin="12,8">
+                                                        Width="{TemplateBinding Width}"
+                                                        Height="{TemplateBinding Height}"
+                                                        CornerRadius="16"
+                                                        Background="{TemplateBinding Background}">
+                                                        <Grid Margin="8,6">
                                                                 <Grid.ColumnDefinitions>
                                                                         <ColumnDefinition Width="*"/>
                                                                         <ColumnDefinition Width="*"/>
@@ -327,29 +326,28 @@
                                                                                 Grid.Column="0"
                                                                                 VerticalAlignment="Center"
                                                                                 HorizontalAlignment="Left"
-                                                                                FontWeight="SemiBold"
-                                                                                FontSize="10"
+                                                                           FontWeight="SemiBold"
+                                                                                FontSize="8"
                                                                                 Foreground="White"
                                                                                 Opacity="0.7"/>
                                                                 <TextBlock Text="PÅ"
                                                                                 Grid.Column="1"
                                                                                 VerticalAlignment="Center"
                                                                                 HorizontalAlignment="Right"
-                                                                                FontWeight="SemiBold"
-                                                                                FontSize="10"
+                                                                           FontWeight="SemiBold"
+                                                                                FontSize="8"
                                                                                 Foreground="White"
                                                                                 Opacity="0.7"/>
                                                         </Grid>
                                                 </Border>
-                                                <!-- Thumb -->
                                                 <Border x:Name="Thumb"
-                                                                Width="37"
-                                                                Height="37"
-                                                                CornerRadius="18.5"
-                                                                Background="White"
+                                                        Width="26"
+                                                                Height="26"
+                                                                CornerRadius="13"
+                                                        Background="White"
                                                                 HorizontalAlignment="Left"
-                                                                Margin="4"
-                                                                RenderTransformOrigin="0.5,0.5">
+                                                                Margin="3"
+                                                        RenderTransformOrigin="0.5,0.5">
                                                         <Border.Effect>
                                                                 <DropShadowEffect Color="#000000"
                                                                                 Direction="270"
@@ -359,10 +357,10 @@
                                                         </Border.Effect>
                                                         <TextBlock x:Name="ThumbIcon"
                                                                         Text="✕"
-                                                                        FontSize="16"
+                                                                        FontSize="12"
                                                                         FontWeight="Bold"
-                                                                        Foreground="{DynamicResource FK.Brush.StatusNeutral}"
-                                                                        HorizontalAlignment="Center"
+                                                                   Foreground="{DynamicResource FK.Brush.StatusNeutral}"
+                                                                   HorizontalAlignment="Center"
                                                                         VerticalAlignment="Center"/>
                                                 </Border>
                                         </Grid>
@@ -393,74 +391,6 @@
                 </Setter>
         </Style>
 
-        <!-- === THEME COMBO === -->
-        <Style x:Key="FK.Style.ThemeCombo"
-                        TargetType="ComboBox">
-                <Setter Property="Foreground"
-                                Value="{DynamicResource FK.Brush.Text}"/>
-                <Setter Property="Background"
-                                Value="{DynamicResource FK.Brush.Surface}"/>
-                <Setter Property="BorderBrush"
-                                Value="{DynamicResource FK.Brush.Border}"/>
-                <Setter Property="BorderThickness"
-                                Value="1"/>
-                <Setter Property="Padding"
-                                Value="12,8"/>
-                <Setter Property="FontSize"
-                                Value="12"/>
-                <Setter Property="Template">
-                        <Setter.Value>
-                                <ControlTemplate TargetType="ComboBox">
-                                        <Grid>
-                                                <Border x:Name="Bd"
-                                                                Background="{TemplateBinding Background}"
-                                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                                CornerRadius="8"
-                                                                Padding="{TemplateBinding Padding}">
-                                                        <DockPanel>
-                                                                <ContentPresenter Margin="0,0,20,0"
-                                                                                VerticalAlignment="Center"/>
-                                                                <Path Data="M 0 0 L 4 4 L 8 0 Z"
-                                                                                Width="8"
-                                                                                Height="4"
-                                                                                Stretch="Fill"
-                                                                                Fill="{DynamicResource FK.Brush.Subtext}"
-                                                                                HorizontalAlignment="Right"
-                                                                                VerticalAlignment="Center"/>
-                                                        </DockPanel>
-                                                </Border>
-                                                <Popup Name="PART_Popup"
-                                                                Placement="Bottom"
-                                                                IsOpen="{TemplateBinding IsDropDownOpen}"
-                                                                AllowsTransparency="True"
-                                                                Focusable="False"
-                                                                PopupAnimation="Fade">
-                                                        <Border Background="{DynamicResource FK.Brush.Surface}"
-                                                                        BorderBrush="{DynamicResource FK.Brush.Border}"
-                                                                        BorderThickness="1"
-                                                                        CornerRadius="8"
-                                                                        Padding="4"
-                                                                        Effect="{DynamicResource FK.Effect.CardShadow}">
-                                                                <ScrollViewer CanContentScroll="True">
-                                                                        <ItemsPresenter/>
-                                                                </ScrollViewer>
-                                                        </Border>
-                                                </Popup>
-                                        </Grid>
-                                        <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver"
-                                                                Value="True">
-                                                        <Setter TargetName="Bd"
-                                                                        Property="BorderBrush"
-                                                                        Value="{DynamicResource FK.Brush.Primary}"/>
-                                                </Trigger>
-                                        </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                        </Setter.Value>
-                </Setter>
-        </Style>
-
         <!-- === WINDOW BUTTONS === -->
         <Style x:Key="FK.Style.WindowButton"
                         TargetType="Button">
@@ -480,9 +410,9 @@
                         <Setter.Value>
                                 <ControlTemplate TargetType="Button">
                                         <Border x:Name="ButtonBorder"
-                                                        Background="{TemplateBinding Background}"
-                                                        CornerRadius="6"
-                                                        Padding="8">
+                                                Background="{TemplateBinding Background}"
+                                                CornerRadius="6"
+                                                Padding="8">
                                                 <ContentPresenter HorizontalAlignment="Center"
                                                                 VerticalAlignment="Center"/>
                                         </Border>
