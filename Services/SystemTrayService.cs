@@ -22,48 +22,33 @@ namespace FilKollen.Services
 
         public event EventHandler? ShowMainWindowRequested;
         public event EventHandler? ExitApplicationRequested;
+        public event EventHandler? QuickScanRequested;
+        public event EventHandler? ClearThreatsRequested;
+        public event EventHandler? ShowSettingsRequested;
 
-        public SystemTrayService(RealTimeProtectionService protectionService, 
+        public SystemTrayService(RealTimeProtectionService protectionService,
             LogViewerService logViewer, ILogger logger)
         {
             _protectionService = protectionService;
             _logViewer = logViewer;
             _logger = logger;
-            
+
             InitializeIcons();
             InitializeTrayIcon();
-            
+
             // Prenumerera på protection events
             _protectionService.ProtectionStatusChanged += OnProtectionStatusChanged;
             _protectionService.ThreatDetected += OnThreatDetected;
         }
-private static Icon? LoadIconFromResource(string packUri)
-{
-    try
-    {
-        var sri = Application.GetResourceStream(new Uri(packUri, UriKind.Absolute));
-        if (sri?.Stream != null) return new Icon(sri.Stream);
-    }
-    catch { /* ignore */ }
-    return null;
-}
+
         private void InitializeIcons()
         {
             try
             {
-                // Skapa enkla ikoner programmatiskt (kan ersättas med riktiga .ico filer)
+                // Skapa enkla ikoner programmatiskt
                 _protectedIcon = CreateIcon(Color.Green, "✓");
-                _unprotectedIcon = CreateIcon(Color.Red, "!");  
+                _unprotectedIcon = CreateIcon(Color.Red, "!");
                 _alertIcon = CreateIcon(Color.Orange, "⚠");
-
-                //_protectedIcon   = LoadIconFromResource("pack://application:,,,/Assets/Icons/filkollen_ok.ico")
-                //       ?? SystemIcons.Shield;
-//
-                //_unprotectedIcon = LoadIconFromResource("pack://application:,,,/Assets/Icons/filkollen_off.ico")
-                //       ?? SystemIcons.Error;
-//
-                //_alertIcon       = LoadIconFromResource("pack://application:,,,/Assets/Icons/filkollen_alert.ico")
-                //       ?? SystemIcons.Warning;
             }
             catch
             {
@@ -88,7 +73,7 @@ private static Icon? LoadIconFromResource(string packUri)
                 using (var brush = new SolidBrush(Color.White))
                 {
                     var size = g.MeasureString(text, font);
-                    g.DrawString(text, font, brush, 
+                    g.DrawString(text, font, brush,
                         (16 - size.Width) / 2, (16 - size.Height) / 2);
                 }
             }
@@ -104,89 +89,82 @@ private static Icon? LoadIconFromResource(string packUri)
                 Visible = true
             };
 
-            // Context menu
+            // Förbättrad context menu enligt din feedback
             var contextMenu = new ContextMenuStrip();
-            
+
+            // Visa/Dölj FilKollen
             contextMenu.Items.Add("Visa FilKollen", null, (s, e) => ShowMainWindowRequested?.Invoke(this, EventArgs.Empty));
             contextMenu.Items.Add(new ToolStripSeparator());
-            
-            var protectionItem = new ToolStripMenuItem("Real-time Skydd")
+
+            // Snabbskanna datorn (direkt åtgärd istället för toggle)
+            contextMenu.Items.Add("🔍 Snabbskanna datorn", null, (s, e) => QuickScanRequested?.Invoke(this, EventArgs.Empty));
+
+            // Visa säkerhetsstatus
+            var statusItem = new ToolStripMenuItem("📊 Visa säkerhetsstatus")
             {
-                CheckOnClick = true,
-                Checked = _protectionService.IsProtectionActive
+                Enabled = false // Bara för att visa status
             };
-            protectionItem.Click += async (s, e) => 
-            {
-                if (protectionItem.Checked)
-                {
-                    await _protectionService.StartProtectionAsync();
-                }
-                else
-                {
-                    await _protectionService.StopProtectionAsync();
-                }
-            };
-            contextMenu.Items.Add(protectionItem);
-            
-            var autoCleanItem = new ToolStripMenuItem("Automatisk Rensning")
-            {
-                CheckOnClick = true,
-                Checked = _protectionService.AutoCleanMode
-            };
-            autoCleanItem.Click += (s, e) => 
-            {
-                _protectionService.AutoCleanMode = autoCleanItem.Checked;
-                ShowNotification("Läge ändrat", 
-                    $"Automatisk rensning: {(autoCleanItem.Checked ? "Aktiverad" : "Inaktiverad")}", 
-                    ToolTipIcon.Info);
-                    
-                _logViewer.AddLogEntry(LogLevel.Information, "Settings", 
-                    $"🔧 Automatisk rensning {(autoCleanItem.Checked ? "AKTIVERAD" : "INAKTIVERAD")}");
-            };
-            contextMenu.Items.Add(autoCleanItem);
-            
+            contextMenu.Items.Add(statusItem);
+
+            // Rensa hot (endast synlig om hot finns)
+            var clearThreatsItem = new ToolStripMenuItem("🧹 Rensa hot");
+            clearThreatsItem.Click += (s, e) => ClearThreatsRequested?.Invoke(this, EventArgs.Empty);
+            clearThreatsItem.Visible = false; // Dold tills hot finns
+            contextMenu.Items.Add(clearThreatsItem);
+
             contextMenu.Items.Add(new ToolStripSeparator());
-            contextMenu.Items.Add("Avsluta", null, (s, e) => ExitApplicationRequested?.Invoke(this, EventArgs.Empty));
-            
+
+            // Inställningar
+            contextMenu.Items.Add("⚙️ Inställningar", null, (s, e) => ShowSettingsRequested?.Invoke(this, EventArgs.Empty));
+
+            contextMenu.Items.Add(new ToolStripSeparator());
+            contextMenu.Items.Add("❌ Avsluta", null, (s, e) => ExitApplicationRequested?.Invoke(this, EventArgs.Empty));
+
             _notifyIcon.ContextMenuStrip = contextMenu;
-            
+
             // Double-click för att visa huvudfönster
             _notifyIcon.DoubleClick += (s, e) => ShowMainWindowRequested?.Invoke(this, EventArgs.Empty);
-            
+
             UpdateTrayStatus();
         }
 
         private void OnProtectionStatusChanged(object? sender, ProtectionStatusChangedEventArgs e)
         {
             UpdateTrayStatus();
-            
+
             var status = e.IsActive ? "AKTIVERAT" : "INAKTIVERAT";
             var icon = e.IsActive ? ToolTipIcon.Info : ToolTipIcon.Warning;
-            
-            ShowNotification("FilKollen Säkerhetsstatus", 
-                $"Real-time skydd {status}", icon);
+
+            ShowNotification("FilKollen Auto-skydd",
+                $"Auto-skydd {status}", icon);
         }
 
         private void OnThreatDetected(object? sender, ThreatDetectedEventArgs e)
         {
             var threat = e.Threat;
             var fileName = System.IO.Path.GetFileName(threat.FilePath);
-            
+
             // Temporärt visa alert-ikon
             _notifyIcon.Icon = _alertIcon;
             System.Threading.Tasks.Task.Delay(3000).ContinueWith(t => UpdateTrayStatus());
-            
+
             var title = $"🚨 SÄKERHETSHOT IDENTIFIERAT";
             var message = $"Fil: {fileName}\nHot-nivå: {threat.ThreatLevel}\nÅtgärd: {(e.WasHandledAutomatically ? "Auto-rensad" : "Väntar på handling")}";
-            
+
             ShowNotification(title, message, ToolTipIcon.Warning, 5000);
-            
+
+            // Uppdatera context menu för att visa "Rensa hot" alternativet
+            if (_notifyIcon.ContextMenuStrip?.Items.Count > 4)
+            {
+                _notifyIcon.ContextMenuStrip.Items[4].Visible = true; // "Rensa hot" item
+            }
+
             // Visa även mer detaljerad balloon om det är kritiskt
             if (threat.ThreatLevel >= ThreatLevel.High)
             {
-                _notifyIcon.ShowBalloonTip(8000, 
-                    "🚨 KRITISKT SÄKERHETSHOT!", 
-                    $"{fileName} identifierat som {threat.ThreatLevel} hot.\n{threat.Reason}", 
+                _notifyIcon.ShowBalloonTip(8000,
+                    "🚨 KRITISKT SÄKERHETSHOT!",
+                    $"{fileName} identifierat som {threat.ThreatLevel} hot.\n{threat.Reason}",
                     ToolTipIcon.Error);
             }
         }
@@ -207,8 +185,24 @@ private static Icon? LoadIconFromResource(string packUri)
         {
             var title = "📊 FilKollen Säkerhetsrapport";
             var message = $"Hot identifierade: {threatsFound}\nHot hanterade: {threatsHandled}\nKlicka för att se detaljer";
-            
+
             ShowNotification(title, message, ToolTipIcon.Info, 5000);
+        }
+
+        public void UpdateThreatsStatus(bool hasThreats)
+        {
+            try
+            {
+                if (_notifyIcon.ContextMenuStrip?.Items.Count > 4)
+                {
+                    // Uppdatera "Rensa hot" synlighet
+                    _notifyIcon.ContextMenuStrip.Items[4].Visible = hasThreats;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Kunde inte uppdatera tray threats status: {ex.Message}");
+            }
         }
 
         private void UpdateTrayStatus()
@@ -216,26 +210,25 @@ private static Icon? LoadIconFromResource(string packUri)
             Application.Current?.Dispatcher.Invoke(() =>
             {
                 var stats = _protectionService.GetProtectionStats();
-                
+
                 _notifyIcon.Icon = stats.IsActive ? _protectedIcon : _unprotectedIcon;
-                
+
                 var autoStatus = stats.AutoCleanMode ? " (Auto-rensning)" : " (Manuell hantering)";
-                var statusText = stats.IsActive ? 
-                    $"FilKollen - SKYDDAT{autoStatus}" : 
+                var statusText = stats.IsActive ?
+                    $"FilKollen - SKYDDAT{autoStatus}" :
                     "FilKollen - OSKYDDAT";
-                
+
                 _notifyIcon.Text = statusText;
-                
-                // Uppdatera context menu
-                if (_notifyIcon.ContextMenuStrip?.Items.Count > 2)
+
+                // Uppdatera "Visa säkerhetsstatus" text i context menu
+                if (_notifyIcon.ContextMenuStrip?.Items.Count > 3)
                 {
-                    if (_notifyIcon.ContextMenuStrip.Items[2] is ToolStripMenuItem protectionItem)
+                    var statusItem = _notifyIcon.ContextMenuStrip.Items[3] as ToolStripMenuItem;
+                    if (statusItem != null)
                     {
-                        protectionItem.Checked = stats.IsActive;
-                    }
-                    if (_notifyIcon.ContextMenuStrip.Items[3] is ToolStripMenuItem autoCleanItem)
-                    {
-                        autoCleanItem.Checked = stats.AutoCleanMode;
+                        statusItem.Text = stats.IsActive ?
+                            "📊 Skydd aktivt" :
+                            "📊 Skydd avstängt";
                     }
                 }
             });
@@ -254,7 +247,7 @@ private static Icon? LoadIconFromResource(string packUri)
         {
             _protectionService.ProtectionStatusChanged -= OnProtectionStatusChanged;
             _protectionService.ThreatDetected -= OnThreatDetected;
-            
+
             _notifyIcon?.Dispose();
             _protectedIcon?.Dispose();
             _unprotectedIcon?.Dispose();
