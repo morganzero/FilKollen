@@ -14,7 +14,7 @@
                 <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
                 <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
 
-                <!-- License Card Style -->
+                <!-- License Card Style - Premium elevation -->
                 <Style x:Key="LicenseCard"
                        TargetType="Border">
                         <Setter Property="Background"
@@ -29,8 +29,15 @@
                                 Value="16"/>
                         <Setter Property="Padding"
                                 Value="24"/>
-                        <Setter Property="Effect"
-                                Value="{DynamicResource FK.Effect.CardShadow}"/>
+                        <Setter Property="Effect">
+                                <Setter.Value>
+                                        <DropShadowEffect Color="#000000"
+                                                          Direction="270"
+                                                          ShadowDepth="8"
+                                                          BlurRadius="20"
+                                                          Opacity="0.15"/>
+                                </Setter.Value>
+                        </Setter>
                 </Style>
 
                 <!-- Header Text Style -->
@@ -98,7 +105,7 @@
                         <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Header -->
+                <!-- Header - Removed blue info header as per spec -->
                 <Border Grid.Row="0"
                         Background="{DynamicResource FK.Brush.Primary}"
                         Height="100">
@@ -117,14 +124,6 @@
                                                    Foreground="White"
                                                    VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <TextBlock x:Name="StatusHeaderText"
-                                           Text="Aktivera din FilKollen-licens för fullständig säkerhet"
-                                           FontSize="14"
-                                           Foreground="White"
-                                           Opacity="0.9"
-                                           HorizontalAlignment="Center"
-                                           Margin="0,8,0,0"
-                                           Visibility="Collapsed"/>
                         </StackPanel>
                 </Border>
 
@@ -132,7 +131,7 @@
                 <ScrollViewer Grid.Row="1"
                               VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="20">
-                                <!-- Trial Status Card -->
+                                <!-- Trial Status Card (Premium: Only orange card shown) -->
                                 <Border x:Name="TrialStatusCard"
                                         Style="{StaticResource LicenseCard}"
                                         Background="{DynamicResource FK.Brush.Warning}"
@@ -197,7 +196,7 @@
                             <Run Text="🔑 Registrera Licens"/>
                                                 </TextBlock>
 
-                                                <TextBlock Text="Fyll i licensnyckeln och dina uppgifter nedan för att aktivera FilKollen Pro-funktioner:"
+                                                <TextBlock Text="Fyll i licensnyckeln och din e-postadress nedan för att aktivera FilKollen Pro-funktioner:"
                                                            FontSize="14"
                                                            Opacity="0.8"
                                                            Foreground="{DynamicResource FK.Brush.Subtext}"
@@ -235,40 +234,18 @@
                                                                            Visibility="Collapsed"/>
                                                         </StackPanel>
 
-                                                        <!-- Customer Information -->
+                                                        <!-- Customer Information (Premium: Only email required) -->
                                                         <StackPanel Grid.Row="1"
                                                                     Margin="0,0,0,16">
-                                                                <TextBlock Text="Kunduppgifter"
+                                                                <TextBlock Text="E-postadress *"
                                                                            FontWeight="SemiBold"
                                                                            FontSize="16"
                                                                            Foreground="{DynamicResource FK.Brush.Text}"
                                                                            Margin="0,0,0,12"/>
 
-                                                                <Grid>
-                                                                        <Grid.ColumnDefinitions>
-                                                                                <ColumnDefinition Width="*"/>
-                                                                                <ColumnDefinition Width="16"/>
-                                                                                <ColumnDefinition Width="*"/>
-                                                                        </Grid.ColumnDefinitions>
-
-                                                                        <StackPanel Grid.Column="0">
-                                                                                <TextBlock Text="Namn"
-                                                                                           FontSize="12"
-                                                                                           Foreground="{DynamicResource FK.Brush.Subtext}"
-                                                                                           Margin="0,0,0,4"/>
-                                                                                <TextBox x:Name="CustomerNameTextBox"
-                                                                                         Style="{StaticResource LicenseTextBox}"/>
-                                                                        </StackPanel>
-
-                                                                        <StackPanel Grid.Column="2">
-                                                                                <TextBlock Text="E-post"
-                                                                                           FontSize="12"
-                                                                                           Foreground="{DynamicResource FK.Brush.Subtext}"
-                                                                                           Margin="0,0,0,4"/>
-                                                                                <TextBox x:Name="CustomerEmailTextBox"
-                                                                                         Style="{StaticResource LicenseTextBox}"/>
-                                                                        </StackPanel>
-                                                                </Grid>
+                                                                <TextBox x:Name="CustomerEmailTextBox"
+                                                                         Style="{StaticResource LicenseTextBox}"
+                                                                         FontSize="16"/>
                                                         </StackPanel>
 
                                                         <!-- License Information Display -->
@@ -335,12 +312,27 @@
                                                                 </StackPanel>
                                                         </Border>
 
+                                                        <!-- Premium clarification text -->
+                                                        <Border Grid.Row="3"
+                                                                Background="{DynamicResource FK.Brush.PrimaryMuted}"
+                                                                BorderBrush="{DynamicResource FK.Brush.Primary}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="8"
+                                                                Padding="16"
+                                                                Margin="0,0,0,20">
+                                                                <TextBlock Text="Under provperioden är alla funktioner aktiva. När du registrerar licensen fortsätter allt att fungera utan avbrott. Utan licens slutar skyddet att fungera när provperioden tar slut."
+                                                                           FontSize="13"
+                                                                           Foreground="{DynamicResource FK.Brush.Text}"
+                                                                           TextWrapping="Wrap"
+                                                                           LineHeight="20"/>
+                                                        </Border>
+
                                                         <!-- Action Buttons -->
                                                         <StackPanel Grid.Row="4"
                                                                     Orientation="Horizontal"
                                                                     HorizontalAlignment="Center">
                                                                 <Button x:Name="RegisterButton"
-                                                                        Content="🔑 Registrera Licens"
+                                                                        Content="Registrera licens"
                                                                         Style="{DynamicResource FK.Style.PrimaryButton}"
                                                                         FontSize="16"
                                                                         Padding="24,12"
@@ -348,7 +340,7 @@
                                                                         IsEnabled="False"
                                                                         Click="RegisterButton_Click"/>
                                                                 <Button x:Name="ContinueTrialButton"
-                                                                        Content="⏱️ Fortsätt Trial"
+                                                                        Content="Fortsätt provperiod"
                                                                         Style="{DynamicResource FK.Style.SecondaryButton}"
                                                                         FontSize="16"
                                                                         Padding="24,12"
@@ -356,7 +348,7 @@
                                                                         Click="ContinueTrialButton_Click"
                                                                         Visibility="{Binding IsTrialMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                                 <Button x:Name="PurchaseLicenseButton"
-                                                                        Content="💳 Köp Licens"
+                                                                        Content="Köp licens"
                                                                         Style="{DynamicResource FK.Style.SecondaryButton}"
                                                                         FontSize="16"
                                                                         Padding="24,12"
@@ -389,13 +381,13 @@
                                 <StackPanel Orientation="Horizontal"
                                             HorizontalAlignment="Right"
                                             VerticalAlignment="Center">
-                                        <Button Content="❓ Hjälp"
+                                        <Button Content="Hjälp"
                                                 Style="{DynamicResource FK.Style.SecondaryButton}"
                                                 Click="HelpButton_Click"
                                                 Padding="12,6"
                                                 FontSize="12"
                                                 Margin="0,0,8,0"/>
-                                        <Button Content="✉️ Kontakt"
+                                        <Button Content="Kontakt"
                                                 Style="{DynamicResource FK.Style.SecondaryButton}"
                                                 Click="ContactButton_Click"
                                                 Padding="12,6"
