@@ -109,6 +109,7 @@
                             Value="Underline"/>
                 </Trigger>
             </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <!-- Root chrome med FilKollen tema -->
