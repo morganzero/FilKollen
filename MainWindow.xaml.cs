@@ -11,6 +11,7 @@ using FilKollen.Models;
 using FilKollen.Services;
 using Serilog;
 using System.Windows.Media;
+using System.Windows.Input;
 
 namespace FilKollen
 {
@@ -770,6 +771,29 @@ if (StatsLastScan != null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+        private void TopBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                // Dubbelklick: max/restore
+                if (e.ClickCount == 2 && ResizeMode != ResizeMode.NoResize)
+                {
+                    WindowState = WindowState == WindowState.Maximized
+                        ? WindowState.Normal
+                        : WindowState.Maximized;
+                }
+                else
+                {
+                    // Dra fönstret
+                    DragMove();
+                }
+            }
+        }
+
+        private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+private void Maximize_Click(object sender, RoutedEventArgs e) => WindowState = 
+    WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
         public void Dispose()
         {
