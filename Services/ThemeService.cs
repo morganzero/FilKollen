@@ -10,16 +10,16 @@ namespace FilKollen.Services
 {
     public enum ThemeMode
     {
-        System,
-        Light,
-        Dark
+        System = 0,
+        Light = 1,
+        Dark = 2
     }
 
     public class ThemeService : INotifyPropertyChanged
     {
         private const string ThemeConfigFile = "theme.json";
         private ThemeMode _mode = ThemeMode.System;
-        private bool _isDarkTheme = true;
+        private bool _isDarkTheme = false;
         private readonly object _lockObject = new object();
 
         public ThemeMode Mode
@@ -78,8 +78,8 @@ namespace FilKollen.Services
                 {
                     ThemeMode.Light => false,
                     ThemeMode.Dark => true,
-                    ThemeMode.System => DetectSystemDark(),
-                    _ => true
+                    ThemeMode.System => DetectSystemDarkMode(),
+                    _ => false
                 };
 
                 ApplyThemeToApplication();
@@ -88,7 +88,7 @@ namespace FilKollen.Services
             }
         }
 
-        private bool DetectSystemDark()
+        private bool DetectSystemDarkMode()
         {
             try
             {
@@ -98,49 +98,59 @@ namespace FilKollen.Services
             }
             catch
             {
-                return true; // Default to dark
+                return false; // Default to light if can't detect
             }
         }
 
-private void ApplyThemeToApplication()
-{
-    try
-    {
-        Application.Current?.Dispatcher.Invoke(() =>
+        private void ApplyThemeToApplication()
         {
-            var resources = Application.Current?.Resources;
-            if (resources?.MergedDictionaries == null) return;
-
-            var newColors = new ResourceDictionary
+            try
             {
-                Source = new Uri(IsDarkTheme
-                    ? "Themes/Theme.Dark.xaml"
-                    : "Themes/Theme.Light.xaml",
-                    UriKind.Relative)
-            };
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    var resources = Application.Current?.Resources;
+                    if (resources?.MergedDictionaries == null) return;
 
-            // hitta existerande Colors.* dictionary
-            var existing = resources.MergedDictionaries
-                .FirstOrDefault(d => d.Source != null &&
-                                     d.Source.OriginalString.Contains("Themes/Colors.", StringComparison.OrdinalIgnoreCase));
+                    // Bestäm vilken temafil som ska laddas
+                    var themeFile = IsDarkTheme ? "Themes/Theme.Dark.xaml" : "Themes/Theme.Light.xaml";
 
-            if (existing != null)
-            {
-                var idx = resources.MergedDictionaries.IndexOf(existing);
-                resources.MergedDictionaries[idx] = newColors;
+                    try
+                    {
+                        var newTheme = new ResourceDictionary
+                        {
+                            Source = new Uri(themeFile, UriKind.Relative)
+                        };
+
+                        // Hitta och ersätt befintliga temafiler
+                        var existingTheme = resources.MergedDictionaries
+                            .FirstOrDefault(d => d.Source != null &&
+                                          (d.Source.OriginalString.Contains("Theme.Light.xaml") ||
+                                           d.Source.OriginalString.Contains("Theme.Dark.xaml")));
+
+                        if (existingTheme != null)
+                        {
+                            var index = resources.MergedDictionaries.IndexOf(existingTheme);
+                            resources.MergedDictionaries[index] = newTheme;
+                        }
+                        else
+                        {
+                            // Lägg till som första så att färgerna definieras före styles
+                            resources.MergedDictionaries.Insert(0, newTheme);
+                        }
+
+                        System.Diagnostics.Debug.WriteLine($"Theme applied: {themeFile}");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to load theme file {themeFile}: {ex.Message}");
+                    }
+                });
             }
-            else
+            catch (Exception ex)
             {
-                // säkerställ att färger ligger först (före styles som använder dem)
-                resources.MergedDictionaries.Insert(0, newColors);
+                System.Diagnostics.Debug.WriteLine($"Failed to apply theme: {ex.Message}");
             }
-        });
-    }
-    catch (Exception ex)
-    {
-        System.Diagnostics.Debug.WriteLine($"Failed to apply theme: {ex.Message}");
-    }
-}
+        }
 
         private void LoadThemeConfiguration()
         {
@@ -151,16 +161,15 @@ private void ApplyThemeToApplication()
                     var json = File.ReadAllText(ThemeConfigFile);
                     var config = JsonSerializer.Deserialize<ThemeConfig>(json);
 
-                    if (config != null)
+                    if (config != null && Enum.IsDefined(typeof(ThemeMode), config.Mode))
                     {
                         _mode = config.Mode;
-                        // Don't set _isDarkTheme here, let ApplyTheme handle it
                     }
                 }
             }
             catch
             {
-                _mode = ThemeMode.System;
+                _mode = ThemeMode.System; // Fallback to system
             }
         }
 
@@ -174,16 +183,17 @@ private void ApplyThemeToApplication()
                     LastUpdated = DateTime.UtcNow
                 };
 
-                var json = JsonSerializer.Serialize(config, new JsonSerializerOptions
+                var options = new JsonSerializerOptions
                 {
                     WriteIndented = true
-                });
+                };
 
+                var json = JsonSerializer.Serialize(config, options);
                 File.WriteAllText(ThemeConfigFile, json);
             }
             catch
             {
-                // Ignore saving errors - not critical
+                // Ignore save errors - not critical
             }
         }
 

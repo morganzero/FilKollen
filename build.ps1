@@ -1,4 +1,4 @@
-# build.ps1 - Förbättrat build script för FilKollen
+# build.ps1 - Build script för FilKollen v2.1
 param(
     [Parameter()]
     [ValidateSet("Debug", "Release")]
@@ -20,13 +20,6 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-# Projektinformation
-$ProjectName = "FilKollen"
-$ProjectFile = "$ProjectName.csproj"
-$OutputDir = "bin\$Configuration"
-$PublishDir = "publish"
-
-# Färger för output
 function Write-ColorOutput {
     param([string]$Message, [string]$Color = "White")
     
@@ -44,21 +37,13 @@ function Write-ColorOutput {
 
 # Header
 Write-Host ""
-Write-ColorOutput "🔨 FilKollen Build Script v2.0" "Cyan"
-Write-ColorOutput "================================" "Cyan"
+Write-ColorOutput "🔨 FilKollen v2.1 Build Script" "Cyan"
+Write-ColorOutput "===============================" "Cyan"
 Write-ColorOutput "Configuration: $Configuration" "Yellow"
-Write-ColorOutput "Project: $ProjectFile" "Yellow"
 
 if ($Verbose) {
     Write-ColorOutput "Verbose mode enabled" "Blue"
     $VerbosePreference = "Continue"
-}
-
-# Kontrollera att projektfilen finns
-if (-not (Test-Path $ProjectFile)) {
-    Write-ColorOutput "❌ Fel: Kunde inte hitta $ProjectFile" "Red"
-    Write-ColorOutput "Kontrollera att du kör scriptet från projektmappen." "Yellow"
-    exit 1
 }
 
 # Kontrollera .NET installation
@@ -67,41 +52,82 @@ try {
     Write-ColorOutput "✅ .NET version: $dotnetVersion" "Green"
 } catch {
     Write-ColorOutput "❌ Fel: .NET SDK hittades inte" "Red"
-    Write-ColorOutput "Installera .NET 6.0 SDK från: https://dotnet.microsoft.com/download" "Yellow"
     exit 1
+}
+
+# Skapa nödvändiga mappar och filer
+Write-ColorOutput "📁 Skapar nödvändiga mappar och filer..." "Yellow"
+
+$directories = @(
+    "Resources",
+    "Resources\Branding", 
+    "Resources\Icons",
+    "Themes",
+    "logs"
+)
+
+foreach ($dir in $directories) {
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        Write-ColorOutput "   Skapade: $dir" "Blue"
+    }
+}
+
+# Skapa placeholder icon om den inte finns
+$iconPath = "Resources\Icons\filkollen.ico"
+if (-not (Test-Path $iconPath)) {
+    Write-ColorOutput "🖼️ Skapar placeholder ikon..." "Yellow"
+    
+    # Skapa en minimal ICO-fil (16x16 transparent)
+    $icoBytes = @(
+        0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x10, 0x10, 0x00, 0x00, 0x01, 0x00, 0x20, 0x00, 0x68, 0x04,
+        0x00, 0x00, 0x16, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x20, 0x00,
+        0x00, 0x00, 0x01, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x04, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    )
+    
+    # Lägg till transparent pixeldata (16x16x4 = 1024 bytes)
+    $pixelData = @(0x00) * 1024
+    $icoBytes += $pixelData
+    
+    [System.IO.File]::WriteAllBytes((Resolve-Path $iconPath -ErrorAction SilentlyContinue) ?? $iconPath, $icoBytes)
+    Write-ColorOutput "   Skapade placeholder ikon" "Green"
+}
+
+# Skapa placeholder PNG logo
+$logoPath = "Resources\Branding\default-logo.png"
+if (-not (Test-Path $logoPath)) {
+    Write-ColorOutput "🖼️ Skapar placeholder logo..." "Yellow"
+    
+    # Minimal 1x1 PNG
+    $pngBytes = @(
+        0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A,0x00,0x00,0x00,0x0D,0x49,0x48,0x44,0x52,
+        0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x08,0x02,0x00,0x00,0x00,0x90,0x77,0x53,
+        0xDE,0x00,0x00,0x00,0x0C,0x49,0x44,0x41,0x54,0x08,0xD7,0x63,0xF8,0x0F,0x00,0x00,
+        0x00,0x01,0x00,0x01,0x5C,0xCC,0x40,0x0C,0x00,0x00,0x00,0x00,0x49,0x45,0x4E,0x44,
+        0xAE,0x42,0x60,0x82
+    )
+    
+    [System.IO.File]::WriteAllBytes((Resolve-Path $logoPath -ErrorAction SilentlyContinue) ?? $logoPath, $pngBytes)
+    Write-ColorOutput "   Skapade placeholder logo" "Green"
 }
 
 # Clean om begärt
 if ($Clean) {
     Write-ColorOutput "🧹 Rensar tidigare builds..." "Yellow"
     
-    if (Test-Path $OutputDir) { 
-        Remove-Item -Recurse -Force $OutputDir -ErrorAction SilentlyContinue
-        Write-ColorOutput "   Rensade: $OutputDir" "Blue"
-    }
-    if (Test-Path $PublishDir) { 
-        Remove-Item -Recurse -Force $PublishDir -ErrorAction SilentlyContinue
-        Write-ColorOutput "   Rensade: $PublishDir" "Blue"
+    $cleanDirs = @("bin", "obj", "publish")
+    foreach ($dir in $cleanDirs) {
+        if (Test-Path $dir) {
+            Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
+            Write-ColorOutput "   Rensade: $dir" "Blue"
+        }
     }
     
-    Write-ColorOutput "🧽 Kör dotnet clean..." "Yellow"
     dotnet clean --verbosity quiet
-    
-    if ($LASTEXITCODE -ne 0) {
-        Write-ColorOutput "⚠️ Varning: dotnet clean returnerade felkod $LASTEXITCODE" "Yellow"
-    }
 }
 
-# Skapa nödvändiga mappar
-$directories = @("logs", "Resources\Branding", "Resources\Icons")
-foreach ($dir in $directories) {
-    if (-not (Test-Path $dir)) {
-        New-Item -ItemType Directory -Path $dir -Force | Out-Null
-        Write-ColorOutput "📁 Skapade mapp: $dir" "Blue"
-    }
-}
-
-# Restore dependencies
+# Restore packages
 Write-ColorOutput "📦 Återställer NuGet-paket..." "Yellow"
 dotnet restore --verbosity $(if ($Verbose) { "normal" } else { "quiet" })
 
@@ -110,10 +136,8 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-ColorOutput "✅ NuGet-paket återställda" "Green"
-
 # Build projekt
-Write-ColorOutput "🔨 Kompilerar $ProjectName..." "Yellow"
+Write-ColorOutput "🔨 Kompilerar FilKollen v2.1..." "Yellow"
 
 $buildArgs = @(
     "build"
@@ -131,7 +155,6 @@ if ($Verbose) {
 
 if ($LASTEXITCODE -ne 0) {
     Write-ColorOutput "❌ Build misslyckades med felkod: $LASTEXITCODE" "Red"
-    Write-ColorOutput "Kontrollera fel-meddelanden ovan och fixa koden." "Yellow"
     exit 1
 }
 
@@ -146,9 +169,9 @@ if ($Publish) {
         "-c", $Configuration
         "-r", "win-x64"
         "--self-contained", "true"
-        "-o", "$PublishDir\win-x64"
+        "-o", "publish\win-x64"
         "/p:PublishSingleFile=true"
-        "/p:PublishReadyToRun=true"
+        "/p:PublishReadyToRun=false"
         "/p:IncludeNativeLibrariesForSelfExtract=true"
     )
     
@@ -163,7 +186,7 @@ if ($Publish) {
     if ($LASTEXITCODE -eq 0) {
         Write-ColorOutput "✅ Publikation slutförd!" "Green"
         
-        $exePath = "$PublishDir\win-x64\$ProjectName.exe"
+        $exePath = "publish\win-x64\FilKollen.exe"
         if (Test-Path $exePath) {
             $fileInfo = Get-Item $exePath
             $fileSizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
@@ -174,21 +197,8 @@ if ($Publish) {
         $configFiles = @("appsettings.json", "branding.json")
         foreach ($configFile in $configFiles) {
             if (Test-Path $configFile) {
-                Copy-Item $configFile "$PublishDir\win-x64\" -Force
+                Copy-Item $configFile "publish\win-x64\" -Force
                 Write-ColorOutput "📋 Kopierade: $configFile" "Blue"
-            }
-        }
-        
-        # Skapa installer om NSIS finns
-        $nsisPath = Get-Command makensis -ErrorAction SilentlyContinue
-        if ($nsisPath -and (Test-Path "installer.nsi")) {
-            Write-ColorOutput "📦 Skapar installer med NSIS..." "Yellow"
-            & makensis installer.nsi
-            
-            if ($LASTEXITCODE -eq 0) {
-                Write-ColorOutput "✅ Installer skapad!" "Green"
-            } else {
-                Write-ColorOutput "⚠️ Varning: Installer-skapande misslyckades" "Yellow"
             }
         }
     } else {
@@ -200,7 +210,7 @@ if ($Publish) {
 # Kör applikationen om begärt
 if ($Run) {
     if ($Publish) {
-        $exePath = "$PublishDir\win-x64\$ProjectName.exe"
+        $exePath = "publish\win-x64\FilKollen.exe"
         if (Test-Path $exePath) {
             Write-ColorOutput "🚀 Startar published version..." "Yellow"
             Start-Process -FilePath $exePath
@@ -219,21 +229,22 @@ Write-ColorOutput "📊 BUILD SAMMANFATTNING" "Cyan"
 Write-ColorOutput "======================" "Cyan"
 Write-ColorOutput "✅ Status: Framgångsrik" "Green"
 Write-ColorOutput "🔧 Configuration: $Configuration" "White"
+Write-ColorOutput "📋 Version: FilKollen v2.1" "White"
 
 if ($Publish) {
-    Write-ColorOutput "📦 Output: $PublishDir\win-x64\$ProjectName.exe" "Cyan"
+    Write-ColorOutput "📦 Output: publish\win-x64\FilKollen.exe" "Cyan"
     Write-ColorOutput "" "White"
     Write-ColorOutput "🚀 För att köra:" "Cyan"
-    Write-ColorOutput "   $PublishDir\win-x64\$ProjectName.exe" "White"
+    Write-ColorOutput "   .\publish\win-x64\FilKollen.exe" "White"
 } else {
-    Write-ColorOutput "📂 Output: $OutputDir" "Cyan"
+    Write-ColorOutput "📂 Output: bin\$Configuration" "Cyan"
     Write-ColorOutput "" "White"
     Write-ColorOutput "🚀 För att köra:" "Cyan"
     Write-ColorOutput "   dotnet run" "White"
 }
 
 Write-Host ""
-Write-ColorOutput "🎉 Build slutförd framgångsrikt!" "Green"
+Write-ColorOutput "🎉 FilKollen v2.1 build slutförd!" "Green"
 
 # Visa användning om inget specifikt gjordes
 if (-not $Publish -and -not $Run -and -not $Clean) {

@@ -20,9 +20,11 @@ namespace FilKollen.Services
         private readonly TempFileScanner _fileScanner;
         private readonly QuarantineManager _quarantineManager;
 
-        private System.Timers.Timer _monitoringTimer = null!;
+        // FIXADE: Lägg till saknade field-deklarationer
+        private System.Timers.Timer? _monitoringTimer;
+        private readonly List<string> _fileWatchers; // Simplified - no actual file watchers for now
         private readonly HashSet<string> _recentlyProcessed;
-        private CancellationTokenSource _cancellationTokenSource = null!;
+        private CancellationTokenSource? _cancellationTokenSource;
 
         // FÖRENKLAD: Endast kritiska hot som specificerat
         private readonly Dictionary<string, DateTime> _lastProcessCheck = new();
@@ -82,6 +84,7 @@ namespace FilKollen.Services
             _quarantineManager = quarantineManager;
 
             _recentlyProcessed = new HashSet<string>();
+            _fileWatchers = new List<string>(); // Simplified for now
 
             // Event processing timer - enklare än original
             _eventProcessingTimer = new System.Timers.Timer(2000); // Process events var 2:a sekund
@@ -459,14 +462,21 @@ namespace FilKollen.Services
             try
             {
                 _cancellationTokenSource?.Cancel();
+
+                // Stoppa timers
                 _monitoringTimer?.Stop();
                 _monitoringTimer?.Dispose();
+
+                // Clear file watchers list (simplified)
+                _fileWatchers.Clear();
 
                 IsMonitoringActive = false;
 
                 _logger.Information("Intrusion Detection System inaktiverat");
                 _logViewer.AddLogEntry(LogLevel.Warning, "IDS",
                     "⚠️ INTRUSION DETECTION INAKTIVERAT");
+
+                await Task.CompletedTask; // Fix async warning
             }
             catch (Exception ex)
             {
@@ -478,7 +488,7 @@ namespace FilKollen.Services
         {
             _ = Task.Run(async () =>
             {
-                while (!_cancellationTokenSource.Token.IsCancellationRequested)
+                while (_cancellationTokenSource?.Token.IsCancellationRequested == false)
                 {
                     try
                     {
@@ -492,7 +502,7 @@ namespace FilKollen.Services
                     catch (Exception ex)
                     {
                         _logger.Warning($"Critical process monitoring error: {ex.Message}");
-                        await Task.Delay(15000, _cancellationTokenSource.Token);
+                        await Task.Delay(15000, _cancellationTokenSource?.Token ?? CancellationToken.None);
                     }
                 }
             });
@@ -574,6 +584,7 @@ namespace FilKollen.Services
             };
 
             ProcessSecurityEventInternal(securityEvent);
+            await Task.CompletedTask; // Fix async warning
         }
 
         public void Dispose()
@@ -583,6 +594,7 @@ namespace FilKollen.Services
                 StopMonitoringAsync().Wait(3000);
                 _cancellationTokenSource?.Dispose();
                 _eventProcessingTimer?.Dispose();
+                _monitoringTimer?.Dispose();
             }
             catch (Exception ex)
             {
@@ -591,7 +603,7 @@ namespace FilKollen.Services
         }
     }
 
-    // Event Arguments (oförändrade)
+    // Event Arguments
     public class IntrusionDetectedEventArgs : EventArgs
     {
         public string ThreatType { get; set; } = string.Empty;
@@ -612,7 +624,7 @@ namespace FilKollen.Services
         public string ActionTaken { get; set; } = string.Empty;
     }
 
-    // Models (oförändrade)
+    // Models
     public class SecurityEvent
     {
         public string EventType { get; set; } = string.Empty;

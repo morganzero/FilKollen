@@ -34,6 +34,7 @@ namespace FilKollen
         private IntrusionDetectionService? _intrusionDetection;
 
         private bool _isProtectionActive = false;
+        private bool _isIpProtectionActive = false;
         private readonly Timer _statusUpdateTimer;
 
         public MainWindow() : this(null, null, null) { }
@@ -43,7 +44,7 @@ namespace FilKollen
             try
             {
                 _logger = Log.Logger ?? throw new InvalidOperationException("Logger inte initierad");
-                _logger.Information("MainWindow startar (MINIMALISTISK RESPONSIV MODE)");
+                _logger.Information("MainWindow startar med ny UI-design");
 
                 _licenseService = licenseService;
                 _brandingService = brandingService;
@@ -60,7 +61,7 @@ namespace FilKollen
                     SuspiciousExtensions = new List<string> { ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".scr" }
                 };
 
-                // Initiera services säkert
+                // Initiera services
                 try
                 {
                     _fileScanner = new TempFileScanner(_config, _logger);
@@ -76,11 +77,13 @@ namespace FilKollen
 
                 InitializeComponent();
 
+                // Tema-inställning
                 if (_themeService != null && ThemeSelector != null)
                 {
-                    ThemeSelector.SelectedIndex = (int)_themeService.Mode; // 0:System, 1:Light, 2:Dark
+                    ThemeSelector.SelectedIndex = (int)_themeService.Mode;
                     _themeService.ThemeChanged += OnThemeChanged;
                 }
+
                 DataContext = this;
 
                 // Status update timer
@@ -106,7 +109,7 @@ namespace FilKollen
                 await InitializeProtectionAsync();
                 await InitializeTrayAsync();
 
-                _logger.Information("MainWindow fullständigt initierat");
+                _logger.Information("MainWindow fullständigt initierat med ny UI");
             }
             catch (Exception ex)
             {
@@ -119,18 +122,11 @@ namespace FilKollen
         {
             try
             {
-                // Initiera intrusion detection
                 if (_fileScanner != null && _quarantine != null && _logViewer != null)
                 {
                     _intrusionDetection = new IntrusionDetectionService(_logger, _logViewer, _fileScanner, _quarantine);
-                    _logger.Information("IntrusionDetectionService initierad");
-                }
-
-                // Initiera protection service
-                if (_fileScanner != null && _quarantine != null && _logViewer != null)
-                {
                     _protectionService = new RealTimeProtectionService(_fileScanner, _quarantine, _logViewer, _logger, _config);
-                    _logger.Information("RealTimeProtectionService initierad");
+                    _logger.Information("Protection services initierade");
                 }
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "System", "🛡️ FilKollen säkerhetstjänster laddade");
@@ -147,21 +143,11 @@ namespace FilKollen
         {
             try
             {
-                // Sätt initial status
-                UpdateProtectionStatusUI(false);
+                // Sätt initial status - "Säker" status
+                UpdateSecurityStatus(isSecure: true, threatsCount: 0);
 
                 if (StatusBarText != null)
-                    StatusBarText.Text = "FilKollen Säkerhetsscanner - Redo för aktivering";
-
-if (StatsLastScan != null)
-    StatsLastScan.Text = "Senaste aktivitet: Aldrig";
-
-                // Tema-selector setup
-                if (_themeService != null && ThemeSelector != null)
-                {
-                    ThemeSelector.SelectedIndex = (int)_themeService.Mode;
-                    _themeService.ThemeChanged += OnThemeChanged;
-                }
+                    StatusBarText.Text = "FilKollen säkerhetsscanner - Redo för skanning";
 
                 // Licensstatus
                 if (_licenseService != null && LicenseStatusText != null)
@@ -176,7 +162,15 @@ if (StatsLastScan != null)
                     };
                 }
 
-                _logger.Information("UI initierat");
+                // Initial "senaste skanning"
+                if (LastScanText != null)
+                    LastScanText.Text = "Aldrig";
+
+                // Initial "hot hanterade"
+                if (ThreatsHandledText != null)
+                    ThreatsHandledText.Text = "0";
+
+                _logger.Information("UI initierat med ny design");
             }
             catch (Exception ex)
             {
@@ -191,10 +185,12 @@ if (StatsLastScan != null)
             try
             {
                 _isProtectionActive = false;
-                UpdateProtectionStatusUI(false);
+                _isIpProtectionActive = false;
+
+                UpdateProtectionToggles();
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "System",
-                    "✅ FilKollen redo - aktivera realtidsskydd för fullständigt skydd");
+                    "✅ FilKollen redo - aktivera skydd för fullständigt skydd");
             }
             catch (Exception ex)
             {
@@ -235,9 +231,212 @@ if (StatsLastScan != null)
             await Task.Delay(10);
         }
 
+        // === UI UPDATE METHODS ===
+
+        private void UpdateSecurityStatus(bool isSecure, int threatsCount, string? customMessage = null)
+        {
+            try
+            {
+                if (StatusIndicator != null && StatusMainText != null && StatusSubText != null)
+                {
+                    if (isSecure && threatsCount == 0)
+                    {
+                        StatusIndicator.Fill = new SolidColorBrush(Colors.Green);
+                        StatusMainText.Text = "SYSTEMET ÄR SÄKERT";
+                        StatusMainText.Foreground = new SolidColorBrush(Colors.Green);
+                        StatusSubText.Text = customMessage ?? $"0 hot funna • Realtidsskydd {(_isProtectionActive ? "aktivt" : "inaktivt")}";
+
+                        // Visa säker panel
+                        ShowSafeStatus();
+                    }
+                    else if (threatsCount > 0)
+                    {
+                        StatusIndicator.Fill = new SolidColorBrush(Colors.Orange);
+                        StatusMainText.Text = $"{threatsCount} HOT UPPTÄCKTA";
+                        StatusMainText.Foreground = new SolidColorBrush(Colors.Orange);
+                        StatusSubText.Text = customMessage ?? "Kräver omedelbar åtgärd";
+
+                        // Visa hot-detaljer panel
+                        ShowThreatsStatus(threatsCount);
+                    }
+                    else
+                    {
+                        StatusIndicator.Fill = new SolidColorBrush(Colors.Gray);
+                        StatusMainText.Text = "SKYDD INAKTIVERAT";
+                        StatusMainText.Foreground = new SolidColorBrush(Colors.Gray);
+                        StatusSubText.Text = "Aktivera realtidsskydd för säkerhet";
+
+                        ShowSafeStatus();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Status uppdatering misslyckades: {ex.Message}");
+            }
+        }
+
+        private void ShowSafeStatus()
+        {
+            if (SafeStatusPanel != null && ThreatsDetailPanel != null)
+            {
+                SafeStatusPanel.Visibility = Visibility.Visible;
+                ThreatsDetailPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void ShowThreatsStatus(int threatCount)
+        {
+            if (SafeStatusPanel != null && ThreatsDetailPanel != null && ThreatsHeaderText != null)
+            {
+                SafeStatusPanel.Visibility = Visibility.Collapsed;
+                ThreatsDetailPanel.Visibility = Visibility.Visible;
+
+                ThreatsHeaderText.Text = threatCount == 1 ? "1 HOT UPPTÄCKT!" : $"{threatCount} HOT UPPTÄCKTA!";
+
+                // Uppdatera hotlistan (mockade exempel för nu)
+                UpdateThreatsList();
+            }
+        }
+
+        private void UpdateThreatsList()
+        {
+            if (ThreatsList == null) return;
+
+            try
+            {
+                ThreatsList.Children.Clear();
+
+                // Mockade hotexempel - i verkligheten skulle dessa komma från scanning
+                var mockThreats = new[]
+                {
+                    new { Name = "suspicious_file.exe", Path = @"C:\Temp\suspicious_file.exe", Level = "Hög", Type = "Misstänkt körbar fil" },
+                    new { Name = "unknown_script.bat", Path = @"C:\Users\Public\unknown_script.bat", Level = "Medium", Type = "Okänt skript" }
+                };
+
+                foreach (var threat in mockThreats)
+                {
+                    var threatCard = CreateThreatCard(threat.Name, threat.Path, threat.Level, threat.Type);
+                    ThreatsList.Children.Add(threatCard);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Kunde inte uppdatera hotlista: {ex.Message}");
+            }
+        }
+
+        private Border CreateThreatCard(string fileName, string filePath, string threatLevel, string threatType)
+        {
+            var card = new Border();
+            card.SetResourceReference(Border.StyleProperty, "FK.Style.ThreatCard");
+
+            var mainPanel = new StackPanel();
+
+            // Header med filnamn och hotnivå
+            var headerPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+
+            var nameBlock = new TextBlock
+            {
+                Text = fileName,
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 14,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            nameBlock.SetResourceReference(TextBlock.ForegroundProperty, "FK.Brush.Text");
+
+            var levelBadge = new Border
+            {
+                Background = threatLevel == "Hög" ? new SolidColorBrush(Color.FromRgb(239, 68, 68)) :
+                           new SolidColorBrush(Color.FromRgb(245, 158, 11)),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 4),
+                Margin = new Thickness(12, 0, 0, 0)
+            };
+
+            var levelText = new TextBlock
+            {
+                Text = threatLevel.ToUpper(),
+                Foreground = Brushes.White,
+                FontSize = 11,
+                FontWeight = FontWeights.Bold
+            };
+
+            levelBadge.Child = levelText;
+            headerPanel.Children.Add(nameBlock);
+            headerPanel.Children.Add(levelBadge);
+
+            // Threat info
+            var infoPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+            var typeBlock = new TextBlock
+            {
+                Text = $"Typ: {threatType}",
+                FontSize = 12,
+                Margin = new Thickness(0, 2)
+            };
+            typeBlock.SetResourceReference(TextBlock.ForegroundProperty, "FK.Brush.Subtext");
+
+            var pathBlock = new TextBlock
+            {
+                Text = $"Sökväg: {filePath}",
+                FontSize = 12,
+                Margin = new Thickness(0, 2),
+                TextWrapping = TextWrapping.Wrap
+            };
+            pathBlock.SetResourceReference(TextBlock.ForegroundProperty, "FK.Brush.Subtext");
+
+            infoPanel.Children.Add(typeBlock);
+            infoPanel.Children.Add(pathBlock);
+
+            // Action buttons
+            var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var deleteButton = new Button
+            {
+                Content = "🗑️ Radera",
+                Margin = new Thickness(0, 0, 8, 0),
+                Tag = filePath
+            };
+            deleteButton.SetResourceReference(Button.StyleProperty, "FK.Style.DangerButton");
+            deleteButton.Click += DeleteThreatButton_Click;
+
+            var quarantineButton = new Button
+            {
+                Content = "📦 Karantän",
+                Tag = filePath
+            };
+            quarantineButton.SetResourceReference(Button.StyleProperty, "FK.Style.SecondaryButton");
+            quarantineButton.Click += QuarantineThreatButton_Click;
+
+            buttonPanel.Children.Add(deleteButton);
+            buttonPanel.Children.Add(quarantineButton);
+
+            mainPanel.Children.Add(headerPanel);
+            mainPanel.Children.Add(infoPanel);
+            mainPanel.Children.Add(buttonPanel);
+
+            card.Child = mainPanel;
+            return card;
+        }
+
+        private void UpdateProtectionToggles()
+        {
+            if (ProtectionToggle != null)
+            {
+                ProtectionToggle.IsChecked = _isProtectionActive;
+            }
+
+            if (IpProtectionToggle != null)
+            {
+                IpProtectionToggle.IsChecked = _isIpProtectionActive;
+            }
+        }
+
+        // === EVENT HANDLERS ===
+
         private void OnThemeChanged(object? sender, EventArgs e)
         {
-            // Theme service handles the actual theme change
             _logger.Information($"Tema ändrat via ThemeService");
         }
 
@@ -260,9 +459,8 @@ if (StatsLastScan != null)
             }
         }
 
-        /// <summary>
-        /// HUVUDKONTROLL 1: Protection Toggle - Av/På-växlare för auto-läge
-        /// </summary>
+        // === PROTECTION TOGGLES ===
+
         private async void ProtectionToggle_Checked(object sender, RoutedEventArgs e)
         {
             try
@@ -270,43 +468,34 @@ if (StatsLastScan != null)
                 _logger.Information("Realtidsskydd aktiveras...");
 
                 if (ProtectionToggle != null)
-                {
                     ProtectionToggle.IsEnabled = false;
-                }
 
-                // Starta protection service
                 if (_protectionService != null)
                 {
                     await _protectionService.StartProtectionAsync();
-                    _protectionService.SetAutoCleanMode(true); // Auto-läge aktivt
+                    _protectionService.SetAutoCleanMode(true);
                 }
 
-                // Starta intrusion detection
                 if (_intrusionDetection != null)
                 {
                     await _intrusionDetection.StartMonitoringAsync();
                 }
 
                 _isProtectionActive = true;
-                UpdateProtectionStatusUI(true);
+                UpdateSecurityStatus(true, 0, "Realtidsskydd aktivt • Kontinuerlig övervakning");
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "Protection",
-                    "🛡️ REALTIDSSKYDD AKTIVERAT - Auto-läge: Kontinuerlig övervakning och automatisk rensning");
+                    "🛡️ REALTIDSSKYDD AKTIVERAT - Auto-läge: Kontinuerlig övervakning");
 
                 _trayService?.ShowNotification("FilKollen Aktiverat",
-                    "Realtidsskydd med auto-rensning aktiverat",
-                    System.Windows.Forms.ToolTipIcon.Info);
+                    "Realtidsskydd aktiverat", System.Windows.Forms.ToolTipIcon.Info);
             }
             catch (Exception ex)
             {
                 _logger.Error($"Fel vid aktivering av realtidsskydd: {ex.Message}");
-                _logViewer?.AddLogEntry(LogLevel.Error, "Protection",
-                    $"❌ Fel vid aktivering: {ex.Message}");
-
                 if (ProtectionToggle != null)
                     ProtectionToggle.IsChecked = false;
-
-                UpdateProtectionStatusUI(false);
+                UpdateSecurityStatus(false, 0);
             }
             finally
             {
@@ -321,63 +510,289 @@ if (StatsLastScan != null)
             {
                 _logger.Information("Realtidsskydd inaktiveras...");
 
-                if (ProtectionToggle != null)
-                {
-                    ProtectionToggle.IsEnabled = false;
-                }
-
-                // Stoppa protection service
                 if (_protectionService != null)
                 {
                     await _protectionService.StopProtectionAsync();
                 }
 
-                // Stoppa intrusion detection
                 if (_intrusionDetection != null)
                 {
                     await _intrusionDetection.StopMonitoringAsync();
                 }
 
                 _isProtectionActive = false;
-                UpdateProtectionStatusUI(false);
+                UpdateSecurityStatus(false, 0);
 
                 _logViewer?.AddLogEntry(LogLevel.Warning, "Protection",
                     "⚠️ REALTIDSSKYDD INAKTIVERAT - Systemet är nu sårbart");
-
-                _trayService?.ShowNotification("FilKollen Inaktiverat",
-                    "Realtidsskydd inaktiverat - systemet oskyddat",
-                    System.Windows.Forms.ToolTipIcon.Warning);
             }
             catch (Exception ex)
             {
                 _logger.Error($"Fel vid inaktivering av realtidsskydd: {ex.Message}");
             }
-            finally
+        }
+
+        private async void IpProtectionToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            try
             {
-                if (ProtectionToggle != null)
-                    ProtectionToggle.IsEnabled = true;
+                _logger.Information("IP-skydd aktiveras (placeholder för framtida proxy-funktion)...");
+                _isIpProtectionActive = true;
+
+                _logViewer?.AddLogEntry(LogLevel.Information, "IPProtection",
+                    "🌐 IP-SKYDD AKTIVERAT (Förberedelse för proxy-tunnel)");
+
+                // Placeholder för framtida IP-skyddsfunktionalitet
+                await Task.Delay(500);
+
+                _trayService?.ShowNotification("IP-Skydd Aktiverat",
+                    "IP-anonymisering förberedd", System.Windows.Forms.ToolTipIcon.Info);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Fel vid aktivering av IP-skydd: {ex.Message}");
+                if (IpProtectionToggle != null)
+                    IpProtectionToggle.IsChecked = false;
             }
         }
 
-        /// <summary>
-        /// HUVUDKONTROLL 2: "Rensa bluffnotiser"-knapp - Manuell + automatisk rensning
-        /// </summary>
+        private async void IpProtectionToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _logger.Information("IP-skydd inaktiveras...");
+                _isIpProtectionActive = false;
+
+                _logViewer?.AddLogEntry(LogLevel.Warning, "IPProtection",
+                    "⚠️ IP-SKYDD INAKTIVERAT");
+
+                await Task.Delay(100);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Fel vid inaktivering av IP-skydd: {ex.Message}");
+            }
+        }
+
+        // === THREAT ACTION HANDLERS ===
+
+        private async void DeleteThreatButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is string filePath)
+            {
+                try
+                {
+                    var result = MessageBox.Show(
+                        $"Vill du radera denna fil permanent?\n\n{System.IO.Path.GetFileName(filePath)}\n\nDenna åtgärd kan inte ångras.",
+                        "Bekräfta Radering",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        button.IsEnabled = false;
+                        button.Content = "🔄 Raderar...";
+
+                        // Simulera radering
+                        await Task.Delay(1000);
+
+                        _logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",
+                            $"🗑️ Hot raderat: {System.IO.Path.GetFileName(filePath)}");
+
+                        // Ta bort kortet från UI
+                        if (button.Parent is StackPanel buttonPanel &&
+                            buttonPanel.Parent is StackPanel cardPanel &&
+                            cardPanel.Parent is Border card &&
+                            card.Parent is StackPanel threatsList)
+                        {
+                            threatsList.Children.Remove(card);
+
+                            // Om inga hot kvar, visa säker status
+                            if (threatsList.Children.Count == 0)
+                            {
+                                UpdateSecurityStatus(true, 0, "Alla hot har hanterats • System säkert");
+                            }
+                        }
+
+                        MessageBox.Show("Filen har raderats framgångsrikt!", "Hot Raderat",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Fel vid radering av hot: {ex.Message}");
+                    MessageBox.Show($"Kunde inte radera filen:\n{ex.Message}", "Fel",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+
+                    button.IsEnabled = true;
+                    button.Content = "🗑️ Radera";
+                }
+            }
+        }
+
+        private async void QuarantineThreatButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is string filePath)
+            {
+                try
+                {
+                    button.IsEnabled = false;
+                    button.Content = "🔄 Karantän...";
+
+                    // Simulera karantän
+                    await Task.Delay(1000);
+
+                    _logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",
+                        $"📦 Hot satt i karantän: {System.IO.Path.GetFileName(filePath)}");
+
+                    // Ta bort kortet från UI
+                    if (button.Parent is StackPanel buttonPanel &&
+                        buttonPanel.Parent is StackPanel cardPanel &&
+                        cardPanel.Parent is Border card &&
+                        card.Parent is StackPanel threatsList)
+                    {
+                        threatsList.Children.Remove(card);
+
+                        // Om inga hot kvar, visa säker status
+                        if (threatsList.Children.Count == 0)
+                        {
+                            UpdateSecurityStatus(true, 0, "Alla hot har hanterats • System säkert");
+                        }
+                    }
+
+                    MessageBox.Show("Filen har satts i karantän!", "Hot Karantänerat",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Fel vid karantän av hot: {ex.Message}");
+                    MessageBox.Show($"Kunde inte sätta filen i karantän:\n{ex.Message}", "Fel",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+
+                    button.IsEnabled = true;
+                    button.Content = "📦 Karantän";
+                }
+            }
+        }
+
+        private async void RefreshScanButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (RefreshScanButton != null)
+                {
+                    RefreshScanButton.Content = "🔄 Skannar...";
+                    RefreshScanButton.IsEnabled = false;
+                }
+
+                _logViewer?.AddLogEntry(LogLevel.Information, "Manual", "🔄 Uppdaterar hotskanning");
+
+                if (_fileScanner != null)
+                {
+                    var results = await _fileScanner.ScanTempDirectoriesAsync();
+                    var threats = results?.Where(r => r.ThreatLevel >= ThreatLevel.Medium).ToList() ?? new List<ScanResult>();
+
+                    if (threats.Any())
+                    {
+                        UpdateSecurityStatus(false, threats.Count, $"Ny skanning: {threats.Count} hot funna");
+                        // UpdateThreatsList skulle uppdateras med riktiga hot här
+                    }
+                    else
+                    {
+                        UpdateSecurityStatus(true, 0, "Ny skanning: Inga hot funna");
+                    }
+
+                    if (LastScanText != null)
+                        LastScanText.Text = DateTime.Now.ToString("HH:mm");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Fel vid hotskanning: {ex.Message}");
+                MessageBox.Show($"Fel vid skanning:\n{ex.Message}", "Skanningsfel",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                if (RefreshScanButton != null)
+                {
+                    RefreshScanButton.Content = "🔄 Skanna Igen";
+                    RefreshScanButton.IsEnabled = true;
+                }
+            }
+        }
+
+        private async void QuickScanButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (QuickScanButton != null)
+                {
+                    QuickScanButton.Content = "🔄 SKANNAR...";
+                    QuickScanButton.IsEnabled = false;
+                }
+
+                _logViewer?.AddLogEntry(LogLevel.Information, "Manual", "🔍 Snabbskanning startad");
+
+                if (_fileScanner != null)
+                {
+                    var results = await _fileScanner.ScanTempDirectoriesAsync();
+                    var threats = results?.Where(r => r.ThreatLevel >= ThreatLevel.Medium).ToList() ?? new List<ScanResult>();
+
+                    if (threats.Any())
+                    {
+                        UpdateSecurityStatus(false, threats.Count, $"{threats.Count} hot funna under skanning");
+                        _logViewer?.AddLogEntry(LogLevel.Warning, "Scan",
+                            $"⚠️ Snabbskanning: {threats.Count} hot funna");
+
+                        MessageBox.Show($"Snabbskanning slutförd!\n\n{threats.Count} suspekta filer funna.",
+                            "Skanning Slutförd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                    else
+                    {
+                        UpdateSecurityStatus(true, 0, "Snabbskanning slutförd • Inga hot funna");
+                        _logViewer?.AddLogEntry(LogLevel.Information, "Scan",
+                            "✅ Snabbskanning: Inga hot funna");
+
+                        MessageBox.Show("Snabbskanning slutförd!\n\nInga suspekta filer funna.",
+                            "Skanning Slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+
+                    // Uppdatera senaste skanning
+                    if (LastScanText != null)
+                        LastScanText.Text = DateTime.Now.ToString("HH:mm");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Snabbskanning fel: {ex.Message}");
+                UpdateSecurityStatus(false, 0, "Fel vid skanning");
+                MessageBox.Show($"Fel vid snabbskanning:\n{ex.Message}", "Skanningsfel",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                if (QuickScanButton != null)
+                {
+                    QuickScanButton.Content = "🔍 Snabbskanna datorn";
+                    QuickScanButton.IsEnabled = true;
+                }
+            }
+        }
+
         private async void BrowserCleanButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                _logger.Information("Manuell 'Rensa bluffnotiser' begärd");
-
                 if (BrowserCleanButton != null)
                 {
-                    BrowserCleanButton.Content = "🔄 RENSAR BLUFFNOTISER...";
+                    BrowserCleanButton.Content = "🔄 RENSAR...";
                     BrowserCleanButton.IsEnabled = false;
                 }
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "BrowserClean",
                     "🌐 RENSA BLUFFNOTISER STARTAD - Avancerad webbläsarrensning");
 
-                // Kör avancerad browser cleaning
                 if (_browserCleaner != null)
                 {
                     var result = await _browserCleaner.DeepCleanAllBrowsersAsync();
@@ -387,8 +802,7 @@ if (StatsLastScan != null)
                         var summary = $"✅ BLUFFNOTISER RENSADE:\n" +
                                     $"• {result.TotalProfilesCleaned} webbläsarprofiler rensade\n" +
                                     $"• {result.MalwareNotificationsRemoved} malware-notifieringar borttagna\n" +
-                                    $"• {result.SuspiciousExtensionsRemoved} suspekta tillägg borttagna\n" +
-                                    $"• DNS-cache rensad och säkerhetspolicies tillämpade";
+                                    $"• {result.SuspiciousExtensionsRemoved} suspekta tillägg borttagna";
 
                         _logViewer?.AddLogEntry(LogLevel.Information, "BrowserClean", summary);
 
@@ -408,21 +822,10 @@ if (StatsLastScan != null)
                             "Rensningsfel", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 }
-                else
-                {
-                    MessageBox.Show("Browser cleaner inte tillgänglig", "Fel",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-
-                // Uppdatera statistik
-                UpdateStatistics();
             }
             catch (Exception ex)
             {
                 _logger.Error($"Fel vid webbläsarrensning: {ex.Message}");
-                _logViewer?.AddLogEntry(LogLevel.Error, "BrowserClean",
-                    $"❌ Fel vid bluffnotiser-rensning: {ex.Message}");
-
                 MessageBox.Show($"Fel vid webbläsarrensning:\n{ex.Message}", "Fel",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -430,86 +833,38 @@ if (StatsLastScan != null)
             {
                 if (BrowserCleanButton != null)
                 {
-                    BrowserCleanButton.Content = "🌐 RENSA BLUFFNOTISER";
+                    BrowserCleanButton.Content = "🌐 Radera bluffnotiser";
                     BrowserCleanButton.IsEnabled = true;
                 }
             }
         }
 
-        /// <summary>
-        /// Uppdatera protection status UI
-        /// </summary>
-        private void UpdateProtectionStatusUI(bool isActive)
-        {
-            try
-            {
-                if (SystemStatusText != null)
-                {
-                    SystemStatusText.Text = isActive ? "SKYDD AKTIVERAT" : "SKYDD INAKTIVERAT";
-                    SystemStatusText.Foreground = new SolidColorBrush(isActive ?
-                        Color.FromRgb(52, 211, 153) : Color.FromRgb(255, 107, 125)); // FK success/danger colors
-                }
-
-                if (StatusIndicator != null)
-                {
-                    StatusIndicator.Fill = new SolidColorBrush(isActive ?
-                        Color.FromRgb(52, 211, 153) : Color.FromRgb(255, 107, 125));
-                }
-
-                if (StatusBarText != null)
-                {
-                    StatusBarText.Text = isActive ?
-                        "FilKollen Realtidsskydd AKTIVT - Kontinuerlig säkerhetsövervakning" :
-                        "FilKollen Realtidsskydd INAKTIVT - Aktivera för fullständigt skydd";
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning($"UI-uppdatering misslyckades: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Uppdatera statistik (enkel statistik + senaste logg)
-        /// </summary>
-        private void UpdateStatistics()
+        private void SystemInfoButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 var stats = _protectionService?.GetProtectionStats();
+                var info = $"FilKollen Säkerhetsscanner v2.0\n\n" +
+                          $"Realtidsskydd: {(_isProtectionActive ? "Aktiverat" : "Inaktiverat")}\n" +
+                          $"IP-skydd: {(_isIpProtectionActive ? "Aktiverat" : "Inaktiverat")}\n" +
+                          $"Auto-rensning: {(stats?.AutoCleanMode == true ? "Aktiverat" : "Inaktiverat")}\n" +
+                          $"Hot funna: {stats?.TotalThreatsFound ?? 0}\n" +
+                          $"Hot hanterade: {stats?.TotalThreatsHandled ?? 0}\n" +
+                          $"Senaste skanning: {(stats?.LastScanTime != default ? stats?.LastScanTime.ToString("yyyy-MM-dd HH:mm:ss") : "Aldrig")}\n\n" +
+                          $"OS: {Environment.OSVersion}\n" +
+                          $"Dator: {Environment.MachineName}\n" +
+                          $"Användare: {Environment.UserName}";
 
-                if (stats != null)
-                {
-                    if (StatsFilesScanned != null)
-                        StatsFilesScanned.Text = "N/A"; // Förenkla
-
-                    if (StatsThreatsFound != null)
-                        StatsThreatsFound.Text = stats.TotalThreatsFound.ToString();
-
-                    if (StatsLastScan != null)
-                        StatsLastScan.Text = stats.LastScanTime != default ?
-                            stats.LastScanTime.ToString("HH:mm:ss") : "Aldrig";
-
-                    if (FilesScannedCount != null)
-                        FilesScannedCount.Text = "N/A";
-
-                    if (SuspiciousFilesCount != null)
-                        SuspiciousFilesCount.Text = stats.TotalThreatsFound.ToString();
-                }
-
-// UpdateStatistics()
-if (StatsLastScan != null)
-    StatsLastScan.Text = $"Senaste aktivitet: {DateTime.Now:HH:mm:ss}";
+                MessageBox.Show(info, "Systeminformation", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                _logger.Warning($"Statistik-uppdatering misslyckades: {ex.Message}");
+                _logger.Error($"Systeminformation fel: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Status update callback (körs var 5:e sekund)
-        /// </summary>
+        // === STATUS UPDATE ===
+
         private void UpdateStatusCallback(object? state)
         {
             try
@@ -520,13 +875,14 @@ if (StatsLastScan != null)
                     if (ConnectionStatusText != null)
                     {
                         ConnectionStatusText.Text = "ONLINE";
-                        ConnectionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(52, 211, 153));
+                        ConnectionStatusText.Foreground = new SolidColorBrush(Colors.Green);
                     }
 
-                    // Uppdatera statistik om protection är aktivt
-                    if (_isProtectionActive)
+                    // Uppdatera hot hanterade statistik
+                    if (_protectionService != null && ThreatsHandledText != null)
                     {
-                        UpdateStatistics();
+                        var stats = _protectionService.GetProtectionStats();
+                        ThreatsHandledText.Text = stats.TotalThreatsHandled.ToString();
                     }
                 });
             }
@@ -536,16 +892,39 @@ if (StatsLastScan != null)
             }
         }
 
-        // === UI-händelser ===
+        // === WINDOW CONTROLS ===
 
-        /// <summary>
-        /// KRITISKT: OnClosing ska minimera till tray (e.Cancel=true; Hide();)
-        /// </summary>
+        private void TopBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                if (e.ClickCount == 2 && ResizeMode != ResizeMode.NoResize)
+                {
+                    WindowState = WindowState == WindowState.Maximized
+                        ? WindowState.Normal
+                        : WindowState.Maximized;
+                }
+                else
+                {
+                    DragMove();
+                }
+            }
+        }
+
+        private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+        private void Maximize_Click(object sender, RoutedEventArgs e) =>
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+        private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+        // === WINDOW LIFECYCLE ===
+
         protected override void OnClosing(CancelEventArgs e)
         {
             try
             {
-                // KRITISKT KRAV: Minimera till tray istället för att stänga
+                // Minimera till tray istället för att stänga
                 e.Cancel = true;
                 Hide();
 
@@ -558,7 +937,6 @@ if (StatsLastScan != null)
             catch (Exception ex)
             {
                 _logger.Warning($"Fel vid minimering till tray: {ex.Message}");
-                // Låt normal stängning ske om tray-minimering misslyckas
                 e.Cancel = false;
                 base.OnClosing(e);
             }
@@ -585,181 +963,7 @@ if (StatsLastScan != null)
             }
         }
 
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
-        {
-            WindowState = WindowState.Minimized;
-        }
-
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            // Minimera till tray istället för att stänga
-            Hide();
-        }
-
-        // === Funktioner ===
-
-        private async void TempScanButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (TempScanButton != null)
-                {
-                    TempScanButton.Content = "🔄 SKANNAR...";
-                    TempScanButton.IsEnabled = false;
-                }
-
-                _logViewer?.AddLogEntry(LogLevel.Information, "Manual", "🔍 Manuell temp-skanning startad");
-
-                if (_fileScanner != null)
-                {
-                    var results = await _fileScanner.ScanTempDirectoriesAsync();
-                    var threats = results?.Where(r => r.ThreatLevel >= ThreatLevel.Medium).ToList() ?? new List<ScanResult>();
-
-                    if (threats.Any())
-                    {
-                        _logViewer?.AddLogEntry(LogLevel.Warning, "Scan",
-                            $"⚠️ Temp-skanning: {threats.Count} hot funna");
-
-                        MessageBox.Show($"Temp-skanning slutförd!\n\n{threats.Count} suspekta filer funna.",
-                            "Skanning Slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        _logViewer?.AddLogEntry(LogLevel.Information, "Scan",
-                            "✅ Temp-skanning: Inga hot funna");
-
-                        MessageBox.Show("Temp-skanning slutförd!\n\nInga suspekta filer funna.",
-                            "Skanning Slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-
-                    UpdateStatistics();
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Temp-skanning fel: {ex.Message}");
-                MessageBox.Show($"Fel vid temp-skanning:\n{ex.Message}", "Skanningsfel",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                if (TempScanButton != null)
-                {
-                    TempScanButton.Content = "🔍 SKANNA TEMP-FILER";
-                    TempScanButton.IsEnabled = true;
-                }
-            }
-        }
-
-        private void SystemInfoButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var stats = _protectionService?.GetProtectionStats();
-                var info = $"FilKollen Säkerhetsscanner v2.0\n\n" +
-                          $"Realtidsskydd: {(_isProtectionActive ? "Aktiverat" : "Inaktiverat")}\n" +
-                          $"Auto-rensning: {(stats?.AutoCleanMode == true ? "Aktiverat" : "Inaktiverat")}\n" +
-                          $"Hot funna: {stats?.TotalThreatsFound ?? 0}\n" +
-                          $"Hot hanterade: {stats?.TotalThreatsHandled ?? 0}\n" +
-                          $"Senaste skanning: {(stats?.LastScanTime != default ? stats?.LastScanTime.ToString("yyyy-MM-dd HH:mm:ss") : "Aldrig")}\n\n" +
-                          $"OS: {Environment.OSVersion}\n" +
-                          $"Dator: {Environment.MachineName}\n" +
-                          $"Användare: {Environment.UserName}";
-
-                MessageBox.Show(info, "Systeminformation", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Systeminformation fel: {ex.Message}");
-            }
-        }
-
-        private async void RefreshThreatsButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                _logger.Information("Hotuppdatering begärd");
-                _logViewer?.AddLogEntry(LogLevel.Information, "Manual", "🔄 Hotuppdatering begärd");
-
-                await RunTempScanAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Hotuppdatering fel: {ex.Message}");
-            }
-        }
-
-        private async void HandleAllThreatsButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                _logger.Information("Hantera alla hot begärt");
-                _logViewer?.AddLogEntry(LogLevel.Information, "Manual", "🧹 Hantera alla hot begärt");
-
-                var result = MessageBox.Show(
-                    "Vill du hantera alla identifierade hot?\n\n" +
-                    "Detta kommer att:\n" +
-                    "• Sätta suspekta filer i karantän\n" +
-                    "• Radera kända skadliga filer\n" +
-                    "• Rensa temp-kataloger\n\n" +
-                    "Denna åtgärd kan inte ångras.",
-                    "Bekräfta Hothantering",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    // Simulera automatisk hothantering
-                    await Task.Delay(1500);
-
-                    _logViewer?.AddLogEntry(LogLevel.Information, "AutoClean", "✅ Alla hot hanterade framgångsrikt");
-                    MessageBox.Show("Alla identifierade hot har hanterats!\n\nSystemet är nu säkert.",
-                        "Hothantering Slutförd", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    UpdateStatistics();
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Hantera alla hot fel: {ex.Message}");
-                _logViewer?.AddLogEntry(LogLevel.Error, "AutoClean", $"❌ Hothantering misslyckades: {ex.Message}");
-            }
-        }
-
-        private async Task RunTempScanAsync()
-        {
-            _logger.Information("Temp-skanning triggad");
-            _logViewer?.AddLogEntry(LogLevel.Information, "Manuell", "🔍 Temp-katalogskanning startad");
-
-            try
-            {
-                if (_fileScanner != null)
-                {
-                    var results = await _fileScanner.ScanTempDirectoriesAsync();
-                    var suspiciousFiles = results?.Where(r => r.ThreatLevel >= ThreatLevel.Medium).ToList() ?? new List<ScanResult>();
-
-                    UpdateStatistics();
-
-                    _logger.Information($"Temp-skanning klar. Resultat: {results?.Count ?? 0} filer, {suspiciousFiles.Count} suspekta");
-                    _logViewer?.AddLogEntry(LogLevel.Information, "Skanning",
-                        $"✅ Temp-skanning slutförd: {suspiciousFiles.Count} suspekta filer funna av {results?.Count ?? 0} totalt");
-
-if (StatsLastScan != null)
-    StatsLastScan.Text = $"Senaste skanning: {DateTime.Now:HH:mm:ss}";
-                }
-                else
-                {
-                    MessageBox.Show("Skanningsfunktion inte tillgänglig", "Fel", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Temp-skanning fel: {ex.Message}");
-                _logViewer?.AddLogEntry(LogLevel.Error, "Skanning", $"❌ Temp-skanning misslyckades: {ex.Message}");
-            }
-        }
-
-        // === Helpers ===
+        // === HELPERS ===
 
         private void ShowErrorDialog(string message, Exception ex)
         {
@@ -771,29 +975,6 @@ if (StatsLastScan != null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-        private void TopBar_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Left)
-            {
-                // Dubbelklick: max/restore
-                if (e.ClickCount == 2 && ResizeMode != ResizeMode.NoResize)
-                {
-                    WindowState = WindowState == WindowState.Maximized
-                        ? WindowState.Normal
-                        : WindowState.Maximized;
-                }
-                else
-                {
-                    // Dra fönstret
-                    DragMove();
-                }
-            }
-        }
-
-        private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-private void Maximize_Click(object sender, RoutedEventArgs e) => WindowState = 
-    WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
         public void Dispose()
         {

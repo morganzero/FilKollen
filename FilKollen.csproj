@@ -7,55 +7,45 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     
-    <!-- KORRIGERAT: Säkra deployment-inställningar -->
+    <!-- Deployment settings -->
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     
-    <!-- KORRIGERAT: Säkra DPI-inställningar -->
+    <!-- High DPI support -->
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     
-    <!-- Suppress warnings för cleaner build -->
-    <NoWarn>$(NoWarn);CS1998;NU1701</NoWarn>
-
     <!-- Assembly metadata -->
-    <AssemblyTitle>FilKollen Real-time Security</AssemblyTitle>
-    <AssemblyDescription>Real-time säkerhetsscanner för Windows med kontinuerligt skydd</AssemblyDescription>
+    <AssemblyTitle>FilKollen Security Scanner</AssemblyTitle>
+    <AssemblyDescription>Real-time säkerhetsscanner med moderniserat användargränssnitt</AssemblyDescription>
     <AssemblyCompany>FilKollen Security</AssemblyCompany>
-    <AssemblyProduct>FilKollen Real-time</AssemblyProduct>
+    <AssemblyProduct>FilKollen</AssemblyProduct>
     <AssemblyCopyright>© 2025 FilKollen Security</AssemblyCopyright>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
-    <FileVersion>2.0.0.0</FileVersion>
+    <AssemblyVersion>2.1.0.0</AssemblyVersion>
+    <FileVersion>2.1.0.0</FileVersion>
+    
+    <!-- Use dev manifest by default (no admin required) -->
     <ApplicationManifest>app-dev.manifest</ApplicationManifest>
-    <ApplicationIcon>Resources\Icons\filkollen.ico</ApplicationIcon>
+    
+    <!-- Conditional icon (only if file exists) -->
+    <ApplicationIcon Condition="Exists('Resources\Icons\filkollen.ico')">Resources\Icons\filkollen.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- KORRIGERAT: Stabila paketversioner -->
-    <PackageReference Include="MaterialDesignThemes" Version="4.9.0" />
-    <PackageReference Include="MaterialDesignColors" Version="2.1.4" />
-    <Resource Include="Resources\Icons\filkollen.ico" />
-    <!-- Logging -->
+    <!-- Core dependencies -->
     <PackageReference Include="Serilog" Version="3.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
-    
-    <!-- JSON hantering -->
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
-    
-    <!-- NYTT: SQLite för Firefox permissions-hantering -->
     <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.14" />
-    
-    <!-- System komponenter -->
     <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- KORRIGERAT: Säker innehållshantering -->
+    <!-- Configuration files -->
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -63,35 +53,44 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     
-    <!-- KORRIGERAT: Inkludera logo-filer säkert -->
-    <Content Include="Resources\**\*">
+    <!-- Resources (only if they exist) -->
+    <Content Include="Resources\**\*" Condition="Exists('Resources')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Skapa nödvändiga mappar -->
+    <!-- Ensure required directories exist -->
     <Folder Include="logs\" />
     <Folder Include="Resources\Branding\" />
     <Folder Include="Resources\Icons\" />
+    <Folder Include="Themes\" />
   </ItemGroup>
 
-  <!-- KORRIGERAT: Pre-build för att skapa logo-filer -->
+  <!-- Pre-build: Create required directories and files -->
   <Target Name="CreateRequiredFiles" BeforeTargets="Build">
-    <Message Text="Creating required resource files..." Importance="high" />
-    <MakeDir Directories="Resources\Branding;Resources\Icons;logs" />
+    <Message Text="Creating required directories and files..." Importance="high" />
     
-    <!-- Skapa placeholder logo om den inte finns -->
-    <ItemGroup>
-      <LogoFiles Include="Resources\Branding\default-logo.png;Resources\Icons\filkollen.ico" />
-    </ItemGroup>
+    <!-- Create directories -->
+    <MakeDir Directories="Resources\Branding;Resources\Icons;logs;Themes" />
     
-    <Touch Files="@(LogoFiles)" AlwaysCreate="true" Condition="!Exists('%(Identity)')" />
-  </Target>
-
-  <!-- Post-build validation -->
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Message Text="✅ FilKollen build completed successfully!" Importance="high" />
+    <!-- Create minimal app.manifest if it doesn't exist -->
+    <WriteLinesToFile File="app.manifest" Lines="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;assembly manifestVersion=&quot;1.0&quot; xmlns=&quot;urn:schemas-microsoft-com:asm.v1&quot;&gt;
+  &lt;assemblyIdentity version=&quot;1.0.0.0&quot; name=&quot;FilKollen&quot;/&gt;
+  &lt;trustInfo xmlns=&quot;urn:schemas-microsoft-com:asm.v2&quot;&gt;
+    &lt;security&gt;
+      &lt;requestedPrivileges xmlns=&quot;urn:schemas-microsoft-com:asm.v3&quot;&gt;
+        &lt;requestedExecutionLevel level=&quot;requireAdministrator&quot; uiAccess=&quot;false&quot; /&gt;
+      &lt;/requestedPrivileges&gt;
+    &lt;/security&gt;
+  &lt;/trustInfo&gt;
+  &lt;compatibility xmlns=&quot;urn:schemas-microsoft-com:compatibility.v1&quot;&gt;
+    &lt;application&gt;
+      &lt;supportedOS Id=&quot;{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}&quot; /&gt;
+    &lt;/application&gt;
+  &lt;/compatibility&gt;
+&lt;/assembly&gt;" Condition="!Exists('app.manifest')" Overwrite="false" />
   </Target>
 
 </Project>

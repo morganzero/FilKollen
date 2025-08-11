@@ -5,35 +5,14 @@
         <Application.Resources>
                 <ResourceDictionary>
                         <ResourceDictionary.MergedDictionaries>
-                                <!-- Colors will be set dynamically by ThemeService -->
+                                <!-- Default light theme (will be replaced by ThemeService) -->
                                 <ResourceDictionary Source="Themes/Theme.Light.xaml"/>
-                                <!-- Glass styles -->
+                                <!-- Component styles -->
                                 <ResourceDictionary Source="Themes/Glass.xaml"/>
                         </ResourceDictionary.MergedDictionaries>
 
                         <!-- Common converters -->
                         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-
-                        <!-- Window chrome style for modern look -->
-                        <Style x:Key="FK.Style.MainWindow"
-                                        TargetType="Window">
-                                <Setter Property="AllowsTransparency"
-                                                Value="True"/>
-                                <Setter Property="WindowStyle"
-                                                Value="None"/>
-                                <Setter Property="Background"
-                                                Value="Transparent"/>
-                                <Setter Property="FontFamily"
-                                                Value="Segoe UI"/>
-                                <Setter Property="FontSize"
-                                                Value="14"/>
-                                <Setter Property="UseLayoutRounding"
-                                                Value="True"/>
-                                <Setter Property="TextOptions.TextFormattingMode"
-                                                Value="Display"/>
-                                <Setter Property="TextOptions.TextRenderingMode"
-                                                Value="ClearType"/>
-                        </Style>
 
                 </ResourceDictionary>
         </Application.Resources>
