@@ -141,7 +141,14 @@ namespace FilKollen
                 {
                     if (BrandLogo != null && BrandFallback != null)
                     {
-                        BrandLogo.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(logoPath, UriKind.RelativeOrAbsolute));
+                        // Fix: BrandLogo is a Button, get its Image child
+                        var image = BrandLogo.Content as Image;
+                        if (image == null)
+                        {
+                            image = new Image();
+                            BrandLogo.Content = image;
+                        }
+                        image.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(logoPath, UriKind.RelativeOrAbsolute));
                         BrandLogo.Visibility = Visibility.Visible;
                         BrandFallback.Visibility = Visibility.Collapsed;
                         _logger.Information($"Branding logo visas: {logoPath}");
@@ -165,6 +172,23 @@ namespace FilKollen
                     BrandLogo.Visibility = Visibility.Collapsed;
                     BrandFallback.Visibility = Visibility.Visible;
                 }
+            }
+        }
+
+        // Add missing event handler for BrandLogo_Click
+        private void BrandLogo_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var branding = _brandingService?.GetCurrentBranding();
+                if (!string.IsNullOrEmpty(branding?.Website))
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(branding.Website) { UseShellExecute = true });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Could not open website: {ex.Message}");
             }
         }
 
@@ -974,14 +998,17 @@ namespace FilKollen
             }
         }
 
+        // Fix: Rename method to match XAML
         private async void BrowserCleanButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (BrowserCleanButton != null)
+                // Find the correct button reference
+                var button = sender as Button ?? BrowserCleanTileButton;
+                if (button != null)
                 {
-                    BrowserCleanButton.Content = "🔄 RENSAR...";
-                    BrowserCleanButton.IsEnabled = false;
+                    button.Content = "🔄 RENSAR...";
+                    button.IsEnabled = false;
                 }
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "BrowserClean",
@@ -1018,10 +1045,11 @@ namespace FilKollen
             }
             finally
             {
-                if (BrowserCleanButton != null)
+                var button = sender as Button ?? BrowserCleanTileButton;
+                if (button != null)
                 {
-                    BrowserCleanButton.Content = "🌐 Rensa falska aviseringar";
-                    BrowserCleanButton.IsEnabled = true;
+                    button.Content = "🌐 Rensa bluffnotiser";
+                    button.IsEnabled = true;
                 }
             }
         }

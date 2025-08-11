@@ -211,6 +211,7 @@
                                                                 <RowDefinition Height="Auto"/>
                                                                 <RowDefinition Height="Auto"/>
                                                                 <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
                                                         </Grid.RowDefinitions>
 
                                                         <!-- License Key Input -->
@@ -234,30 +235,108 @@
                                                                            Visibility="Collapsed"/>
                                                         </StackPanel>
 
-                                                        <!-- Customer Information (email only) -->
+                                                        <!-- Customer Information -->
                                                         <StackPanel Grid.Row="1"
                                                                     Margin="0,0,0,16">
-                                                                <TextBlock Text="E-postadress"
+                                                                <TextBlock Text="Kunduppgifter"
                                                                            FontWeight="SemiBold"
                                                                            FontSize="16"
                                                                            Foreground="{DynamicResource FK.Brush.Text}"
-                                                                           Margin="0,0,0,8"/>
+                                                                           Margin="0,0,0,12"/>
+
                                                                 <Grid>
-                                                                        <TextBox x:Name="CustomerEmailTextBox"
-                                                                                 Style="{StaticResource LicenseTextBox}"
-                                                                                 FontSize="16"/>
-                                                                        <TextBlock Text="namn@exempel.se"
-                                                                                   FontSize="16"
-                                                                                   Foreground="{DynamicResource FK.Brush.Subtext}"
-                                                                                   Opacity="0.5"
-                                                                                   Margin="12,8"
-                                                                                   IsHitTestVisible="False"
-                                                                                   Visibility="{Binding Text, ElementName=CustomerEmailTextBox, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}"/>
+                                                                        <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="16"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                        </Grid.ColumnDefinitions>
+
+                                                                        <StackPanel Grid.Column="0">
+                                                                                <TextBlock Text="Namn"
+                                                                                           FontSize="12"
+                                                                                           Foreground="{DynamicResource FK.Brush.Subtext}"
+                                                                                           Margin="0,0,0,4"/>
+                                                                                <TextBox x:Name="CustomerNameTextBox"
+                                                                                         Style="{StaticResource LicenseTextBox}"/>
+                                                                        </StackPanel>
+
+                                                                        <StackPanel Grid.Column="2">
+                                                                                <TextBlock Text="E-post"
+                                                                                           FontSize="12"
+                                                                                           Foreground="{DynamicResource FK.Brush.Subtext}"
+                                                                                           Margin="0,0,0,4"/>
+                                                                                <TextBox x:Name="CustomerEmailTextBox"
+                                                                                         Style="{StaticResource LicenseTextBox}"/>
+                                                                        </StackPanel>
                                                                 </Grid>
                                                         </StackPanel>
 
+                                                        <!-- License Information Display -->
+                                                        <Border Grid.Row="2"
+                                                                x:Name="LicenseInfoPanel"
+                                                                Background="{DynamicResource FK.Brush.Hover}"
+                                                                BorderBrush="{DynamicResource FK.Brush.Border}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="8"
+                                                                Padding="16"
+                                                                Margin="0,0,0,16"
+                                                                Visibility="Collapsed">
+                                                                <StackPanel>
+                                                                        <TextBlock Text="📋 Licensinformation"
+                                                                                   FontWeight="SemiBold"
+                                                                                   FontSize="16"
+                                                                                   Foreground="{DynamicResource FK.Brush.Text}"
+                                                                                   Margin="0,0,0,12"/>
+
+                                                                        <Grid>
+                                                                                <Grid.RowDefinitions>
+                                                                                        <RowDefinition/>
+                                                                                        <RowDefinition/>
+                                                                                        <RowDefinition/>
+                                                                                </Grid.RowDefinitions>
+                                                                                <Grid.ColumnDefinitions>
+                                                                                        <ColumnDefinition Width="120"/>
+                                                                                        <ColumnDefinition Width="*"/>
+                                                                                </Grid.ColumnDefinitions>
+
+                                                                                <TextBlock Grid.Row="0"
+                                                                                           Grid.Column="0"
+                                                                                           Text="Licenstyp:"
+                                                                                           FontWeight="SemiBold"
+                                                                                           Foreground="{DynamicResource FK.Brush.Text}"/>
+                                                                                <TextBlock Grid.Row="0"
+                                                                                           Grid.Column="1"
+                                                                                           x:Name="LicenseTypeText"
+                                                                                           Text="-"
+                                                                                           Foreground="{DynamicResource FK.Brush.Text}"/>
+
+                                                                                <TextBlock Grid.Row="1"
+                                                                                           Grid.Column="0"
+                                                                                           Text="Giltig till:"
+                                                                                           FontWeight="SemiBold"
+                                                                                           Foreground="{DynamicResource FK.Brush.Text}"/>
+                                                                                <TextBlock Grid.Row="1"
+                                                                                           Grid.Column="1"
+                                                                                           x:Name="LicenseExpiryText"
+                                                                                           Text="-"
+                                                                                           Foreground="{DynamicResource FK.Brush.Text}"/>
+
+                                                                                <TextBlock Grid.Row="2"
+                                                                                           Grid.Column="0"
+                                                                                           Text="Status:"
+                                                                                           FontWeight="SemiBold"
+                                                                                           Foreground="{DynamicResource FK.Brush.Text}"/>
+                                                                                <TextBlock Grid.Row="2"
+                                                                                           Grid.Column="1"
+                                                                                           x:Name="LicenseStatusText"
+                                                                                           Text="-"
+                                                                                           Foreground="{DynamicResource FK.Brush.Text}"/>
+                                                                        </Grid>
+                                                                </StackPanel>
+                                                        </Border>
+
                                                         <!-- Action Buttons -->
-                                                        <StackPanel Grid.Row="3"
+                                                        <StackPanel Grid.Row="4"
                                                                     Orientation="Horizontal"
                                                                     HorizontalAlignment="Center">
                                                                 <Button x:Name="RegisterButton"
