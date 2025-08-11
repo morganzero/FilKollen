@@ -50,7 +50,7 @@
 
         <!-- Hotrad style -->
         <Style x:Key="ThreatRowStyle"
-                TargetType="Border">
+               TargetType="Border">
             <Setter Property="Background"
                     Value="{DynamicResource FK.Brush.Surface}"/>
             <Setter Property="BorderBrush"
@@ -63,16 +63,52 @@
                     Value="0,0,0,8"/>
             <Setter Property="Padding"
                     Value="16,12"/>
+            <Setter Property="Cursor"
+                    Value="Hand"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver"
-                        Value="True">
+                         Value="True">
                     <Setter Property="Background"
                             Value="{DynamicResource FK.Brush.Hover}"/>
                     <Setter Property="BorderBrush"
                             Value="{DynamicResource FK.Brush.Primary}"/>
+                    <Setter Property="BorderThickness"
+                            Value="1.5"/>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="{DynamicResource FK.Color.Primary}"
+                                              Direction="270"
+                                              ShadowDepth="2"
+                                              BlurRadius="8"
+                                              Opacity="0.2"/>
+                        </Setter.Value>
+                    </Setter>
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Sorterbar kolumnheader style -->
+        <Style x:Key="SortableHeaderStyle"
+               TargetType="TextBlock">
+            <Setter Property="FontSize"
+                    Value="11"/>
+            <Setter Property="FontWeight"
+                    Value="SemiBold"/>
+            <Setter Property="Foreground"
+                    Value="{DynamicResource FK.Brush.Subtext}"/>
+            <Setter Property="Cursor"
+                    Value="Hand"/>
+            <Setter Property="Padding"
+                    Value="4"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver"
+                        Value="True">
+                    <Setter Property="Foreground"
+                            Value="{DynamicResource FK.Brush.Primary}"/>
+                    <Setter Property="TextDecorations"
+                            Value="Underline"/>
+                </Trigger>
+            </Style.Triggers>
     </Window.Resources>
 
     <!-- Root chrome med FilKollen tema -->

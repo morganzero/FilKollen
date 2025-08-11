@@ -38,6 +38,18 @@ namespace FilKollen
         private bool _isIpProtectionActive = false;
         private readonly Timer _statusUpdateTimer;
         private readonly List<ScanResult> _currentThreats = new();
+        private string _currentSortColumn = "";
+        private bool _sortAscending = true;
+
+        // UI-element referenser för sortering och licenshantering
+        private TextBlock? FileNameHeader => FindName("FileNameHeader") as TextBlock;
+        private TextBlock? TypeHeader => FindName("TypeHeader") as TextBlock;
+        private TextBlock? SizeHeader => FindName("SizeHeader") as TextBlock;
+        private TextBlock? PathHeader => FindName("PathHeader") as TextBlock;
+        private TextBlock? DateHeader => FindName("DateHeader") as TextBlock;
+        private TextBlock? RiskHeader => FindName("RiskHeader") as TextBlock;
+        private Border? LicenseStatusDisplay => FindName("LicenseStatusDisplay") as Border;
+        private TextBlock? LicenseButtonText => FindName("LicenseButtonText") as TextBlock;
 
         public MainWindow() : this(null, null, null) { }
 
@@ -55,7 +67,7 @@ namespace FilKollen
                 _config = InitializeConfig();
                 InitializeServices();
                 InitializeComponent();
-                InitializeBrandingFixed(); // KORRIGERAD metod
+                InitializeBrandingFixed();
                 InitializeTheme();
 
                 DataContext = this;
@@ -80,7 +92,7 @@ namespace FilKollen
                 {
                     Environment.GetEnvironmentVariable("TEMP") ?? System.IO.Path.GetTempPath(),
                     System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Temp"),
-                    @"C:\Windows\Temp" // FÖRBÄTTRAT: Explicit sökväg för bättre upptäckt
+                    @"C:\Windows\Temp"
                 },
                 SuspiciousExtensions = new List<string> { ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".scr" }
             };
@@ -102,11 +114,6 @@ namespace FilKollen
             }
         }
 
-        /// <summary>
-        /// KORRIGERAD logotyphantering enligt krav:
-        /// - Visa ENDAST text när ingen logga finns
-        /// - Visa ENDAST logga när den finns (ersätter texten helt)
-        /// </summary>
         private void InitializeBrandingFixed()
         {
             try
@@ -114,7 +121,6 @@ namespace FilKollen
                 var branding = _brandingService?.GetCurrentBranding();
                 var logoPath = "Resources/Branding/default-logo.png";
 
-                // Kontrollera om logga-fil faktiskt finns och är läsbar
                 bool logoExists = File.Exists(logoPath);
                 bool logoLoadable = false;
 
@@ -122,7 +128,6 @@ namespace FilKollen
                 {
                     try
                     {
-                        // Testa att ladda bilden för att se om den är giltig
                         var testImage = new System.Windows.Media.Imaging.BitmapImage(new Uri(logoPath, UriKind.RelativeOrAbsolute));
                         logoLoadable = testImage.PixelWidth > 1 && testImage.PixelHeight > 1;
                     }
@@ -134,24 +139,20 @@ namespace FilKollen
 
                 if (logoExists && logoLoadable)
                 {
-                    // VISA ENDAST LOGGA (dölj text helt)
                     if (BrandLogo != null && BrandFallback != null)
                     {
                         BrandLogo.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(logoPath, UriKind.RelativeOrAbsolute));
                         BrandLogo.Visibility = Visibility.Visible;
                         BrandFallback.Visibility = Visibility.Collapsed;
-
                         _logger.Information($"Branding logo visas: {logoPath}");
                     }
                 }
                 else
                 {
-                    // VISA ENDAST TEXT (dölj logga helt)
                     if (BrandLogo != null && BrandFallback != null)
                     {
                         BrandLogo.Visibility = Visibility.Collapsed;
                         BrandFallback.Visibility = Visibility.Visible;
-
                         _logger.Information("Använder FILKOLLEN-text (ingen giltig logga hittades)");
                     }
                 }
@@ -159,7 +160,6 @@ namespace FilKollen
             catch (Exception ex)
             {
                 _logger.Warning($"Kunde inte ladda branding: {ex.Message}");
-                // Fallback till text
                 if (BrandLogo != null && BrandFallback != null)
                 {
                     BrandLogo.Visibility = Visibility.Collapsed;
@@ -172,7 +172,6 @@ namespace FilKollen
         {
             if (_themeService != null && ThemeToggle != null)
             {
-                // Sätt toggle baserat på systemets färgschema vid uppstart
                 var isDarkTheme = _themeService.Mode == ThemeMode.Dark ||
                                  (_themeService.Mode == ThemeMode.System && DetectSystemDarkMode());
 
@@ -183,9 +182,6 @@ namespace FilKollen
             }
         }
 
-        /// <summary>
-        /// Detekterar om systemet använder mörkt tema
-        /// </summary>
         private bool DetectSystemDarkMode()
         {
             try
@@ -196,7 +192,7 @@ namespace FilKollen
             }
             catch
             {
-                return false; // Fallback till ljust tema
+                return false;
             }
         }
 
@@ -209,7 +205,6 @@ namespace FilKollen
                 await InitializeProtectionAsync();
                 await InitializeTrayAsync();
 
-                // Kör förbättrad automatisk skanning vid start
                 _ = Task.Run(async () => await PerformEnhancedStartupScanAsync());
 
                 _logger.Information("MainWindow fullständigt initierat med elegant design");
@@ -221,9 +216,6 @@ namespace FilKollen
             }
         }
 
-        /// <summary>
-        /// FÖRBÄTTRAD uppstartsskanning som inkluderar C:\Windows\Temp
-        /// </summary>
         private async Task PerformEnhancedStartupScanAsync()
         {
             try
@@ -238,32 +230,6 @@ namespace FilKollen
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "Startup", "🔍 Förbättrad uppstartsskanning startad");
 
-                // Logga alla sökvägar som ska skannas
-                foreach (var path in _config.ScanPaths)
-                {
-                    var expandedPath = Environment.ExpandEnvironmentVariables(path);
-                    var exists = Directory.Exists(expandedPath);
-                    var accessible = false;
-
-                    if (exists)
-                    {
-                        try
-                        {
-                            Directory.GetFiles(expandedPath, "*", SearchOption.TopDirectoryOnly).Take(1).ToList();
-                            accessible = true;
-                        }
-                        catch
-                        {
-                            accessible = false;
-                        }
-                    }
-
-                    var status = exists ? (accessible ? "✅ OK" : "⚠️ Ej tillgänglig") : "❌ Finns ej";
-                    _logViewer?.AddLogEntry(LogLevel.Information, "Scan",
-                        $"Skannar: {expandedPath} - {status}");
-                }
-
-                // Simulera progress under skanning
                 for (int i = 0; i <= 100; i += 10)
                 {
                     await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -319,19 +285,16 @@ namespace FilKollen
 
             if (threats.Any())
             {
-                // Visa hot-panel
                 if (SafeStatusPanel != null)
                     SafeStatusPanel.Visibility = Visibility.Collapsed;
                 if (ThreatsPanel != null)
                     ThreatsPanel.Visibility = Visibility.Visible;
 
-                // Uppdatera hot-räknare
                 if (ThreatCounter != null)
                     ThreatCounter.Visibility = Visibility.Visible;
                 if (ThreatCountText != null)
                     ThreatCountText.Text = $"{threats.Count} HOT";
 
-                // Uppdatera status
                 if (StatusIndicator != null)
                     StatusIndicator.Fill = new SolidColorBrush(Colors.Orange);
                 if (StatusMainText != null)
@@ -342,12 +305,10 @@ namespace FilKollen
                 if (StatusSubText != null)
                     StatusSubText.Text = $"{threats.Count} hot kräver åtgärd";
 
-                // Bygg hot-tabell
                 BuildThreatsTable(threats);
             }
             else
             {
-                // Visa säker status
                 if (SafeStatusPanel != null)
                     SafeStatusPanel.Visibility = Visibility.Visible;
                 if (ThreatsPanel != null)
@@ -355,7 +316,6 @@ namespace FilKollen
                 if (ThreatCounter != null)
                     ThreatCounter.Visibility = Visibility.Collapsed;
 
-                // Uppdatera status
                 if (StatusIndicator != null)
                     StatusIndicator.Fill = new SolidColorBrush(Colors.Green);
                 if (StatusMainText != null)
@@ -385,16 +345,14 @@ namespace FilKollen
         {
             var row = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(16, 12, 16, 12),
-                Margin = new Thickness(0, 0, 0, 8)
+                Style = (Style)FindResource("ThreatRowStyle")
             };
 
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
@@ -412,7 +370,7 @@ namespace FilKollen
             Grid.SetColumn(fileName, 0);
             grid.Children.Add(fileName);
 
-            // Typ (förbättrad detection)
+            // Typ
             var fileType = new TextBlock
             {
                 Text = GetFileTypeDisplay(threat.FileName),
@@ -434,6 +392,19 @@ namespace FilKollen
             Grid.SetColumn(fileSize, 2);
             grid.Children.Add(fileSize);
 
+            // Sökväg
+            var filePath = new TextBlock
+            {
+                Text = GetDisplayPath(threat.FilePath),
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                ToolTip = threat.FilePath
+            };
+            filePath.SetResourceReference(TextBlock.ForegroundProperty, "FK.Brush.Subtext");
+            Grid.SetColumn(filePath, 3);
+            grid.Children.Add(filePath);
+
             // Datum
             var fileDate = new TextBlock
             {
@@ -442,7 +413,7 @@ namespace FilKollen
                 VerticalAlignment = VerticalAlignment.Center
             };
             fileDate.SetResourceReference(TextBlock.ForegroundProperty, "FK.Brush.Subtext");
-            Grid.SetColumn(fileDate, 3);
+            Grid.SetColumn(fileDate, 4);
             grid.Children.Add(fileDate);
 
             // Risk-nivå
@@ -463,10 +434,10 @@ namespace FilKollen
             };
 
             riskBadge.Child = riskText;
-            Grid.SetColumn(riskBadge, 4);
+            Grid.SetColumn(riskBadge, 5);
             grid.Children.Add(riskBadge);
 
-            // Ta bort-knapp (endast denna, ingen karantän enligt krav)
+            // Ta bort-knapp
             var deleteButton = new Button
             {
                 Content = "Ta bort",
@@ -477,16 +448,38 @@ namespace FilKollen
             };
             deleteButton.SetResourceReference(Button.StyleProperty, "FK.Style.DangerButton");
             deleteButton.Click += DeleteThreatButton_Click;
-            Grid.SetColumn(deleteButton, 5);
+            Grid.SetColumn(deleteButton, 6);
             grid.Children.Add(deleteButton);
 
             row.Child = grid;
             return row;
         }
 
-        /// <summary>
-        /// Förbättrad filtyp-visning
-        /// </summary>
+        private string GetDisplayPath(string fullPath)
+        {
+            try
+            {
+                var directoryPath = Path.GetDirectoryName(fullPath);
+                if (string.IsNullOrEmpty(directoryPath))
+                    return "";
+
+                if (directoryPath.Length > 30)
+                {
+                    var parts = directoryPath.Split(Path.DirectorySeparatorChar);
+                    if (parts.Length > 2)
+                    {
+                        return $"{parts[0]}\\...\\{parts[^1]}";
+                    }
+                }
+
+                return directoryPath;
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
         private string GetFileTypeDisplay(string fileName)
         {
             var extension = Path.GetExtension(fileName);
@@ -500,8 +493,9 @@ namespace FilKollen
         private string FormatFileSize(long bytes)
         {
             if (bytes < 1024) return $"{bytes} B";
-            if (bytes < 1024 * 1024) return $"{bytes / 1024} KB";
-            return $"{bytes / (1024 * 1024)} MB";
+            if (bytes < 1024 * 1024) return $"{bytes / 1024:N0} KB";
+            if (bytes < 1024 * 1024 * 1024) return $"{bytes / (1024 * 1024):N1} MB";
+            return $"{bytes / (1024 * 1024 * 1024):N1} GB";
         }
 
         private Brush GetThreatLevelBrush(ThreatLevel level)
@@ -510,8 +504,8 @@ namespace FilKollen
             {
                 ThreatLevel.Critical => new SolidColorBrush(Color.FromRgb(239, 68, 68)),
                 ThreatLevel.High => new SolidColorBrush(Color.FromRgb(245, 158, 11)),
-                ThreatLevel.Medium => new SolidColorBrush(Color.FromRgb(59, 130, 246)),
-                _ => new SolidColorBrush(Color.FromRgb(107, 114, 128))
+                ThreatLevel.Medium => new SolidColorBrush(Color.FromRgb(251, 146, 60)),
+                _ => new SolidColorBrush(Color.FromRgb(34, 197, 94))
             };
         }
 
@@ -540,7 +534,6 @@ namespace FilKollen
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    // För elegant design, visa bara i logg istället för popup
                     var logLevel = type switch
                     {
                         NotificationType.Success => LogLevel.Information,
@@ -585,17 +578,10 @@ namespace FilKollen
             {
                 UpdateSecurityStatus(isSecure: true, threatsCount: 0);
 
-                // Licensstatus
-                if (_licenseService != null && LicenseStatusText != null)
+                if (_licenseService != null)
                 {
                     var status = await _licenseService.ValidateLicenseAsync();
-                    LicenseStatusText.Text = status switch
-                    {
-                        LicenseStatus.Valid => "LICENS GILTIG",
-                        LicenseStatus.TrialActive => "TRIAL AKTIVT",
-                        LicenseStatus.TrialExpired => "TRIAL UTGÅNGET",
-                        _ => "OKLICENSIERAD"
-                    };
+                    UpdateLicenseDisplay(status);
                 }
 
                 if (LastScanText != null)
@@ -612,6 +598,40 @@ namespace FilKollen
             }
 
             await Task.Delay(10);
+        }
+
+        private void UpdateLicenseDisplay(LicenseStatus status)
+        {
+            var isTrialMode = status == LicenseStatus.TrialActive || status == LicenseStatus.TrialExpired;
+
+            if (LicenseStatusDisplay != null && LicenseStatusButton != null && LicenseStatusText != null)
+            {
+                if (isTrialMode)
+                {
+                    LicenseStatusDisplay.Visibility = Visibility.Visible;
+                    LicenseStatusButton.Visibility = Visibility.Collapsed;
+                    LicenseStatusText.Text = status switch
+                    {
+                        LicenseStatus.TrialActive => "TRIAL AKTIVT",
+                        LicenseStatus.TrialExpired => "TRIAL UTGÅNGET",
+                        _ => "TRIAL STATUS"
+                    };
+                }
+                else
+                {
+                    LicenseStatusDisplay.Visibility = Visibility.Collapsed;
+                    LicenseStatusButton.Visibility = Visibility.Visible;
+                    if (LicenseButtonText != null)
+                    {
+                        LicenseButtonText.Text = status switch
+                        {
+                            LicenseStatus.Valid => "LICENS GILTIG",
+                            LicenseStatus.Expired => "LICENS UTGÅNGEN",
+                            _ => "OKLICENSIERAD"
+                        };
+                    }
+                }
+            }
         }
 
         private async Task InitializeProtectionAsync()
@@ -723,16 +743,11 @@ namespace FilKollen
             }
         }
 
-        // === EVENT HANDLERS ===
-
         private void OnThemeChanged(object? sender, EventArgs e)
         {
             _logger.Information($"Tema ändrat via ThemeService");
         }
 
-        /// <summary>
-        /// NYTT: Hantering för ljus/mörk tema-toggle
-        /// </summary>
         private void ThemeToggle_Checked(object sender, RoutedEventArgs e)
         {
             try
@@ -771,8 +786,6 @@ namespace FilKollen
             }
         }
 
-        // === PROTECTION TOGGLES ===
-
         private async void ProtectionToggle_Checked(object sender, RoutedEventArgs e)
         {
             try
@@ -798,8 +811,6 @@ namespace FilKollen
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "Protection",
                     "🛡️ AUTO-SKYDD AKTIVERAT - Auto-läge: Kontinuerlig övervakning");
-
-                ShowInAppNotification("🛡️ Auto-skydd aktiverat", NotificationType.Success);
 
                 _trayService?.ShowNotification("FilKollen Aktiverat",
                     "Auto-skydd aktiverat", System.Windows.Forms.ToolTipIcon.Info);
@@ -895,8 +906,6 @@ namespace FilKollen
             }
         }
 
-        // === ACTION BUTTONS ===
-
         private async void QuickScanButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -916,7 +925,6 @@ namespace FilKollen
 
                 if (_fileScanner != null)
                 {
-                    // Simulera progress
                     for (int i = 0; i <= 100; i += 20)
                     {
                         if (ScanProgress != null)
@@ -1054,8 +1062,8 @@ namespace FilKollen
                     }
                 }
 
-                // Uppdatera UI
                 UpdateThreatsDisplay(_currentThreats);
+                ScrollToTopOfThreatsList();
 
                 if (ThreatsHandledText != null)
                 {
@@ -1081,6 +1089,21 @@ namespace FilKollen
                     HandleAllThreatsButton.Content = "🧹 Ta bort alla hot";
                     HandleAllThreatsButton.IsEnabled = true;
                 }
+            }
+        }
+
+        private void ScrollToTopOfThreatsList()
+        {
+            try
+            {
+                if (ThreatsList?.Parent is ScrollViewer scrollViewer)
+                {
+                    scrollViewer.ScrollToTop();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Kunde inte scrolla till toppen: {ex.Message}");
             }
         }
 
@@ -1197,22 +1220,12 @@ namespace FilKollen
                     licenseWindow.Owner = this;
                     var result = licenseWindow.ShowDialog();
 
-                    // Uppdatera licensstatus efter fönstret stängs
                     _ = Task.Run(async () =>
                     {
                         var status = await _licenseService.ValidateLicenseAsync();
                         Application.Current.Dispatcher.Invoke(() =>
                         {
-                            if (LicenseStatusText != null)
-                            {
-                                LicenseStatusText.Text = status switch
-                                {
-                                    LicenseStatus.Valid => "LICENS GILTIG",
-                                    LicenseStatus.TrialActive => "TRIAL AKTIVT",
-                                    LicenseStatus.TrialExpired => "TRIAL UTGÅNGET",
-                                    _ => "OKLICENSIERAD"
-                                };
-                            }
+                            UpdateLicenseDisplay(status);
                         });
                     });
                 }
@@ -1224,7 +1237,110 @@ namespace FilKollen
             }
         }
 
-        // === STATUS UPDATE ===
+        private void SortHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBlock header && header.Tag is string columnName)
+            {
+                if (_currentSortColumn == columnName)
+                {
+                    _sortAscending = !_sortAscending;
+                }
+                else
+                {
+                    _currentSortColumn = columnName;
+                    _sortAscending = true;
+                }
+
+                SortThreats(columnName, _sortAscending);
+                UpdateSortHeaders(columnName, _sortAscending);
+            }
+        }
+
+        private void SortThreats(string columnName, bool ascending)
+        {
+            try
+            {
+                IEnumerable<ScanResult> sortedThreats = columnName switch
+                {
+                    "FileName" => ascending ? _currentThreats.OrderBy(t => t.FileName) : _currentThreats.OrderByDescending(t => t.FileName),
+                    "FileType" => ascending ? _currentThreats.OrderBy(t => GetFileTypeDisplay(t.FileName)) : _currentThreats.OrderByDescending(t => GetFileTypeDisplay(t.FileName)),
+                    "FileSize" => ascending ? _currentThreats.OrderBy(t => t.FileSize) : _currentThreats.OrderByDescending(t => t.FileSize),
+                    "FilePath" => ascending ? _currentThreats.OrderBy(t => Path.GetDirectoryName(t.FilePath)) : _currentThreats.OrderByDescending(t => Path.GetDirectoryName(t.FilePath)),
+                    "CreatedDate" => ascending ? _currentThreats.OrderBy(t => t.CreatedDate) : _currentThreats.OrderByDescending(t => t.CreatedDate),
+                    "ThreatLevel" => ascending ? _currentThreats.OrderBy(t => t.ThreatLevel) : _currentThreats.OrderByDescending(t => t.ThreatLevel),
+                    _ => _currentThreats
+                };
+
+                _currentThreats.Clear();
+                _currentThreats.AddRange(sortedThreats);
+                BuildThreatsTable(_currentThreats);
+
+                _logViewer?.AddLogEntry(LogLevel.Debug, "UI",
+                    $"Sorterat hot efter {columnName} ({(ascending ? "stigande" : "fallande")})");
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Fel vid sortering: {ex.Message}");
+            }
+        }
+
+        private void UpdateSortHeaders(string activeColumn, bool ascending)
+        {
+            try
+            {
+                var headers = new Dictionary<string, TextBlock?>
+                {
+                    ["FileName"] = FileNameHeader,
+                    ["FileType"] = TypeHeader,
+                    ["FileSize"] = SizeHeader,
+                    ["FilePath"] = PathHeader,
+                    ["CreatedDate"] = DateHeader,
+                    ["ThreatLevel"] = RiskHeader
+                };
+
+                foreach (var (column, header) in headers)
+                {
+                    if (header != null)
+                    {
+                        if (column == activeColumn)
+                        {
+                            var arrow = ascending ? "↑" : "↓";
+                            var baseText = column switch
+                            {
+                                "FileName" => "FILNAMN",
+                                "FileType" => "TYP",
+                                "FileSize" => "STORLEK",
+                                "FilePath" => "SÖKVÄG",
+                                "CreatedDate" => "SKAPAD",
+                                "ThreatLevel" => "RISK",
+                                _ => ""
+                            };
+                            header.Text = $"{baseText} {arrow}";
+                            header.Foreground = (Brush)FindResource("FK.Brush.Primary");
+                        }
+                        else
+                        {
+                            var baseText = column switch
+                            {
+                                "FileName" => "FILNAMN",
+                                "FileType" => "TYP",
+                                "FileSize" => "STORLEK",
+                                "FilePath" => "SÖKVÄG",
+                                "CreatedDate" => "SKAPAD",
+                                "ThreatLevel" => "RISK",
+                                _ => ""
+                            };
+                            header.Text = $"{baseText} ↕";
+                            header.SetResourceReference(TextBlock.ForegroundProperty, "FK.Brush.Subtext");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Fel vid uppdatering av sorteringsheaders: {ex.Message}");
+            }
+        }
 
         private void UpdateStatusCallback(object? state)
         {
@@ -1232,14 +1348,12 @@ namespace FilKollen
             {
                 Application.Current?.Dispatcher.BeginInvoke(() =>
                 {
-                    // Uppdatera connection status
                     if (ConnectionStatusText != null)
                     {
                         ConnectionStatusText.Text = "ONLINE";
                         ConnectionStatusText.Foreground = new SolidColorBrush(Colors.Green);
                     }
 
-                    // Uppdatera hot hanterade statistik
                     if (_protectionService != null && ThreatsHandledText != null)
                     {
                         var stats = _protectionService.GetProtectionStats();
@@ -1252,8 +1366,6 @@ namespace FilKollen
                 _logger.Debug($"Status update error: {ex.Message}");
             }
         }
-
-        // === WINDOW CONTROLS ===
 
         private void TopBar_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -1279,13 +1391,10 @@ namespace FilKollen
 
         private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
-        // === WINDOW LIFECYCLE ===
-
         protected override void OnClosing(CancelEventArgs e)
         {
             try
             {
-                // Minimera till tray istället för att stänga
                 e.Cancel = true;
                 Hide();
 
@@ -1323,8 +1432,6 @@ namespace FilKollen
                 _logger.Warning($"Fönsterstatus-ändring fel: {ex.Message}");
             }
         }
-
-        // === HELPERS ===
 
         private void ShowErrorDialog(string message, Exception ex)
         {

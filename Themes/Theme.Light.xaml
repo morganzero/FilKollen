@@ -27,17 +27,19 @@
   <Color x:Key="FK.Color.PrimaryMuted">#E0F2FE</Color>
   <!-- Mycket ljus blå bg -->
 
-  <!-- Status färger - mildare för FilKollen -->
-  <Color x:Key="FK.Color.Success">#10B981</Color>
-  <!-- Grön för säkert -->
-  <Color x:Key="FK.Color.Warning">#F59E0B</Color>
-  <!-- Orange för varning -->
-  <Color x:Key="FK.Color.Danger">#EF4444</Color>
-  <!-- Röd för hot -->
-  <Color x:Key="FK.Color.StatusNeutral">#94A3B8</Color>
-  <!-- Grå för avstängt -->
+    <!-- Status färger - mildare för FilKollen -->
+    <Color x:Key="FK.Color.Success">#10B981</Color>
+    <!-- Grön för säkert -->
+    <Color x:Key="FK.Color.Warning">#F59E0B</Color>
+    <!-- Orange för varning -->
+    <Color x:Key="FK.Color.Danger">#EF4444</Color>
+    <!-- Röd för hot -->
+    <Color x:Key="FK.Color.Medium">#FB923C</Color>
+    <!-- Orange för medium hot -->
+    <Color x:Key="FK.Color.StatusNeutral">#94A3B8</Color>
+    <!-- Grå för avstängt -->
 
-  <!-- Hover/focus -->
+    <!-- Hover/focus -->
   <Color x:Key="FK.Color.Hover">#F1F5F9</Color>
   <Color x:Key="FK.Color.Focus">#DBEAFE</Color>
 

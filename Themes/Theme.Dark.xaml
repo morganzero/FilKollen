@@ -27,17 +27,19 @@
         <Color x:Key="FK.Color.PrimaryMuted">#1E3A8A</Color>
         <!-- Mörk blå bg -->
 
-        <!-- Status färger - justerade för mörkt tema -->
-        <Color x:Key="FK.Color.Success">#22C55E</Color>
-        <!-- Ljusare grön -->
-        <Color x:Key="FK.Color.Warning">#F59E0B</Color>
-        <!-- Orange -->
-        <Color x:Key="FK.Color.Danger">#F87171</Color>
-        <!-- Ljusare röd -->
-        <Color x:Key="FK.Color.StatusNeutral">#64748B</Color>
-        <!-- Mörk grå för avstängt -->
+  <!-- Status färger - justerade för mörkt tema -->
+  <Color x:Key="FK.Color.Success">#22C55E</Color>
+  <!-- Ljusare grön -->
+  <Color x:Key="FK.Color.Warning">#F59E0B</Color>
+  <!-- Orange -->
+  <Color x:Key="FK.Color.Danger">#F87171</Color>
+  <!-- Ljusare röd -->
+  <Color x:Key="FK.Color.Medium">#FB923C</Color>
+  <!-- Orange för medium hot -->
+  <Color x:Key="FK.Color.StatusNeutral">#64748B</Color>
+  <!-- Mörk grå för avstängt -->
 
-        <!-- Hover/focus -->
+  <!-- Hover/focus -->
         <Color x:Key="FK.Color.Hover">#2D3748</Color>
         <Color x:Key="FK.Color.Focus">#2563EB</Color>
 
