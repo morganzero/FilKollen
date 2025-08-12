@@ -1,0 +1,736 @@
+<!-- ModernComponents.xaml - Lägg till i Themes/ModernComponents.xaml -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- === EASING FUNCTIONS === -->
+    <CubicEase x:Key="SmoothEase"
+            EasingMode="EaseOut"/>
+    <QuadraticEase x:Key="QuickEase"
+            EasingMode="EaseOut"/>
+
+    <!-- === MODERN SCROLLBAR === -->
+    <Style x:Key="FK.Style.ModernScrollBar"
+            TargetType="ScrollBar">
+        <Setter Property="Background"
+                Value="Transparent"/>
+        <Setter Property="BorderThickness"
+                Value="0"/>
+        <Setter Property="Width"
+                Value="8"/>
+        <Setter Property="MinWidth"
+                Value="8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid>
+                        <!-- Track Background -->
+                        <Border x:Name="TrackBackground"
+                                Background="{DynamicResource FK.Brush.Surface}"
+                                CornerRadius="4"
+                                Opacity="0.3"/>
+
+                        <!-- Scrollbar Track -->
+                        <Track x:Name="PART_Track"
+                               IsDirectionReversed="True"
+                               Margin="1">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="ThumbBorder"
+                                                    Background="{DynamicResource FK.Brush.Border}"
+                                                    CornerRadius="3"
+                                                    RenderTransformOrigin="0.5,0.5">
+                                                <Border.RenderTransform>
+                                                    <ScaleTransform x:Name="ThumbScale"/>
+                                                </Border.RenderTransform>
+                                            </Border>
+
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver"
+                                                        Value="True">
+                                                    <Setter TargetName="ThumbBorder"
+                                                            Property="Background"
+                                                            Value="{DynamicResource FK.Brush.Primary}"/>
+                                                    <Trigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                                                 Storyboard.TargetProperty="ScaleX"
+                                                                                 To="1.3"
+                                                                        Duration="0:0:0.15"
+                                                                                 EasingFunction="{StaticResource QuickEase}"/>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </Trigger.EnterActions>
+                                                    <Trigger.ExitActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                                                 Storyboard.TargetProperty="ScaleX"
+                                                                                 To="1"
+                                                                        Duration="0:0:0.15"
+                                                                                 EasingFunction="{StaticResource QuickEase}"/>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </Trigger.ExitActions>
+                                                </Trigger>
+
+                                                <Trigger Property="IsDragging"
+                                                        Value="True">
+                                                    <Setter TargetName="ThumbBorder"
+                                                            Property="Background"
+                                                            Value="{DynamicResource FK.Brush.PrimaryDark}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+
+        <!-- Horizontal Scrollbar -->
+        <Style.Triggers>
+            <Trigger Property="Orientation"
+                    Value="Horizontal">
+                <Setter Property="Height"
+                        Value="8"/>
+                <Setter Property="MinHeight"
+                        Value="8"/>
+                <Setter Property="Width"
+                        Value="Auto"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Grid>
+                                <Border Background="{DynamicResource FK.Brush.Surface}"
+                                        CornerRadius="4"
+                                        Opacity="0.3"/>
+                                <Track x:Name="PART_Track"
+                                        Margin="1">
+                                    <Track.Thumb>
+                                        <Thumb Template="{StaticResource {x:Type Thumb}}"/>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- === MODERN SCROLLVIEWER === -->
+    <Style x:Key="FK.Style.ModernScrollViewer"
+            TargetType="ScrollViewer">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollViewer">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="12"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Content Area -->
+                        <ScrollContentPresenter Grid.Column="0"
+                                Grid.Row="0"
+                                                Margin="0"/>
+
+                        <!-- Vertical ScrollBar -->
+                        <ScrollBar x:Name="PART_VerticalScrollBar"
+                                   Grid.Column="1"
+                                Grid.Row="0"
+                                   Style="{StaticResource FK.Style.ModernScrollBar}"
+                                   Orientation="Vertical"
+                                   Value="{TemplateBinding VerticalOffset}"
+                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                   Margin="2,0,0,0"/>
+
+                        <!-- Horizontal ScrollBar -->
+                        <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                   Grid.Column="0"
+                                Grid.Row="1"
+                                   Style="{StaticResource FK.Style.ModernScrollBar}"
+                                   Orientation="Horizontal"
+                                   Value="{TemplateBinding HorizontalOffset}"
+                                   Maximum="{TemplateBinding ScrollableWidth}"
+                                   ViewportSize="{TemplateBinding ViewportWidth}"
+                                   Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"
+                                   Margin="0,2,0,0"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- === PREMIUM TOGGLE SWITCH === -->
+    <Style x:Key="FK.Style.PremiumToggle"
+            TargetType="ToggleButton">
+        <Setter Property="Width"
+                Value="56"/>
+        <Setter Property="Height"
+                Value="28"/>
+        <Setter Property="Background"
+                Value="{DynamicResource FK.Brush.StatusNeutral}"/>
+        <Setter Property="BorderThickness"
+                Value="0"/>
+        <Setter Property="Cursor"
+                Value="Hand"/>
+        <Setter Property="Focusable"
+                Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <!-- Focus Ring -->
+                        <Border x:Name="FocusRing"
+                                Width="{TemplateBinding Width}"
+                                Height="{TemplateBinding Height}"
+                                CornerRadius="16"
+                                BorderBrush="{DynamicResource FK.Brush.Primary}"
+                                BorderThickness="2"
+                                Opacity="0"/>
+
+                        <!-- Track -->
+                        <Border x:Name="Track"
+                                Width="{TemplateBinding Width}"
+                                Height="{TemplateBinding Height}"
+                                CornerRadius="14"
+                                Background="{TemplateBinding Background}"
+                                RenderTransformOrigin="0.5,0.5">
+
+                            <!-- Track Labels -->
+                            <Grid Margin="6,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="AV"
+                                        Grid.Column="0"
+                                           FontSize="7"
+                                        FontWeight="SemiBold"
+                                           Foreground="White"
+                                        Opacity="0.9"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+
+                                <TextBlock Text="PÅ"
+                                        Grid.Column="1"
+                                           FontSize="7"
+                                        FontWeight="SemiBold"
+                                           Foreground="White"
+                                        Opacity="0.9"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="TrackScale"/>
+                            </Border.RenderTransform>
+                        </Border>
+
+                        <!-- Thumb -->
+                        <Border x:Name="Thumb"
+                                Width="24"
+                                Height="24"
+                                CornerRadius="12"
+                                Background="White"
+                                HorizontalAlignment="Left"
+                                Margin="2"
+                                RenderTransformOrigin="0.5,0.5">
+
+                            <!-- Shadow -->
+                            <Border.Effect>
+                                <DropShadowEffect x:Name="ThumbShadow"
+                                                  Color="#000000"
+                                        Direction="270"
+                                                  ShadowDepth="1"
+                                        BlurRadius="6"
+                                                  Opacity="0.2"/>
+                            </Border.Effect>
+
+                            <!-- Thumb Icon -->
+                            <TextBlock x:Name="ThumbIcon"
+                                       Text="✕"
+                                    FontSize="9"
+                                    FontWeight="Bold"
+                                       Foreground="{DynamicResource FK.Brush.StatusNeutral}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       RenderTransformOrigin="0.5,0.5">
+                                <TextBlock.RenderTransform>
+                                    <RotateTransform x:Name="IconRotation"/>
+                                </TextBlock.RenderTransform>
+                            </TextBlock>
+
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <TranslateTransform x:Name="ThumbTransform"/>
+                                    <ScaleTransform x:Name="ThumbScale"/>
+                                </TransformGroup>
+                            </Border.RenderTransform>
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <!-- Checked State -->
+                        <Trigger Property="IsChecked"
+                                Value="True">
+                            <Setter TargetName="Track"
+                                    Property="Background"
+                                    Value="{DynamicResource FK.Brush.Success}"/>
+                            <Setter TargetName="ThumbIcon"
+                                    Property="Text"
+                                    Value="✓"/>
+                            <Setter TargetName="ThumbIcon"
+                                    Property="Foreground"
+                                    Value="{DynamicResource FK.Brush.Success}"/>
+
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <!-- Slide Animation -->
+                                        <DoubleAnimation Storyboard.TargetName="ThumbTransform"
+                                                         Storyboard.TargetProperty="X"
+                                                         To="28"
+                                                Duration="0:0:0.25"
+                                                         EasingFunction="{StaticResource SmoothEase}"/>
+
+                                        <!-- Icon Rotation -->
+                                        <DoubleAnimation Storyboard.TargetName="IconRotation"
+                                                         Storyboard.TargetProperty="Angle"
+                                                         From="0"
+                                                To="360"
+                                                Duration="0:0:0.3"
+                                                         EasingFunction="{StaticResource SmoothEase}"/>
+
+                                        <!-- Shadow Enhancement -->
+                                        <DoubleAnimation Storyboard.TargetName="ThumbShadow"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0.3"
+                                                Duration="0:0:0.2"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbTransform"
+                                                         Storyboard.TargetProperty="X"
+                                                         To="0"
+                                                Duration="0:0:0.25"
+                                                         EasingFunction="{StaticResource SmoothEase}"/>
+
+                                        <DoubleAnimation Storyboard.TargetName="IconRotation"
+                                                         Storyboard.TargetProperty="Angle"
+                                                         From="360"
+                                                To="0"
+                                                Duration="0:0:0.3"
+                                                         EasingFunction="{StaticResource SmoothEase}"/>
+
+                                        <DoubleAnimation Storyboard.TargetName="ThumbShadow"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0.2"
+                                                Duration="0:0:0.2"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+
+                        <!-- Hover State -->
+                        <Trigger Property="IsMouseOver"
+                                Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                         To="1.08"
+                                                Duration="0:0:0.15"/>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                         To="1.08"
+                                                Duration="0:0:0.15"/>
+
+                                        <DoubleAnimation Storyboard.TargetName="ThumbShadow"
+                                                         Storyboard.TargetProperty="BlurRadius"
+                                                         To="8"
+                                                Duration="0:0:0.15"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                         To="1"
+                                                Duration="0:0:0.15"/>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                         To="1"
+                                                Duration="0:0:0.15"/>
+
+                                        <DoubleAnimation Storyboard.TargetName="ThumbShadow"
+                                                         Storyboard.TargetProperty="BlurRadius"
+                                                         To="6"
+                                                Duration="0:0:0.15"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+
+                        <!-- Focus State -->
+                        <Trigger Property="IsFocused"
+                                Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="FocusRing"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0.3"
+                                                Duration="0:0:0.2"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="FocusRing"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0"
+                                                Duration="0:0:0.2"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+
+                        <!-- Pressed State -->
+                        <Trigger Property="IsPressed" Value="True">
+
+                            <Trigger.EnterActions>
+
+                                <BeginStoryboard>
+
+                                    <Storyboard>
+
+                                        <DoubleAnimation Storyboard.TargetName="TrackScale"
+
+                                                         Storyboard.TargetProperty="ScaleX"
+
+                                                         To="0.98" Duration="0:0:0.06"/>
+
+                                        <DoubleAnimation Storyboard.TargetName="TrackScale"
+
+                                                         Storyboard.TargetProperty="ScaleY"
+
+                                                         To="0.98" Duration="0:0:0.06"/>
+
+                                    </Storyboard>
+
+                                </BeginStoryboard>
+
+                            </Trigger.EnterActions>
+
+                            <Trigger.ExitActions>
+
+                                <BeginStoryboard>
+
+                                    <Storyboard>
+
+                                        <DoubleAnimation Storyboard.TargetName="TrackScale"
+
+                                                         Storyboard.TargetProperty="ScaleX"
+
+                                                         To="1" Duration="0:0:0.08"/>
+
+                                        <DoubleAnimation Storyboard.TargetName="TrackScale"
+
+                                                         Storyboard.TargetProperty="ScaleY"
+
+                                                         To="1" Duration="0:0:0.08"/>
+
+                                    </Storyboard>
+
+                                </BeginStoryboard>
+
+                            </Trigger.ExitActions>
+
+                        </Trigger>
+
+                        <!-- Disabled State -->
+                        <Trigger Property="IsEnabled"
+                                Value="False">
+                            <Setter Property="Opacity"
+                                    Value="0.5"/>
+                            <Setter Property="Cursor"
+                                    Value="Default"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- === SORTABLE TABLE HEADER === -->
+    <Style x:Key="FK.Style.SortableHeader"
+            TargetType="TextBlock">
+        <Setter Property="FontSize"
+                Value="11"/>
+        <Setter Property="FontWeight"
+                Value="SemiBold"/>
+        <Setter Property="Foreground"
+                Value="{DynamicResource FK.Brush.Subtext}"/>
+        <Setter Property="Padding"
+                Value="16,12"/>
+        <Setter Property="VerticalAlignment"
+                Value="Center"/>
+        <Setter Property="Cursor"
+                Value="Hand"/>
+        <Setter Property="Background"
+                Value="Transparent"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBlock">
+                    <Border x:Name="HeaderBorder"
+                            Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}"
+                            CornerRadius="6">
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Header Text -->
+                            <TextBlock Grid.Column="0"
+                                       Text="{TemplateBinding Text}"
+                                       FontSize="{TemplateBinding FontSize}"
+                                       FontWeight="{TemplateBinding FontWeight}"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       VerticalAlignment="Center"/>
+
+                            <!-- Sort Indicator -->
+                            <TextBlock x:Name="SortIndicator"
+                                    Grid.Column="1"
+                                       Text="⇅"
+                                    FontSize="10"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       VerticalAlignment="Center"
+                                       Margin="6,0,0,0"
+                                       Opacity="0.4"/>
+                        </Grid>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver"
+                                Value="True">
+                            <Setter TargetName="HeaderBorder"
+                                    Property="Background"
+                                    Value="{DynamicResource FK.Brush.Hover}"/>
+                            <Setter Property="Foreground"
+                                    Value="{DynamicResource FK.Brush.Primary}"/>
+                            <Setter TargetName="SortIndicator"
+                                    Property="Opacity"
+                                    Value="0.8"/>
+                        </Trigger>
+
+                        <!-- Active Sort States -->
+                        <Trigger Property="Tag"
+                                Value="SortAsc">
+                            <Setter Property="Foreground"
+                                    Value="{DynamicResource FK.Brush.Primary}"/>
+                            <Setter Property="FontWeight"
+                                    Value="Bold"/>
+                            <Setter TargetName="SortIndicator"
+                                    Property="Text"
+                                    Value="↑"/>
+                            <Setter TargetName="SortIndicator"
+                                    Property="Opacity"
+                                    Value="1"/>
+                        </Trigger>
+
+                        <Trigger Property="Tag"
+                                Value="SortDesc">
+                            <Setter Property="Foreground"
+                                    Value="{DynamicResource FK.Brush.Primary}"/>
+                            <Setter Property="FontWeight"
+                                    Value="Bold"/>
+                            <Setter TargetName="SortIndicator"
+                                    Property="Text"
+                                    Value="↓"/>
+                            <Setter TargetName="SortIndicator"
+                                    Property="Opacity"
+                                    Value="1"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- === TABLE CELL STYLE === -->
+    <Style x:Key="FK.Style.TableCell"
+            TargetType="TextBlock">
+        <Setter Property="Padding"
+                Value="16,14"/>
+        <Setter Property="VerticalAlignment"
+                Value="Center"/>
+        <Setter Property="FontSize"
+                Value="13"/>
+        <Setter Property="Foreground"
+                Value="{DynamicResource FK.Brush.Text}"/>
+        <Setter Property="TextTrimming"
+                Value="CharacterEllipsis"/>
+        <Setter Property="LineHeight"
+                Value="18"/>
+    </Style>
+
+    <!-- === STATUS BADGE STYLES === -->
+    <Style x:Key="FK.Style.Badge"
+            TargetType="Border">
+        <Setter Property="CornerRadius"
+                Value="12"/>
+        <Setter Property="Padding"
+                Value="10,5"/>
+        <Setter Property="HorizontalAlignment"
+                Value="Center"/>
+        <Setter Property="VerticalAlignment"
+                Value="Center"/>
+        <Setter Property="BorderThickness"
+                Value="0"/>
+    </Style>
+
+    <!-- Trial Badge -->
+    <Style x:Key="FK.Style.TrialBadge"
+            TargetType="Border"
+            BasedOn="{StaticResource FK.Style.Badge}">
+        <Setter Property="Background"
+                Value="{DynamicResource FK.Brush.Warning}"/>
+        <Setter Property="Padding"
+                Value="12,6"/>
+        <Setter Property="CornerRadius"
+                Value="16"/>
+    </Style>
+
+    <!-- Online Status Badge -->
+    <Style x:Key="FK.Style.StatusBadge"
+            TargetType="Border"
+            BasedOn="{StaticResource FK.Style.Badge}">
+        <Setter Property="Padding"
+                Value="8,4"/>
+        <Setter Property="CornerRadius"
+                Value="8"/>
+        <Setter Property="Background"
+                Value="Transparent"/>
+        <Setter Property="BorderBrush"
+                Value="{DynamicResource FK.Brush.Border}"/>
+        <Setter Property="BorderThickness"
+                Value="1"/>
+    </Style>
+
+    <!-- Threat Level Badges -->
+    <Style x:Key="FK.Style.ThreatBadge"
+            TargetType="Border"
+            BasedOn="{StaticResource FK.Style.Badge}">
+        <Setter Property="Padding"
+                Value="8,4"/>
+        <Setter Property="CornerRadius"
+                Value="6"/>
+        <Setter Property="MinWidth"
+                Value="60"/>
+    </Style>
+
+    <!-- Badge Text Styles -->
+    <Style x:Key="FK.Style.BadgeText"
+            TargetType="TextBlock">
+        <Setter Property="FontSize"
+                Value="10"/>
+        <Setter Property="FontWeight"
+                Value="SemiBold"/>
+        <Setter Property="Foreground"
+                Value="White"/>
+        <Setter Property="TextAlignment"
+                Value="Center"/>
+        <Setter Property="VerticalAlignment"
+                Value="Center"/>
+        <Setter Property="LetterSpacing"
+                Value="0.5"/>
+    </Style>
+
+    <Style x:Key="FK.Style.StatusBadgeText"
+            TargetType="TextBlock">
+        <Setter Property="FontSize"
+                Value="9"/>
+        <Setter Property="FontWeight"
+                Value="SemiBold"/>
+        <Setter Property="Foreground"
+                Value="{DynamicResource FK.Brush.Text}"/>
+        <Setter Property="TextAlignment"
+                Value="Center"/>
+        <Setter Property="VerticalAlignment"
+                Value="Center"/>
+        <Setter Property="LetterSpacing"
+                Value="0.3"/>
+    </Style>
+
+    <!-- === ENHANCED BUTTON STYLES === -->
+    <Style x:Key="FK.Style.HelpButton"
+            TargetType="Button"
+            BasedOn="{StaticResource FK.Style.SecondaryButton}">
+        <Setter Property="Padding"
+                Value="16,8"/>
+        <Setter Property="FontSize"
+                Value="12"/>
+        <Setter Property="BorderBrush"
+                Value="{DynamicResource FK.Brush.Primary}"/>
+        <Setter Property="Foreground"
+                Value="{DynamicResource FK.Brush.Primary}"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver"
+                    Value="True">
+                <Setter Property="Background"
+                        Value="{DynamicResource FK.Brush.PrimaryMuted}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- === RESPONSIVE GRID HELPERS === -->
+    <Style x:Key="FK.Style.ResponsiveGrid"
+            TargetType="Grid">
+        <Style.Triggers>
+            <!-- Compact Layout -->
+            <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=ActualWidth, 
+                                         Converter={StaticResource WidthToCompactConverter}}"
+                         Value="True">
+                <Setter Property="Margin"
+                        Value="16"/>
+            </DataTrigger>
+
+            <!-- Standard Layout -->
+            <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=ActualWidth, 
+                                         Converter={StaticResource WidthToCompactConverter}}"
+                         Value="False">
+                <Setter Property="Margin"
+                        Value="24"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+</ResourceDictionary>

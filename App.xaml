@@ -5,15 +5,12 @@
         <Application.Resources>
                 <ResourceDictionary>
                         <ResourceDictionary.MergedDictionaries>
-                                <!-- Default light theme (will be replaced by ThemeService) -->
                                 <ResourceDictionary Source="Themes/Theme.Light.xaml"/>
-                                <!-- Component styles -->
                                 <ResourceDictionary Source="Themes/Glass.xaml"/>
+                                <ResourceDictionary Source="Themes/ModernComponents.xaml"/>
+                                <!-- NY -->
                         </ResourceDictionary.MergedDictionaries>
-
-                        <!-- Common converters -->
                         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-
                 </ResourceDictionary>
         </Application.Resources>
 </Application>
