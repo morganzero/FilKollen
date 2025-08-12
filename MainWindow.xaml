@@ -487,30 +487,30 @@
                                                                         <!-- Åtgärd -->
                                                                 </Grid.ColumnDefinitions>
 
-                                                                <TextBlock x:Name="FileNameHeader"
-                                                                                Grid.Column="0"
-                                                                                Text="FILNAMN"
-                                                                           Style="{StaticResource FK.Style.SortableHeader}"/>
-                                                                <TextBlock x:Name="TypeHeader"
-                                                                                Grid.Column="1"
-                                                                                Text="TYP"
-                                                                           Style="{StaticResource FK.Style.SortableHeader}"/>
-                                                                <TextBlock x:Name="SizeHeader"
-                                                                                Grid.Column="2"
-                                                                                Text="STORLEK"
-                                                                           Style="{StaticResource FK.Style.SortableHeader}"/>
-                                                                <TextBlock x:Name="PathHeader"
-                                                                                Grid.Column="3"
-                                                                                Text="SÖKVÄG"
-                                                                           Style="{StaticResource FK.Style.SortableHeader}"/>
-                                                                <TextBlock x:Name="DateHeader"
-                                                                                Grid.Column="4"
-                                                                                Text="SKAPAD"
-                                                                           Style="{StaticResource FK.Style.SortableHeader}"/>
-                                                                <TextBlock x:Name="RiskHeader"
-                                                                                Grid.Column="5"
-                                                                                Text="RISK"
-                                                                           Style="{StaticResource FK.Style.SortableHeader}"/>
+                                                                <Button x:Name="FileNameHeader"
+                                                                        Grid.Column="0"
+                                                                        Content="FILNAMN"
+                                                                        Style="{StaticResource FK.Style.SortableHeader}"/>
+                                                                <Button x:Name="TypeHeader"
+                                                                        Grid.Column="1"
+                                                                        Content="TYP"
+                                                                        Style="{StaticResource FK.Style.SortableHeader}"/>
+                                                                <Button x:Name="SizeHeader"
+                                                                        Grid.Column="2"
+                                                                        Content="STORLEK"
+                                                                        Style="{StaticResource FK.Style.SortableHeader}"/>
+                                                                <Button x:Name="PathHeader"
+                                                                        Grid.Column="3"
+                                                                        Content="SÖKVÄG"
+                                                                        Style="{StaticResource FK.Style.SortableHeader}"/>
+                                                                <Button x:Name="DateHeader"
+                                                                        Grid.Column="4"
+                                                                        Content="SKAPAD"
+                                                                        Style="{StaticResource FK.Style.SortableHeader}"/>
+                                                                <Button x:Name="RiskHeader"
+                                                                        Grid.Column="5"
+                                                                        Content="RISK"
+                                                                        Style="{StaticResource FK.Style.SortableHeader}"/>
                                                                 <TextBlock Grid.Column="6"
                                                                                 Text="ÅTGÄRD"
                                                                                 FontSize="11"
@@ -571,19 +571,18 @@
 
                                         <!-- Center: Hjälp-knapp (flyttad från LicenseRegistrationWindow) -->
                                         <Button Grid.Column="1"
-                                                        Content="Hjälp"
-                                                        Style="{StaticResource FK.Style.HelpButton}"
+                                                Style="{StaticResource FK.Style.HelpButton}"
                                                 Click="HelpButton_Click"
-                                                        Padding="20,12">
+                                                Padding="20,12">
                                                 <Button.Content>
                                                         <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="❓"
-                                                                                FontSize="14"
-                                                                                Margin="0,0,8,0"
-                                                                                VerticalAlignment="Center"/>
+                                                                           FontSize="14"
+                                                                           Margin="0,0,8,0"
+                                                                           VerticalAlignment="Center"/>
                                                                 <TextBlock Text="HJÄLP"
-                                                                                FontSize="12"
-                                                                                FontWeight="SemiBold"/>
+                                                                           FontSize="12"
+                                                                           FontWeight="SemiBold"/>
                                                         </StackPanel>
                                                 </Button.Content>
                                         </Button>

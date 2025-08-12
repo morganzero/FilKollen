@@ -488,104 +488,108 @@
     </Style>
 
     <!-- === SORTABLE TABLE HEADER === -->
-    <Style x:Key="FK.Style.SortableHeader"
-            TargetType="TextBlock">
-        <Setter Property="FontSize"
-                Value="11"/>
-        <Setter Property="FontWeight"
-                Value="SemiBold"/>
-        <Setter Property="Foreground"
-                Value="{DynamicResource FK.Brush.Subtext}"/>
-        <Setter Property="Padding"
-                Value="16,12"/>
-        <Setter Property="VerticalAlignment"
-                Value="Center"/>
-        <Setter Property="Cursor"
-                Value="Hand"/>
-        <Setter Property="Background"
-                Value="Transparent"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="TextBlock">
-                    <Border x:Name="HeaderBorder"
-                            Background="{TemplateBinding Background}"
-                            Padding="{TemplateBinding Padding}"
-                            CornerRadius="6">
+        <Style x:Key="FK.Style.SortableHeader"
+                        TargetType="Button">
+                <Setter Property="FontSize"
+                                Value="11"/>
+                <Setter Property="FontWeight"
+                                Value="SemiBold"/>
+                <Setter Property="Foreground"
+                                Value="{DynamicResource FK.Brush.Subtext}"/>
+                <Setter Property="Padding"
+                                Value="16,12"/>
+                <Setter Property="VerticalAlignment"
+                                Value="Center"/>
+                <Setter Property="HorizontalContentAlignment"
+                                Value="Left"/>
+                <Setter Property="Cursor"
+                                Value="Hand"/>
+                <Setter Property="Background"
+                                Value="Transparent"/>
+                <Setter Property="BorderThickness"
+                                Value="0"/>
+                <Setter Property="Template">
+                        <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                        <Border x:Name="HeaderBorder"
+                                                Background="{TemplateBinding Background}"
+                                                Padding="{TemplateBinding Padding}"
+                                                CornerRadius="6">
 
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
+                                                <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
 
-                            <!-- Header Text -->
-                            <TextBlock Grid.Column="0"
-                                       Text="{TemplateBinding Text}"
-                                       FontSize="{TemplateBinding FontSize}"
-                                       FontWeight="{TemplateBinding FontWeight}"
-                                       Foreground="{TemplateBinding Foreground}"
-                                       VerticalAlignment="Center"/>
+                                                        <!-- Header Text -->
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{TemplateBinding Content}"
+                                                                   FontSize="{TemplateBinding FontSize}"
+                                                                   FontWeight="{TemplateBinding FontWeight}"
+                                                                   Foreground="{TemplateBinding Foreground}"
+                                                                   VerticalAlignment="Center"/>
 
-                            <!-- Sort Indicator -->
-                            <TextBlock x:Name="SortIndicator"
-                                    Grid.Column="1"
-                                       Text="⇅"
-                                    FontSize="10"
-                                       Foreground="{TemplateBinding Foreground}"
-                                       VerticalAlignment="Center"
-                                       Margin="6,0,0,0"
-                                       Opacity="0.4"/>
-                        </Grid>
-                    </Border>
+                                                        <!-- Sort Indicator -->
+                                                        <TextBlock x:Name="SortIndicator"
+                                                                   Grid.Column="1"
+                                                                   Text="⇅"
+                                                                   FontSize="10"
+                                                                   Foreground="{TemplateBinding Foreground}"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="6,0,0,0"
+                                                                   Opacity="0.4"/>
+                                                </Grid>
+                                        </Border>
 
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver"
-                                Value="True">
-                            <Setter TargetName="HeaderBorder"
-                                    Property="Background"
-                                    Value="{DynamicResource FK.Brush.Hover}"/>
-                            <Setter Property="Foreground"
-                                    Value="{DynamicResource FK.Brush.Primary}"/>
-                            <Setter TargetName="SortIndicator"
-                                    Property="Opacity"
-                                    Value="0.8"/>
-                        </Trigger>
+                                        <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver"
+                                                                Value="True">
+                                                        <Setter TargetName="HeaderBorder"
+                                                                        Property="Background"
+                                                                Value="{DynamicResource FK.Brush.Hover}"/>
+                                                        <Setter Property="Foreground"
+                                                                Value="{DynamicResource FK.Brush.Primary}"/>
+                                                        <Setter TargetName="SortIndicator"
+                                                                        Property="Opacity"
+                                                                        Value="0.8"/>
+                                                </Trigger>
 
-                        <!-- Active Sort States -->
-                        <Trigger Property="Tag"
-                                Value="SortAsc">
-                            <Setter Property="Foreground"
-                                    Value="{DynamicResource FK.Brush.Primary}"/>
-                            <Setter Property="FontWeight"
-                                    Value="Bold"/>
-                            <Setter TargetName="SortIndicator"
-                                    Property="Text"
-                                    Value="↑"/>
-                            <Setter TargetName="SortIndicator"
-                                    Property="Opacity"
-                                    Value="1"/>
-                        </Trigger>
+                                                <!-- Active Sort States -->
+                                                <Trigger Property="Tag"
+                                                                Value="SortAsc">
+                                                        <Setter Property="Foreground"
+                                                                Value="{DynamicResource FK.Brush.Primary}"/>
+                                                        <Setter Property="FontWeight"
+                                                                        Value="Bold"/>
+                                                        <Setter TargetName="SortIndicator"
+                                                                        Property="Text"
+                                                                        Value="↑"/>
+                                                        <Setter TargetName="SortIndicator"
+                                                                        Property="Opacity"
+                                                                        Value="1"/>
+                                                </Trigger>
 
-                        <Trigger Property="Tag"
-                                Value="SortDesc">
-                            <Setter Property="Foreground"
-                                    Value="{DynamicResource FK.Brush.Primary}"/>
-                            <Setter Property="FontWeight"
-                                    Value="Bold"/>
-                            <Setter TargetName="SortIndicator"
-                                    Property="Text"
-                                    Value="↓"/>
-                            <Setter TargetName="SortIndicator"
-                                    Property="Opacity"
-                                    Value="1"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
+                                                <Trigger Property="Tag"
+                                                                Value="SortDesc">
+                                                        <Setter Property="Foreground"
+                                                                Value="{DynamicResource FK.Brush.Primary}"/>
+                                                        <Setter Property="FontWeight"
+                                                                        Value="Bold"/>
+                                                        <Setter TargetName="SortIndicator"
+                                                                        Property="Text"
+                                                                        Value="↓"/>
+                                                        <Setter TargetName="SortIndicator"
+                                                                        Property="Opacity"
+                                                                        Value="1"/>
+                                                </Trigger>
+                                        </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                        </Setter.Value>
+                </Setter>
+        </Style>
 
-    <!-- === TABLE CELL STYLE === -->
+        <!-- === TABLE CELL STYLE === -->
     <Style x:Key="FK.Style.TableCell"
             TargetType="TextBlock">
         <Setter Property="Padding"
@@ -670,8 +674,6 @@
                 Value="Center"/>
         <Setter Property="VerticalAlignment"
                 Value="Center"/>
-        <Setter Property="LetterSpacing"
-                Value="0.5"/>
     </Style>
 
     <Style x:Key="FK.Style.StatusBadgeText"
@@ -686,8 +688,6 @@
                 Value="Center"/>
         <Setter Property="VerticalAlignment"
                 Value="Center"/>
-        <Setter Property="LetterSpacing"
-                Value="0.3"/>
     </Style>
 
     <!-- === ENHANCED BUTTON STYLES === -->

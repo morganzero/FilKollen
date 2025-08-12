@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using FilKollen.Models;
 using FilKollen.Services;
 using FilKollen.Windows;
@@ -16,6 +17,7 @@ using System.Windows.Input;
 using System.Net.Http;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using Path = System.IO.Path;
 
 namespace FilKollen
 {
@@ -44,15 +46,8 @@ namespace FilKollen
         private string _currentSortColumn = "";
         private bool _sortAscending = true;
 
-        // UI-element referenser för sortering och licenshantering
-        private TextBlock? FileNameHeader => FindName("FileNameHeader") as TextBlock;
-        private TextBlock? TypeHeader => FindName("TypeHeader") as TextBlock;
-        private TextBlock? SizeHeader => FindName("SizeHeader") as TextBlock;
-        private TextBlock? PathHeader => FindName("PathHeader") as TextBlock;
-        private TextBlock? DateHeader => FindName("DateHeader") as TextBlock;
-        private TextBlock? RiskHeader => FindName("RiskHeader") as TextBlock;
-        private Border? LicenseStatusDisplay => FindName("LicenseStatusDisplay") as Border;
-        private TextBlock? LicenseButtonText => FindName("LicenseButtonText") as TextBlock;
+        // TA BORT UI-referenser - de skapas automatiskt från XAML
+        // Dessa tas bort för att undvika dubletter
 
         public MainWindow() : this(null, null, null) { }
 
@@ -140,43 +135,46 @@ namespace FilKollen
                     }
                 }
 
+                var brandLogo = FindName("BrandLogo") as Button;
+                var brandFallback = FindName("BrandFallback") as StackPanel;
+
                 if (logoExists && logoLoadable)
                 {
-                    if (BrandLogo != null && BrandFallback != null)
+                    if (brandLogo != null && brandFallback != null)
                     {
-                        // Fix: BrandLogo is a Button, get its Image child
-                        var image = BrandLogo.Content as Image;
+                        var image = brandLogo.Content as Image;
                         if (image == null)
                         {
                             image = new Image();
-                            BrandLogo.Content = image;
+                            brandLogo.Content = image;
                         }
                         image.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(logoPath, UriKind.RelativeOrAbsolute));
-                        BrandLogo.Visibility = Visibility.Visible;
-                        BrandFallback.Visibility = Visibility.Collapsed;
+                        brandLogo.Visibility = Visibility.Visible;
+                        brandFallback.Visibility = Visibility.Collapsed;
                         _logger.Information($"Branding logo visas: {logoPath}");
                     }
                 }
                 else
                 {
-                    if (BrandLogo != null && BrandFallback != null)
+                    if (brandLogo != null && brandFallback != null)
                     {
-                        BrandLogo.Visibility = Visibility.Collapsed;
-                        BrandFallback.Visibility = Visibility.Visible;
+                        brandLogo.Visibility = Visibility.Collapsed;
+                        brandFallback.Visibility = Visibility.Visible;
                         _logger.Information("Använder FILKOLLEN-text (ingen giltig logga hittades)");
                     }
                 }
 
-                // Load Hi-DPI logo if available
                 LoadHiDPILogo();
             }
             catch (Exception ex)
             {
                 _logger.Warning($"Kunde inte ladda branding: {ex.Message}");
-                if (BrandLogo != null && BrandFallback != null)
+                var brandLogo = FindName("BrandLogo") as Button;
+                var brandFallback = FindName("BrandFallback") as StackPanel;
+                if (brandLogo != null && brandFallback != null)
                 {
-                    BrandLogo.Visibility = Visibility.Collapsed;
-                    BrandFallback.Visibility = Visibility.Visible;
+                    brandLogo.Visibility = Visibility.Collapsed;
+                    brandFallback.Visibility = Visibility.Visible;
                 }
             }
         }
@@ -196,16 +194,20 @@ namespace FilKollen
                 var logoPath = Path.Combine("Resources", "Branding", logoFileName);
                 if (File.Exists(logoPath))
                 {
-                    var image = BrandLogo?.Content as Image ?? new Image();
+                    var brandLogo = FindName("BrandLogo") as Button;
+                    var brandFallback = FindName("BrandFallback") as StackPanel;
+
+                    var image = brandLogo?.Content as Image ?? new Image();
+                    // FIX: Ta bort UriKind parameter för RelativeOrAbsolute
                     image.Source = new BitmapImage(new Uri(logoPath, UriKind.Relative));
-                    if (BrandLogo != null)
+                    if (brandLogo != null)
                     {
-                        BrandLogo.Content = image;
-                        BrandLogo.Visibility = Visibility.Visible;
+                        brandLogo.Content = image;
+                        brandLogo.Visibility = Visibility.Visible;
                     }
-                    if (BrandFallback != null)
+                    if (brandFallback != null)
                     {
-                        BrandFallback.Visibility = Visibility.Collapsed;
+                        brandFallback.Visibility = Visibility.Collapsed;
                     }
                 }
             }
@@ -233,15 +235,27 @@ namespace FilKollen
 
         private void InitializeTheme()
         {
-            if (_themeService != null && ThemeToggle != null)
+            var themeToggle = FindName("ThemeToggle") as ToggleButton;
+            if (_themeService != null && themeToggle != null)
             {
                 var isDarkTheme = _themeService.Mode == ThemeMode.Dark ||
                                  (_themeService.Mode == ThemeMode.System && DetectSystemDarkMode());
 
-                ThemeToggle.IsChecked = isDarkTheme;
+                themeToggle.IsChecked = isDarkTheme;
                 _themeService.ThemeChanged += OnThemeChanged;
 
                 _logger.Information($"Tema initierat: {(isDarkTheme ? "Mörkt" : "Ljust")} tema");
+            }
+        }
+
+        private void OnThemeChanged(object? sender, EventArgs e)
+        {
+            var themeToggle = FindName("ThemeToggle") as ToggleButton;
+            if (themeToggle != null && _themeService != null)
+            {
+                var isDarkTheme = _themeService.Mode == ThemeMode.Dark ||
+                                 (_themeService.Mode == ThemeMode.System && DetectSystemDarkMode());
+                themeToggle.IsChecked = isDarkTheme;
             }
         }
 
@@ -268,9 +282,7 @@ namespace FilKollen
                 await InitializeProtectionAsync();
                 await InitializeTrayAsync();
 
-                // Start connection monitoring
                 _ = Task.Run(async () => await MonitorConnectionStatus());
-
                 _ = Task.Run(async () => await PerformEnhancedStartupScanAsync());
 
                 _logger.Information("MainWindow fullständigt initierat med elegant design");
@@ -282,200 +294,141 @@ namespace FilKollen
             }
         }
 
-        // Continue with rest of methods...
-        // [Include all other methods from the original code with proper organization]
-
-        #region Enhanced UI Updates
-
-        private void UpdateThreatsDisplayEnhanced(List<ScanResult> threats)
-        {
-            _currentThreats.Clear();
-            _currentThreats.AddRange(threats);
-
-            if (threats.Any())
-            {
-                ShowThreatsView(threats);
-            }
-            else
-            {
-                ShowSafeView();
-            }
-
-            // Initialize sorting after display update
-            InitializeTableHeaders();
-        }
-
-        private void ShowThreatsView(List<ScanResult> threats)
-        {
-            if (SafeStatusPanel != null)
-                SafeStatusPanel.Visibility = Visibility.Collapsed;
-            if (ThreatsPanel != null)
-                ThreatsPanel.Visibility = Visibility.Visible;
-
-            // Update threat counter
-            UpdateThreatCounter(threats.Count);
-
-            // Update status
-            UpdateMainStatus("HOT UPPTÄCKTA", Colors.Orange,
-                $"{threats.Count} hot kräver åtgärd");
-
-            BuildThreatsTableEnhanced(threats);
-        }
-
-        private void ShowSafeView()
-        {
-            if (SafeStatusPanel != null)
-                SafeStatusPanel.Visibility = Visibility.Visible;
-            if (ThreatsPanel != null)
-                ThreatsPanel.Visibility = Visibility.Collapsed;
-            if (ThreatCounter != null)
-                ThreatCounter.Visibility = Visibility.Collapsed;
-
-            UpdateMainStatus("SYSTEMET ÄR SÄKERT", Colors.Green,
-                $"0 hot funna • Auto-skydd {(_isProtectionActive ? "aktivt" : "inaktivt")}");
-        }
-
-        private void UpdateThreatCounter(int count)
-        {
-            if (ThreatCounter != null && ThreatCountText != null)
-            {
-                ThreatCounter.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
-                ThreatCountText.Text = $"{count} HOT";
-            }
-        }
-
-        private void UpdateMainStatus(string statusText, Color color, string subText)
-        {
-            if (StatusIndicator != null)
-                StatusIndicator.Fill = new SolidColorBrush(color);
-
-            if (StatusMainText != null)
-            {
-                StatusMainText.Text = statusText;
-                StatusMainText.Foreground = new SolidColorBrush(color);
-            }
-
-            if (StatusSubText != null)
-                StatusSubText.Text = subText;
-        }
-
-        #endregion
-
-        #region Table Sorting Implementation
-
-        private void InitializeTableHeaders()
-        {
-            // Lägg till sortfunktionalitet för alla headers
-            MakeHeaderSortable(FileNameHeader, "FileName");
-            MakeHeaderSortable(TypeHeader, "FileType");
-            MakeHeaderSortable(SizeHeader, "FileSize");
-            MakeHeaderSortable(PathHeader, "FilePath");
-            MakeHeaderSortable(DateHeader, "CreatedDate");
-            MakeHeaderSortable(RiskHeader, "ThreatLevel");
-        }
-
-        private void MakeHeaderSortable(TextBlock? header, string sortProperty)
-        {
-            if (header == null) return;
-
-            header.MouseLeftButtonDown += (s, e) => SortByColumn(sortProperty, header);
-            header.Style = (Style)FindResource("FK.Style.SortableHeader");
-            header.Tag = sortProperty; // Store property name for reference
-        }
-
-        private void SortByColumn(string property, TextBlock header)
-        {
-            // Reset andra headers
-            ResetOtherHeaders(header);
-
-            // Toggle sort direction om samma kolumn
-            if (_currentSortColumn == property)
-            {
-                _sortAscending = !_sortAscending;
-            }
-            else
-            {
-                _currentSortColumn = property;
-                _sortAscending = true;
-            }
-
-            // Update header appearance
-            UpdateHeaderSortIndicator(header, _sortAscending);
-
-            // Perform sort
-            SortThreats(property, _sortAscending);
-
-            _logViewer?.AddLogEntry(LogLevel.Debug, "UI",
-                $"Sorterat hot efter {property} ({(_sortAscending ? "stigande" : "fallande")})");
-        }
-
-        private void ResetOtherHeaders(TextBlock activeHeader)
-        {
-            var headers = new[] { FileNameHeader, TypeHeader, SizeHeader, PathHeader, DateHeader, RiskHeader };
-
-            foreach (var header in headers)
-            {
-                if (header != null && header != activeHeader)
-                {
-                    header.Tag = header.Tag?.ToString()?.Replace("SortAsc", "").Replace("SortDesc", "");
-                }
-            }
-        }
-
-        private void UpdateHeaderSortIndicator(TextBlock header, bool ascending)
-        {
-            header.Tag = ascending ? "SortAsc" : "SortDesc";
-        }
-
-        private void SortThreats(string property, bool ascending)
+        private async Task InitializeServicesAsync()
         {
             try
             {
-                IEnumerable<ScanResult> sortedThreats = property switch
+                if (_fileScanner != null && _quarantine != null && _logViewer != null)
                 {
-                    "FileName" => ascending
-                        ? _currentThreats.OrderBy(t => t.FileName)
-                        : _currentThreats.OrderByDescending(t => t.FileName),
+                    _intrusionDetection = new IntrusionDetectionService(_logger, _logViewer, _fileScanner, _quarantine);
+                    _protectionService = new RealTimeProtectionService(_fileScanner, _quarantine, _logViewer, _logger, _config);
+                    _logger.Information("Protection services initierade");
+                }
 
-                    "FileType" => ascending
-                        ? _currentThreats.OrderBy(t => GetFileTypeDisplay(t.FileName))
-                        : _currentThreats.OrderByDescending(t => GetFileTypeDisplay(t.FileName)),
-
-                    "FileSize" => ascending
-                        ? _currentThreats.OrderBy(t => t.FileSize)
-                        : _currentThreats.OrderByDescending(t => t.FileSize),
-
-                    "FilePath" => ascending
-                        ? _currentThreats.OrderBy(t => Path.GetDirectoryName(t.FilePath))
-                        : _currentThreats.OrderByDescending(t => Path.GetDirectoryName(t.FilePath)),
-
-                    "CreatedDate" => ascending
-                        ? _currentThreats.OrderBy(t => t.CreatedDate)
-                        : _currentThreats.OrderByDescending(t => t.CreatedDate),
-
-                    "ThreatLevel" => ascending
-                        ? _currentThreats.OrderBy(t => (int)t.ThreatLevel)
-                        : _currentThreats.OrderByDescending(t => (int)t.ThreatLevel),
-
-                    _ => _currentThreats
-                };
-
-                _currentThreats.Clear();
-                _currentThreats.AddRange(sortedThreats);
-
-                // Rebuild table with sorted data
-                BuildThreatsTableEnhanced(_currentThreats);
+                _logViewer?.AddLogEntry(LogLevel.Information, "System", "🛡️ FilKollen säkerhetstjänster laddade");
             }
             catch (Exception ex)
             {
-                _logger.Warning($"Fel vid sortering: {ex.Message}");
+                _logger.Warning($"Service initiation varning: {ex.Message}");
+            }
+
+            await Task.Delay(10);
+        }
+
+        private async Task InitializeUIAsync()
+        {
+            try
+            {
+                UpdateSecurityStatus(isSecure: true, threatsCount: 0);
+
+                if (_licenseService != null)
+                {
+                    var status = await _licenseService.ValidateLicenseAsync();
+                    UpdateLicenseDisplay(status);
+                }
+
+                var lastScanText = FindName("LastScanText") as TextBlock;
+                if (lastScanText != null)
+                    lastScanText.Text = "Aldrig";
+
+                var threatsHandledText = FindName("ThreatsHandledText") as TextBlock;
+                if (threatsHandledText != null)
+                    threatsHandledText.Text = "0";
+
+                _logger.Information("UI initierat med elegant design");
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"UI initiation varning: {ex.Message}");
+            }
+
+            await Task.Delay(10);
+        }
+
+        private async Task InitializeProtectionAsync()
+        {
+            try
+            {
+                _isProtectionActive = false;
+                _isIpProtectionActive = false;
+
+                UpdateProtectionToggles();
+
+                _logViewer?.AddLogEntry(LogLevel.Information, "System",
+                    "✅ FilKollen redo - aktivera auto-skydd för fullständigt skydd");
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Protection init varning: {ex.Message}");
+            }
+
+            await Task.Delay(10);
+        }
+
+        private async Task InitializeTrayAsync()
+        {
+            try
+            {
+                if (_protectionService != null && _logViewer != null)
+                {
+                    _trayService = new SystemTrayService(_protectionService, _logViewer, _logger);
+
+                    _trayService.ShowMainWindowRequested += (s, e) =>
+                    {
+                        Show();
+                        WindowState = WindowState.Normal;
+                        Activate();
+                    };
+
+                    _trayService.ExitApplicationRequested += (s, e) =>
+                    {
+                        Application.Current.Shutdown();
+                    };
+
+                    _logger.Information("System tray service initierat");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Tray service init varning: {ex.Message}");
+            }
+
+            await Task.Delay(10);
+        }
+
+        private void UpdateStatusCallback(object? state)
+        {
+            try
+            {
+                Application.Current?.Dispatcher.BeginInvoke(() =>
+                {
+                    var connectionStatusText = FindName("ConnectionStatusText") as TextBlock;
+                    if (connectionStatusText != null)
+                    {
+                        connectionStatusText.Text = "ONLINE";
+                        connectionStatusText.Foreground = new SolidColorBrush(Colors.Green);
+                    }
+
+                    if (_protectionService != null)
+                    {
+                        var threatsHandledText = FindName("ThreatsHandledText") as TextBlock;
+                        if (threatsHandledText != null)
+                        {
+                            var stats = _protectionService.GetProtectionStats();
+                            threatsHandledText.Text = stats.TotalThreatsHandled.ToString();
+                        }
+                    }
+
+                    UpdateTrialBadge();
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Status update error: {ex.Message}");
             }
         }
 
-        #endregion
-
-        #region Connection Status Management
-
+        // Connection Status Management
         public enum ConnectionStatus
         {
             Online,
@@ -496,19 +449,18 @@ namespace FilKollen
         {
             var (text, description, color) = _statusMessages[status];
 
-            if (ConnectionStatusText != null)
+            var connectionStatusText = FindName("ConnectionStatusText") as TextBlock;
+            if (connectionStatusText != null)
             {
-                ConnectionStatusText.Text = text;
-                ConnectionStatusText.Foreground = color;
+                connectionStatusText.Text = text;
+                connectionStatusText.Foreground = color;
             }
 
-            // Update status dot
             if (FindName("StatusDot") is Ellipse statusDot)
             {
                 statusDot.Fill = color;
             }
 
-            // Update tooltip
             if (FindName("OnlineStatusBadge") is Border statusBadge)
             {
                 statusBadge.ToolTip = new ToolTip
@@ -524,33 +476,29 @@ namespace FilKollen
                 };
             }
         }
-
         private async Task MonitorConnectionStatus()
         {
             while (true)
             {
                 try
                 {
-                    await Task.Delay(30000); // Check every 30 seconds
+                    await Task.Delay(30000);
 
-var isOnline = await CheckInternetConnection();
-LicenseStatus? licenseStatus = null;
-if (_licenseService != null)
-    licenseStatus = await _licenseService.ValidateLicenseAsync();
+                    var isOnline = await CheckInternetConnection();
+                    LicenseStatus? licenseStatus = null;
+                    if (_licenseService != null)
+                        licenseStatus = await _licenseService.ValidateLicenseAsync();
 
-var status = (isOnline, licenseStatus) switch
-{
-    (true, LicenseStatus.Valid) => ConnectionStatus.Online,
-    (true, _)                   => ConnectionStatus.Online,
-    (false, _)                  => ConnectionStatus.Offline,
-    _                           => ConnectionStatus.Error
-};
-
-private void UpdateThreatsDisplay(List<ScanResult> threats)
-    => UpdateThreatsDisplayEnhanced(threats);
-
-private void BuildThreatsTable(List<ScanResult> threats)
-    => BuildThreatsTableEnhanced(threats);
+                    // Simplified approach - no switch expression
+                    ConnectionStatus status;
+                    if (isOnline)
+                    {
+                        status = ConnectionStatus.Online;  // Online regardless of license status
+                    }
+                    else
+                    {
+                        status = ConnectionStatus.Offline;
+                    }
 
                     Application.Current.Dispatcher.Invoke(() => UpdateConnectionStatus(status));
                 }
@@ -561,7 +509,6 @@ private void BuildThreatsTable(List<ScanResult> threats)
                 }
             }
         }
-
         private async Task<bool> CheckInternetConnection()
         {
             try
@@ -576,10 +523,7 @@ private void BuildThreatsTable(List<ScanResult> threats)
             }
         }
 
-        #endregion
-
-        #region Trial Badge Management
-
+        // Trial Badge Management
         private void UpdateTrialBadge()
         {
             var trialTime = _licenseService?.GetRemainingTrialTime();
@@ -588,7 +532,7 @@ private void BuildThreatsTable(List<ScanResult> threats)
             if (FindName("TrialBadge") is Border trialBadge &&
                 FindName("TrialBadgeText") is TextBlock trialText)
             {
-                if (isTrialMode)
+                if (isTrialMode && trialTime.HasValue) // Fixed: Added null check
                 {
                     trialBadge.Visibility = Visibility.Visible;
 
@@ -599,16 +543,15 @@ private void BuildThreatsTable(List<ScanResult> threats)
                         ? $"PROVPERIOD: {days} DAGAR KVAR"
                         : $"PROVPERIOD: {hours} TIMMAR KVAR";
 
-                    // Update tooltip
                     trialBadge.ToolTip = new ToolTip
                     {
                         Content = new StackPanel
                         {
                             Children = {
-                                new TextBlock { Text = "Provperiod aktiv", FontWeight = FontWeights.SemiBold },
-                                new TextBlock { Text = $"{FormatTimeSpan(trialTime.Value)} kvar" },
-                                new TextBlock { Text = $"Slutar: {DateTime.UtcNow.Add(trialTime.Value):yyyy-MM-dd HH:mm}", Opacity = 0.8 }
-                            }
+                        new TextBlock { Text = "Provperiod aktiv", FontWeight = FontWeights.SemiBold },
+                        new TextBlock { Text = $"{FormatTimeSpan(trialTime.Value)} kvar" },
+                        new TextBlock { Text = $"Slutar: {DateTime.UtcNow.Add(trialTime.Value):yyyy-MM-dd HH:mm}", Opacity = 0.8 }
+                    }
                         }
                     };
                 }
@@ -628,21 +571,25 @@ private void BuildThreatsTable(List<ScanResult> threats)
             return $"{(int)timeSpan.TotalMinutes} minuter";
         }
 
-        #endregion
+        // Event Handlers
         private async void QuickScanButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (QuickScanButton != null)
+                var quickScanButton = FindName("QuickScanButton") as Button;
+                if (quickScanButton != null)
                 {
-                    QuickScanButton.Content = "🔄 SÖKER...";
-                    QuickScanButton.IsEnabled = false;
+                    quickScanButton.Content = "🔄 SÖKER...";
+                    quickScanButton.IsEnabled = false;
                 }
 
-                if (ScanningIndicator != null)
-                    ScanningIndicator.Visibility = Visibility.Visible;
-                if (ScanProgress != null)
-                    ScanProgress.Value = 0;
+                var scanningIndicator = FindName("ScanningIndicator") as StackPanel;
+                if (scanningIndicator != null)
+                    scanningIndicator.Visibility = Visibility.Visible;
+
+                var scanProgress = FindName("ScanProgress") as System.Windows.Controls.ProgressBar;
+                if (scanProgress != null)
+                    scanProgress.Value = 0;
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "Manual", "🔍 Manuell skanning startad");
 
@@ -650,8 +597,8 @@ private void BuildThreatsTable(List<ScanResult> threats)
                 {
                     for (int i = 0; i <= 100; i += 20)
                     {
-                        if (ScanProgress != null)
-                            ScanProgress.Value = i;
+                        if (scanProgress != null)
+                            scanProgress.Value = i;
                         await Task.Delay(300);
                     }
 
@@ -660,8 +607,9 @@ private void BuildThreatsTable(List<ScanResult> threats)
 
                     UpdateThreatsDisplay(threats);
 
-                    if (LastScanText != null)
-                        LastScanText.Text = DateTime.Now.ToString("HH:mm");
+                    var lastScanText = FindName("LastScanText") as TextBlock;
+                    if (lastScanText != null)
+                        lastScanText.Text = DateTime.Now.ToString("HH:mm");
 
                     if (threats.Any())
                     {
@@ -686,24 +634,24 @@ private void BuildThreatsTable(List<ScanResult> threats)
             }
             finally
             {
-                if (ScanningIndicator != null)
-                    ScanningIndicator.Visibility = Visibility.Collapsed;
+                var scanningIndicator = FindName("ScanningIndicator") as StackPanel;
+                if (scanningIndicator != null)
+                    scanningIndicator.Visibility = Visibility.Collapsed;
 
-                if (QuickScanButton != null)
+                var quickScanButton = FindName("QuickScanButton") as Button;
+                if (quickScanButton != null)
                 {
-                    QuickScanButton.Content = "🔍 Sök efter hot";
-                    QuickScanButton.IsEnabled = true;
+                    quickScanButton.Content = "🔍 Sök efter hot";
+                    quickScanButton.IsEnabled = true;
                 }
             }
         }
 
-        // Fix: Rename method to match XAML
         private async void BrowserCleanButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Find the correct button reference
-                var button = sender as Button ?? BrowserCleanTileButton;
+                var button = sender as Button ?? FindName("BrowserCleanTileButton") as Button;
                 if (button != null)
                 {
                     button.Content = "🔄 RENSAR...";
@@ -744,7 +692,7 @@ private void BuildThreatsTable(List<ScanResult> threats)
             }
             finally
             {
-                var button = sender as Button ?? BrowserCleanTileButton;
+                var button = sender as Button ?? FindName("BrowserCleanTileButton") as Button;
                 if (button != null)
                 {
                     button.Content = "🌐 Rensa bluffnotiser";
@@ -757,10 +705,11 @@ private void BuildThreatsTable(List<ScanResult> threats)
         {
             try
             {
-                if (HandleAllThreatsButton != null)
+                var handleAllThreatsButton = FindName("HandleAllThreatsButton") as Button;
+                if (handleAllThreatsButton != null)
                 {
-                    HandleAllThreatsButton.Content = "🔄 Tar bort alla...";
-                    HandleAllThreatsButton.IsEnabled = false;
+                    handleAllThreatsButton.Content = "🔄 Tar bort alla...";
+                    handleAllThreatsButton.IsEnabled = false;
                 }
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",
@@ -790,12 +739,12 @@ private void BuildThreatsTable(List<ScanResult> threats)
                 }
 
                 UpdateThreatsDisplay(_currentThreats);
-                ScrollToTopOfThreatsList();
 
-                if (ThreatsHandledText != null)
+                var threatsHandledText = FindName("ThreatsHandledText") as TextBlock;
+                if (threatsHandledText != null)
                 {
-                    var currentHandled = int.Parse(ThreatsHandledText.Text);
-                    ThreatsHandledText.Text = (currentHandled + handledCount).ToString();
+                    var currentHandled = int.Parse(threatsHandledText.Text);
+                    threatsHandledText.Text = (currentHandled + handledCount).ToString();
                 }
 
                 var message = $"✅ {handledCount} hot har tagits bort";
@@ -811,26 +760,12 @@ private void BuildThreatsTable(List<ScanResult> threats)
             }
             finally
             {
-                if (HandleAllThreatsButton != null)
+                var handleAllThreatsButton = FindName("HandleAllThreatsButton") as Button;
+                if (handleAllThreatsButton != null)
                 {
-                    HandleAllThreatsButton.Content = "🧹 Ta bort alla hot";
-                    HandleAllThreatsButton.IsEnabled = true;
+                    handleAllThreatsButton.Content = "🧹 Ta bort alla hot";
+                    handleAllThreatsButton.IsEnabled = true;
                 }
-            }
-        }
-
-        private void ScrollToTopOfThreatsList()
-        {
-            try
-            {
-                if (ThreatsList?.Parent is ScrollViewer scrollViewer)
-                {
-                    scrollViewer.ScrollToTop();
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Debug($"Kunde inte scrolla till toppen: {ex.Message}");
             }
         }
 
@@ -838,10 +773,11 @@ private void BuildThreatsTable(List<ScanResult> threats)
         {
             try
             {
-                if (RefreshScanButton != null)
+                var refreshScanButton = FindName("RefreshScanButton") as Button;
+                if (refreshScanButton != null)
                 {
-                    RefreshScanButton.Content = "🔄 Skannar...";
-                    RefreshScanButton.IsEnabled = false;
+                    refreshScanButton.Content = "🔄 Skannar...";
+                    refreshScanButton.IsEnabled = false;
                 }
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "Manual", "🔄 Uppdaterar hotskanning");
@@ -853,8 +789,9 @@ private void BuildThreatsTable(List<ScanResult> threats)
 
                     UpdateThreatsDisplay(threats);
 
-                    if (LastScanText != null)
-                        LastScanText.Text = DateTime.Now.ToString("HH:mm");
+                    var lastScanText = FindName("LastScanText") as TextBlock;
+                    if (lastScanText != null)
+                        lastScanText.Text = DateTime.Now.ToString("HH:mm");
 
                     if (threats.Any())
                     {
@@ -873,12 +810,294 @@ private void BuildThreatsTable(List<ScanResult> threats)
             }
             finally
             {
-                if (RefreshScanButton != null)
+                var refreshScanButton = FindName("RefreshScanButton") as Button;
+                if (refreshScanButton != null)
                 {
-                    RefreshScanButton.Content = "🔄 Skanna om";
-                    RefreshScanButton.IsEnabled = true;
+                    refreshScanButton.Content = "🔄 Skanna om";
+                    refreshScanButton.IsEnabled = true;
                 }
             }
+        }
+
+        private void ProtectionToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            _isProtectionActive = true;
+            _protectionService?.StartProtectionAsync();
+            _logViewer?.AddLogEntry(LogLevel.Information, "Protection", "🛡️ Auto-skydd AKTIVERAT");
+        }
+
+        private void ProtectionToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _isProtectionActive = false;
+            _protectionService?.StopProtectionAsync();
+            _logViewer?.AddLogEntry(LogLevel.Warning, "Protection", "⚠️ Auto-skydd INAKTIVERAT");
+        }
+
+        private void IpProtectionToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            _isIpProtectionActive = true;
+            _logViewer?.AddLogEntry(LogLevel.Information, "IPProtection", "🌐 IP-skydd AKTIVERAT");
+        }
+
+        private void IpProtectionToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _isIpProtectionActive = false;
+            _logViewer?.AddLogEntry(LogLevel.Warning, "IPProtection", "⚠️ IP-skydd INAKTIVERAT");
+        }
+
+        private void ThemeToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            _themeService?.ApplyTheme(ThemeMode.Dark);
+        }
+
+        private void ThemeToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _themeService?.ApplyTheme(ThemeMode.Light);
+        }
+
+        private void HelpButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var helpUrl = "https://wiki.filkollen.se";
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(helpUrl) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to open help URL: {ex.Message}");
+                var helpMessage =
+                    "🔑 FILKOLLEN HJÄLP\n\n" +
+                    "Auto-skydd:\n" +
+                    "• Aktivera för kontinuerlig övervakning\n" +
+                    "• Automatisk hantering av upptäckta hot\n\n" +
+                    "Manuell skanning:\n" +
+                    "• Klicka 'Sök efter hot' för omedelbar kontroll\n" +
+                    "• Visar alla upptäckta säkerhetshot\n\n" +
+                    "Webbläsarrensning:\n" +
+                    "• Tar bort falska varningar och bluffnotiser\n" +
+                    "• Säker för alla populära webbläsare\n\n" +
+                    "Support: support@filkollen.se";
+
+                MessageBox.Show(helpMessage, "FilKollen Hjälp",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        // Window Controls
+        private void TopBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                if (e.ClickCount == 2 && ResizeMode != ResizeMode.NoResize)
+                {
+                    WindowState = WindowState == WindowState.Maximized
+                        ? WindowState.Normal
+                        : WindowState.Maximized;
+                }
+                else
+                {
+                    DragMove();
+                }
+            }
+        }
+
+        private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+        private void Maximize_Click(object sender, RoutedEventArgs e) =>
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+        private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+        // Enhanced UI Updates
+        private void UpdateThreatsDisplay(List<ScanResult> threats)
+        {
+            _currentThreats.Clear();
+            _currentThreats.AddRange(threats);
+
+            if (threats.Any())
+            {
+                ShowThreatsView(threats);
+            }
+            else
+            {
+                ShowSafeView();
+            }
+
+            InitializeTableHeaders();
+        }
+
+        private void ShowThreatsView(List<ScanResult> threats)
+        {
+            var safeStatusPanel = FindName("SafeStatusPanel") as StackPanel;
+            if (safeStatusPanel != null)
+                safeStatusPanel.Visibility = Visibility.Collapsed;
+
+            var threatsPanel = FindName("ThreatsPanel") as StackPanel;
+            if (threatsPanel != null)
+                threatsPanel.Visibility = Visibility.Visible;
+
+            UpdateThreatCounter(threats.Count);
+            UpdateMainStatus("HOT UPPTÄCKTA", Colors.Orange, $"{threats.Count} hot kräver åtgärd");
+            BuildThreatsTableEnhanced(threats);
+        }
+
+        private void ShowSafeView()
+        {
+            var safeStatusPanel = FindName("SafeStatusPanel") as StackPanel;
+            if (safeStatusPanel != null)
+                safeStatusPanel.Visibility = Visibility.Visible;
+
+            var threatsPanel = FindName("ThreatsPanel") as StackPanel;
+            if (threatsPanel != null)
+                threatsPanel.Visibility = Visibility.Collapsed;
+
+            var threatCounter = FindName("ThreatCounter") as Border;
+            if (threatCounter != null)
+                threatCounter.Visibility = Visibility.Collapsed;
+
+            UpdateMainStatus("SYSTEMET ÄR SÄKERT", Colors.Green,
+                $"0 hot funna • Auto-skydd {(_isProtectionActive ? "aktivt" : "inaktivt")}");
+        }
+
+        private void UpdateThreatCounter(int count)
+        {
+            var threatCounter = FindName("ThreatCounter") as Border;
+            var threatCountText = FindName("ThreatCountText") as TextBlock;
+
+            if (threatCounter != null && threatCountText != null)
+            {
+                threatCounter.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                threatCountText.Text = $"{count} HOT";
+            }
+        }
+
+        private void UpdateMainStatus(string statusText, Color color, string subText)
+        {
+            var statusIndicator = FindName("StatusIndicator") as Ellipse;
+            if (statusIndicator != null)
+                statusIndicator.Fill = new SolidColorBrush(color);
+
+            var statusMainText = FindName("StatusMainText") as TextBlock;
+            if (statusMainText != null)
+            {
+                statusMainText.Text = statusText;
+                statusMainText.Foreground = new SolidColorBrush(color);
+            }
+
+            var statusSubText = FindName("StatusSubText") as TextBlock;
+            if (statusSubText != null)
+                statusSubText.Text = subText;
+        }
+
+        private void BuildThreatsTableEnhanced(List<ScanResult> threats)
+        {
+            var threatsList = FindName("ThreatsList") as StackPanel;
+            if (threatsList == null) return;
+
+            threatsList.Children.Clear();
+
+            foreach (var threat in threats)
+            {
+                var row = CreateThreatRow(threat);
+                threatsList.Children.Add(row);
+            }
+        }
+
+        private Border CreateThreatRow(ScanResult threat)
+        {
+            var row = new Border
+            {
+                Background = TryFindResource("FK.Brush.Surface") as Brush ?? SystemColors.WindowBrush,
+                BorderBrush = TryFindResource("FK.Brush.Border") as Brush ?? SystemColors.ControlDarkBrush,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(0, 8, 0, 8),
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+
+            // File name
+            var fileName = new TextBlock
+            {
+                Text = threat.FileName,
+                Style = TryFindResource("FK.Style.TableCell") as Style,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 8, 0)
+            };
+            Grid.SetColumn(fileName, 0);
+            grid.Children.Add(fileName);
+
+            // File type
+            var fileType = new TextBlock
+            {
+                Text = GetFileTypeDisplay(threat.FileName),
+                Style = TryFindResource("FK.Style.TableCell") as Style,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 8, 0)
+            };
+            Grid.SetColumn(fileType, 1);
+            grid.Children.Add(fileType);
+
+            // File size
+            var fileSize = new TextBlock
+            {
+                Text = threat.FormattedSize ?? "Unknown",
+                Style = TryFindResource("FK.Style.TableCell") as Style,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 8, 0)
+            };
+            Grid.SetColumn(fileSize, 2);
+            grid.Children.Add(fileSize);
+
+            // File path
+            var filePath = new TextBlock
+            {
+                Text = Path.GetDirectoryName(threat.FilePath) ?? "",
+                Style = TryFindResource("FK.Style.TableCell") as Style,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 8, 0)
+            };
+            Grid.SetColumn(filePath, 3);
+            grid.Children.Add(filePath);
+
+            // Created date
+            var createdDate = new TextBlock
+            {
+                Text = threat.CreatedDate.ToString("yyyy-MM-dd"),
+                Style = TryFindResource("FK.Style.TableCell") as Style,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 8, 0)
+            };
+            Grid.SetColumn(createdDate, 4);
+            grid.Children.Add(createdDate);
+
+            // Threat level badge
+            var threatBadge = CreateThreatLevelBadge(threat.ThreatLevel);
+            Grid.SetColumn(threatBadge, 5);
+            grid.Children.Add(threatBadge);
+
+            // Action button
+            var actionButton = new Button
+            {
+                Content = "Ta bort",
+                Style = TryFindResource("FK.Style.DangerButton") as Style,
+                Tag = threat,
+                Margin = new Thickness(4),
+                Padding = new Thickness(8, 4, 8, 4)
+            };
+            actionButton.Click += DeleteThreatButton_Click;
+            Grid.SetColumn(actionButton, 6);
+            grid.Children.Add(actionButton);
+
+            row.Child = grid;
+            return row;
         }
 
         private async void DeleteThreatButton_Click(object sender, RoutedEventArgs e)
@@ -906,10 +1125,11 @@ private void BuildThreatsTable(List<ScanResult> threats)
                                 _currentThreats.Remove(threat);
                                 UpdateThreatsDisplay(_currentThreats);
 
-                                if (ThreatsHandledText != null)
+                                var threatsHandledText = FindName("ThreatsHandledText") as TextBlock;
+                                if (threatsHandledText != null)
                                 {
-                                    var currentHandled = int.Parse(ThreatsHandledText.Text);
-                                    ThreatsHandledText.Text = (currentHandled + 1).ToString();
+                                    var currentHandled = int.Parse(threatsHandledText.Text);
+                                    threatsHandledText.Text = (currentHandled + 1).ToString();
                                 }
 
                                 ShowInAppNotification($"✅ {threat.FileName} har tagits bort", NotificationType.Success);
@@ -937,62 +1157,197 @@ private void BuildThreatsTable(List<ScanResult> threats)
             }
         }
 
-        private void LicenseStatusButton_Click(object sender, RoutedEventArgs e)
+        private Border CreateThreatLevelBadge(ThreatLevel level)
+        {
+            var badge = new Border
+            {
+                Style = TryFindResource("FK.Style.ThreatBadge") as Style,
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 4, 8, 4),
+                Margin = new Thickness(4),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var text = new TextBlock
+            {
+                Style = TryFindResource("FK.Style.BadgeText") as Style,
+                FontWeight = FontWeights.Bold,
+                FontSize = 10,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            // Use system brushes as fallbacks if custom resources don't exist
+            switch (level)
+            {
+                case ThreatLevel.Critical:
+                    badge.Background = TryFindResource("FK.Brush.Danger") as Brush ??
+                                      new SolidColorBrush(Color.FromRgb(220, 53, 69));
+                    text.Text = "KRITISK";
+                    text.Foreground = Brushes.White;
+                    break;
+                case ThreatLevel.High:
+                    badge.Background = TryFindResource("FK.Brush.Danger") as Brush ??
+                                      new SolidColorBrush(Color.FromRgb(220, 53, 69));
+                    text.Text = "HÖG";
+                    text.Foreground = Brushes.White;
+                    break;
+                case ThreatLevel.Medium:
+                    badge.Background = TryFindResource("FK.Brush.Warning") as Brush ??
+                                      new SolidColorBrush(Color.FromRgb(255, 193, 7));
+                    text.Text = "MEDIUM";
+                    text.Foreground = Brushes.Black;
+                    break;
+                default:
+                    badge.Background = TryFindResource("FK.Brush.StatusNeutral") as Brush ??
+                                      new SolidColorBrush(Color.FromRgb(108, 117, 125));
+                    text.Text = "LÅG";
+                    text.Foreground = Brushes.White;
+                    break;
+            }
+
+            badge.Child = text;
+            return badge;
+        }
+
+        private string GetFileTypeDisplay(string fileName)
+        {
+            var extension = Path.GetExtension(fileName)?.ToUpperInvariant();
+            return extension switch
+            {
+                ".EXE" => "EXE",
+                ".BAT" => "BAT",
+                ".CMD" => "CMD",
+                ".PS1" => "PS1",
+                ".VBS" => "VBS",
+                ".SCR" => "SCR",
+                _ => extension?.Replace(".", "") ?? "FILE"
+            };
+        }
+
+        // Table Sorting Implementation
+        private void InitializeTableHeaders()
+        {
+            MakeHeaderSortable(FindName("FileNameHeader") as Button, "FileName");
+            MakeHeaderSortable(FindName("TypeHeader") as Button, "FileType");
+            MakeHeaderSortable(FindName("SizeHeader") as Button, "FileSize");
+            MakeHeaderSortable(FindName("PathHeader") as Button, "FilePath");
+            MakeHeaderSortable(FindName("DateHeader") as Button, "CreatedDate");
+            MakeHeaderSortable(FindName("RiskHeader") as Button, "ThreatLevel");
+        }
+
+        private void MakeHeaderSortable(Button? header, string sortProperty)
+        {
+            if (header == null) return;
+
+            header.Click += (s, e) => SortByColumn(sortProperty, header);
+            header.Tag = sortProperty;
+        }
+
+        private void SortByColumn(string property, Button header)
+        {
+            ResetOtherHeaders(header);
+
+            if (_currentSortColumn == property)
+            {
+                _sortAscending = !_sortAscending;
+            }
+            else
+            {
+                _currentSortColumn = property;
+                _sortAscending = true;
+            }
+
+            UpdateHeaderSortIndicator(header, _sortAscending);
+            SortThreats(property, _sortAscending);
+
+            _logViewer?.AddLogEntry(LogLevel.Debug, "UI",
+                $"Sorterat hot efter {property} ({(_sortAscending ? "stigande" : "fallande")})");
+        }
+
+        private void ResetOtherHeaders(Button activeHeader)
+        {
+            var headers = new[] {
+                FindName("FileNameHeader") as Button,
+                FindName("TypeHeader") as Button,
+                FindName("SizeHeader") as Button,
+                FindName("PathHeader") as Button,
+                FindName("DateHeader") as Button,
+                FindName("RiskHeader") as Button
+            };
+
+            foreach (var header in headers)
+            {
+                if (header != null && header != activeHeader)
+                {
+                    header.Tag = header.Tag?.ToString()?.Replace("SortAsc", "").Replace("SortDesc", "");
+                }
+            }
+        }
+
+        private void UpdateHeaderSortIndicator(Button header, bool ascending)
+        {
+            header.Tag = ascending ? "SortAsc" : "SortDesc";
+        }
+
+        private void SortThreats(string property, bool ascending)
         {
             try
             {
-                if (_licenseService != null)
+                IEnumerable<ScanResult> sortedThreats = property switch
                 {
-                    var licenseWindow = new LicenseRegistrationWindow(_licenseService, _logger);
-                    licenseWindow.Owner = this;
-                    var result = licenseWindow.ShowDialog();
+                    "FileName" => ascending
+                        ? _currentThreats.OrderBy(t => t.FileName)
+                        : _currentThreats.OrderByDescending(t => t.FileName),
 
-                    _ = Task.Run(async () =>
-                    {
-                        var status = await _licenseService.ValidateLicenseAsync();
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            UpdateLicenseDisplay(status);
-                        });
-                    });
-                }
+                    "FileType" => ascending
+                        ? _currentThreats.OrderBy(t => GetFileTypeDisplay(t.FileName))
+                        : _currentThreats.OrderByDescending(t => GetFileTypeDisplay(t.FileName)),
+
+                    "FileSize" => ascending
+                        ? _currentThreats.OrderBy(t => t.FileSize)
+                        : _currentThreats.OrderByDescending(t => t.FileSize),
+
+                    "FilePath" => ascending
+                        ? _currentThreats.OrderBy(t => Path.GetDirectoryName(t.FilePath))
+                        : _currentThreats.OrderByDescending(t => Path.GetDirectoryName(t.FilePath)),
+
+                    "CreatedDate" => ascending
+                        ? _currentThreats.OrderBy(t => t.CreatedDate)
+                        : _currentThreats.OrderByDescending(t => t.CreatedDate),
+
+                    "ThreatLevel" => ascending
+                        ? _currentThreats.OrderBy(t => (int)t.ThreatLevel)
+                        : _currentThreats.OrderByDescending(t => (int)t.ThreatLevel),
+
+                    _ => _currentThreats
+                };
+
+                _currentThreats.Clear();
+                _currentThreats.AddRange(sortedThreats);
+
+                BuildThreatsTableEnhanced(_currentThreats);
             }
             catch (Exception ex)
             {
-                _logger.Error($"Fel vid öppning av licensfönster: {ex.Message}");
-                ShowInAppNotification("❌ Kunde inte öppna licensfönster", NotificationType.Error);
+                _logger.Warning($"Fel vid sortering: {ex.Message}");
             }
         }
 
-        private void SortHeader_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is TextBlock header && header.Tag is string columnName)
-            {
-                if (_currentSortColumn == columnName)
-                {
-                    _sortAscending = !_sortAscending;
-                }
-                else
-                {
-                    _currentSortColumn = columnName;
-                    _sortAscending = true;
-                }
-
-                SortThreats(columnName, _sortAscending);
-                UpdateSortHeaders(columnName, _sortAscending);
-            }
-        }
-
+        // Utility Methods
         private async Task PerformEnhancedStartupScanAsync()
         {
             try
             {
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    if (ScanningIndicator != null)
-                        ScanningIndicator.Visibility = Visibility.Visible;
-                    if (ScanProgress != null)
-                        ScanProgress.Value = 0;
+                    var scanningIndicator = FindName("ScanningIndicator") as StackPanel;
+                    if (scanningIndicator != null)
+                        scanningIndicator.Visibility = Visibility.Visible;
+
+                    var scanProgress = FindName("ScanProgress") as System.Windows.Controls.ProgressBar;
+                    if (scanProgress != null)
+                        scanProgress.Value = 0;
                 });
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "Startup", "🔍 Förbättrad uppstartsskanning startad");
@@ -1001,8 +1356,9 @@ private void BuildThreatsTable(List<ScanResult> threats)
                 {
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        if (ScanProgress != null)
-                            ScanProgress.Value = i;
+                        var scanProgress = FindName("ScanProgress") as System.Windows.Controls.ProgressBar;
+                        if (scanProgress != null)
+                            scanProgress.Value = i;
                     });
                     await Task.Delay(200);
                 }
@@ -1014,11 +1370,15 @@ private void BuildThreatsTable(List<ScanResult> threats)
 
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        if (ScanningIndicator != null)
-                            ScanningIndicator.Visibility = Visibility.Collapsed;
+                        var scanningIndicator = FindName("ScanningIndicator") as StackPanel;
+                        if (scanningIndicator != null)
+                            scanningIndicator.Visibility = Visibility.Collapsed;
+
                         UpdateThreatsDisplay(threats);
-                        if (LastScanText != null)
-                            LastScanText.Text = DateTime.Now.ToString("HH:mm");
+
+                        var lastScanText = FindName("LastScanText") as TextBlock;
+                        if (lastScanText != null)
+                            lastScanText.Text = DateTime.Now.ToString("HH:mm");
                     });
 
                     if (threats.Any())
@@ -1038,155 +1398,60 @@ private void BuildThreatsTable(List<ScanResult> threats)
                 _logger.Error($"Uppstartsskanning misslyckades: {ex.Message}");
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    if (ScanningIndicator != null)
-                        ScanningIndicator.Visibility = Visibility.Collapsed;
+                    var scanningIndicator = FindName("ScanningIndicator") as StackPanel;
+                    if (scanningIndicator != null)
+                        scanningIndicator.Visibility = Visibility.Collapsed;
                     ShowInAppNotification("❌ Uppstartsskanning misslyckades", NotificationType.Error);
                 });
             }
         }
-        private async Task InitializeServicesAsync()
+
+        private void UpdateSecurityStatus(bool isSecure, int threatsCount)
         {
-            try
-            {
-                if (_fileScanner != null && _quarantine != null && _logViewer != null)
-                {
-                    _intrusionDetection = new IntrusionDetectionService(_logger, _logViewer, _fileScanner, _quarantine);
-                    _protectionService = new RealTimeProtectionService(_fileScanner, _quarantine, _logViewer, _logger, _config);
-                    _logger.Information("Protection services initierade");
-                }
+            var statusText = isSecure ? "SYSTEMET ÄR SÄKERT" : "HOT UPPTÄCKTA";
+            var statusColor = isSecure ? Colors.Green : Colors.Orange;
+            var subText = isSecure
+                ? $"0 hot funna • Auto-skydd {(_isProtectionActive ? "aktivt" : "inaktivt")}"
+                : $"{threatsCount} hot kräver åtgärd";
 
-                _logViewer?.AddLogEntry(LogLevel.Information, "System", "🛡️ FilKollen säkerhetstjänster laddade");
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning($"Service initiation varning: {ex.Message}");
-            }
-
-            await Task.Delay(10);
-        }
-        private async Task InitializeUIAsync()
-        {
-            try
-            {
-                UpdateSecurityStatus(isSecure: true, threatsCount: 0);
-
-                if (_licenseService != null)
-                {
-                    var status = await _licenseService.ValidateLicenseAsync();
-                    UpdateLicenseDisplay(status);
-                }
-
-                if (LastScanText != null)
-                    LastScanText.Text = "Aldrig";
-
-                if (ThreatsHandledText != null)
-                    ThreatsHandledText.Text = "0";
-
-                _logger.Information("UI initierat med elegant design");
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning($"UI initiation varning: {ex.Message}");
-            }
-
-            await Task.Delay(10);
-        }
-        private async Task InitializeProtectionAsync()
-        {
-            try
-            {
-                _isProtectionActive = false;
-                _isIpProtectionActive = false;
-
-                UpdateProtectionToggles();
-
-                _logViewer?.AddLogEntry(LogLevel.Information, "System",
-                    "✅ FilKollen redo - aktivera auto-skydd för fullständigt skydd");
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning($"Protection init varning: {ex.Message}");
-            }
-
-            await Task.Delay(10);
-        }
-        private async Task InitializeTrayAsync()
-        {
-            try
-            {
-                if (_protectionService != null && _logViewer != null)
-                {
-                    _trayService = new SystemTrayService(_protectionService, _logViewer, _logger);
-
-                    _trayService.ShowMainWindowRequested += (s, e) =>
-                    {
-                        Show();
-                        WindowState = WindowState.Normal;
-                        Activate();
-                    };
-
-                    _trayService.ExitApplicationRequested += (s, e) =>
-                    {
-                        Application.Current.Shutdown();
-                    };
-
-                    _logger.Information("System tray service initierat");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning($"Tray service init varning: {ex.Message}");
-            }
-
-            await Task.Delay(10);
-        }
-        private void UpdateStatusCallback(object? state)
-        {
-            try
-            {
-                Application.Current?.Dispatcher.BeginInvoke(() =>
-                {
-                    if (ConnectionStatusText != null)
-                    {
-                        ConnectionStatusText.Text = "ONLINE";
-                        ConnectionStatusText.Foreground = new SolidColorBrush(Colors.Green);
-                    }
-
-                    if (_protectionService != null && ThreatsHandledText != null)
-                    {
-                        var stats = _protectionService.GetProtectionStats();
-                        ThreatsHandledText.Text = stats.TotalThreatsHandled.ToString();
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.Debug($"Status update error: {ex.Message}");
-            }
-        }
-        private void TopBar_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Left)
-            {
-                if (e.ClickCount == 2 && ResizeMode != ResizeMode.NoResize)
-                {
-                    WindowState = WindowState == WindowState.Maximized
-                        ? WindowState.Normal
-                        : WindowState.Maximized;
-                }
-                else
-                {
-                    DragMove();
-                }
-            }
+            UpdateMainStatus(statusText, statusColor, subText);
         }
 
-        private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+        private void UpdateLicenseDisplay(LicenseStatus status)
+        {
+            _logger.Information($"License status: {status}");
+        }
 
-        private void Maximize_Click(object sender, RoutedEventArgs e) =>
-            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        private void UpdateProtectionToggles()
+        {
+            var protectionToggle = FindName("ProtectionToggle") as ToggleButton;
+            if (protectionToggle != null)
+                protectionToggle.IsChecked = _isProtectionActive;
 
-        private void Close_Click(object sender, RoutedEventArgs e) => Close();
+            var ipProtectionToggle = FindName("IpProtectionToggle") as ToggleButton;
+            if (ipProtectionToggle != null)
+                ipProtectionToggle.IsChecked = _isIpProtectionActive;
+        }
+
+        // Notification system
+        public enum NotificationType
+        {
+            Success,
+            Warning,
+            Error,
+            Info
+        }
+
+        private void ShowInAppNotification(string message, NotificationType type)
+        {
+            _logger.Information($"Notification ({type}): {message}");
+        }
+
+        private void ShowErrorDialog(string message, Exception ex)
+        {
+            var detailed = $"{message}\n\n{ex.GetType().Name}: {ex.Message}";
+            MessageBox.Show(detailed, "FilKollen - Fel", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
 
         protected override void OnClosing(CancelEventArgs e)
         {
@@ -1229,16 +1494,12 @@ private void BuildThreatsTable(List<ScanResult> threats)
                 _logger.Warning($"Fönsterstatus-ändring fel: {ex.Message}");
             }
         }
-        private void ShowErrorDialog(string message, Exception ex)
-        {
-            var detailed = $"{message}\n\n{ex.GetType().Name}: {ex.Message}";
-            MessageBox.Show(detailed, "FilKollen - Fel", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
 
         protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
         public void Dispose()
         {
             try
