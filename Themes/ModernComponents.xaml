@@ -608,13 +608,12 @@
                                                 <!-- Active Sort States -->
                                                 <Trigger Property="Tag"
                                                                 Value="SortAsc">
-                                                        <Setter Property="Foreground"
-                                                                Value="{DynamicResource FK.Brush.Primary}"/>
-                                                        <Setter Property="FontWeight"
-                                                                        Value="Bold"/>
                                                         <Setter TargetName="SortIndicator"
                                                                         Property="Text"
-                                                                        Value="↑"/>
+                                                                        Value="▲"/>
+                                                        <Setter TargetName="SortIndicator"
+                                                                        Property="Foreground"
+                                                                        Value="{DynamicResource FK.Brush.Primary}"/>
                                                         <Setter TargetName="SortIndicator"
                                                                         Property="Opacity"
                                                                         Value="1"/>
@@ -622,13 +621,12 @@
 
                                                 <Trigger Property="Tag"
                                                                 Value="SortDesc">
-                                                        <Setter Property="Foreground"
-                                                                Value="{DynamicResource FK.Brush.Primary}"/>
-                                                        <Setter Property="FontWeight"
-                                                                        Value="Bold"/>
                                                         <Setter TargetName="SortIndicator"
                                                                         Property="Text"
-                                                                        Value="↓"/>
+                                                                        Value="▼"/>
+                                                        <Setter TargetName="SortIndicator"
+                                                                        Property="Foreground"
+                                                                        Value="{DynamicResource FK.Brush.Primary}"/>
                                                         <Setter TargetName="SortIndicator"
                                                                         Property="Opacity"
                                                                         Value="1"/>
@@ -698,8 +696,22 @@
         <Setter Property="BorderThickness"
                 Value="1"/>
     </Style>
-
-    <!-- Threat Level Badges -->
+        <!-- === THREAT ACTION BUTTON STYLE === -->
+        <Style x:Key="FK.Style.ThreatActionButton"
+               TargetType="Button"
+               BasedOn="{StaticResource FK.Style.SecondaryButton}">
+                <Setter Property="MinWidth"
+                                Value="140"/>
+                <Setter Property="Width"
+                                Value="140"/>
+                <Setter Property="Padding"
+                                Value="16,10"/>
+                <Setter Property="FontSize"
+                                Value="13"/>
+                <Setter Property="HorizontalContentAlignment"
+                                Value="Center"/>
+        </Style>
+        <!-- Threat Level Badges -->
     <Style x:Key="FK.Style.ThreatBadge"
             TargetType="Border"
             BasedOn="{StaticResource FK.Style.Badge}">

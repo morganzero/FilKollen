@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data; // ← LÄGG TILL DENNA för CollectionViewSource
 using FilKollen.Models;
 using FilKollen.Services;
 using FilKollen.Windows;
@@ -46,9 +47,7 @@ namespace FilKollen
         private string _currentSortColumn = "";
         private bool _sortAscending = true;
 
-        // TA BORT UI-referenser - de skapas automatiskt från XAML
-        // Dessa tas bort för att undvika dubletter
-
+        private ICollectionView _threatsView;
         public MainWindow() : this(null, null, null) { }
 
         public MainWindow(LicenseService? licenseService, BrandingService? brandingService, ThemeService? themeService)
@@ -61,7 +60,8 @@ namespace FilKollen
                 _licenseService = licenseService;
                 _brandingService = brandingService;
                 _themeService = themeService;
-
+                _threatsView = CollectionViewSource.GetDefaultView(_currentThreats);
+                _threatsView.Filter = null; // Ingen filtrering
                 _config = InitializeConfig();
                 InitializeServices();
                 InitializeComponent();
@@ -513,8 +513,9 @@ namespace FilKollen
         {
             try
             {
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-                var response = await client.GetAsync("https://www.google.com");
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                // Använd Microsoft istället för Google
+                var response = await client.GetAsync("https://www.msftconnecttest.com/connecttest.txt");
                 return response.IsSuccessStatusCode;
             }
             catch
@@ -646,7 +647,38 @@ namespace FilKollen
                 }
             }
         }
+        private void TrialButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _logger.Information("Öppnar licensregistreringsfönster från provperiod-knapp");
 
+                // FIXAT: Hantera null licenseService
+                if (_licenseService == null)
+                {
+                    _logger.Warning("LicenseService är null - kan inte öppna registreringsfönster");
+                    ShowInAppNotification("❌ Licensservice inte tillgänglig", NotificationType.Error);
+                    return;
+                }
+
+                var licenseWindow = new LicenseRegistrationWindow(_licenseService, _logger);
+                licenseWindow.Owner = this;
+
+                var result = licenseWindow.ShowDialog();
+
+                if (result == true)
+                {
+                    // Uppdatera UI efter licensregistrering
+                    UpdateTrialBadge();
+                    _logger.Information("Licensregistrering genomförd från provperiod-knapp");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Fel vid öppning av licensregistrering: {ex.Message}");
+                ShowInAppNotification("❌ Kunde inte öppna licensregistrering", NotificationType.Error);
+            }
+        }
         private async void BrowserCleanButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -1007,8 +1039,9 @@ namespace FilKollen
         {
             var row = new Border
             {
-                Background = TryFindResource("FK.Brush.Surface") as Brush ?? SystemColors.WindowBrush,
-                BorderBrush = TryFindResource("FK.Brush.Border") as Brush ?? SystemColors.ControlDarkBrush,
+                // FIXAT: Använd FindResource istället för DynamicResourceExtension
+                Background = Application.Current.FindResource("FK.Brush.RowBackground") as Brush,
+                BorderBrush = Application.Current.FindResource("FK.Brush.Border") as Brush,
                 BorderThickness = new Thickness(0, 0, 0, 1),
                 Padding = new Thickness(0, 8, 0, 8),
                 Margin = new Thickness(0, 2, 0, 2)
@@ -1016,10 +1049,10 @@ namespace FilKollen
 
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
 
@@ -1045,32 +1078,35 @@ namespace FilKollen
             Grid.SetColumn(fileType, 1);
             grid.Children.Add(fileType);
 
-            // File size
-            var fileSize = new TextBlock
+            // File size - FIXAT: Högerjusterad
+            var fileSizeBlock = new TextBlock
             {
                 Text = threat.FormattedSize ?? "Unknown",
                 Style = TryFindResource("FK.Style.TableCell") as Style,
                 VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(8, 0, 8, 0)
             };
-            Grid.SetColumn(fileSize, 2);
-            grid.Children.Add(fileSize);
+            Grid.SetColumn(fileSizeBlock, 2);
+            grid.Children.Add(fileSizeBlock);
 
-            // File path
+            // File path - FIXAT: TextTrimming + ToolTip
             var filePath = new TextBlock
             {
                 Text = Path.GetDirectoryName(threat.FilePath) ?? "",
                 Style = TryFindResource("FK.Style.TableCell") as Style,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(8, 0, 8, 0)
+                Margin = new Thickness(8, 0, 8, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                ToolTip = threat.FilePath
             };
             Grid.SetColumn(filePath, 3);
             grid.Children.Add(filePath);
 
-            // Created date
+            // Created date - FIXAT: Kort datumformat
             var createdDate = new TextBlock
             {
-                Text = threat.CreatedDate.ToString("yyyy-MM-dd"),
+                Text = threat.CreatedDate.ToString("MM-dd HH:mm"),
                 Style = TryFindResource("FK.Style.TableCell") as Style,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8, 0, 8, 0)
@@ -1095,6 +1131,33 @@ namespace FilKollen
             actionButton.Click += DeleteThreatButton_Click;
             Grid.SetColumn(actionButton, 6);
             grid.Children.Add(actionButton);
+
+            // FIXAT: Hover-effekt med säker resource-hämtning
+            row.MouseEnter += (s, e) =>
+            {
+                try
+                {
+                    row.Background = Application.Current.FindResource("FK.Brush.RowHover") as Brush;
+                }
+                catch
+                {
+                    // Fallback till standard hover-färg om resource saknas
+                    row.Background = new SolidColorBrush(Color.FromRgb(240, 245, 249));
+                }
+            };
+
+            row.MouseLeave += (s, e) =>
+            {
+                try
+                {
+                    row.Background = Application.Current.FindResource("FK.Brush.RowBackground") as Brush;
+                }
+                catch
+                {
+                    // Fallback till vit bakgrund om resource saknas
+                    row.Background = new SolidColorBrush(Colors.White);
+                }
+            };
 
             row.Child = grid;
             return row;
@@ -1243,11 +1306,23 @@ namespace FilKollen
             header.Click += (s, e) => SortByColumn(sortProperty, header);
             header.Tag = sortProperty;
         }
-
+        private List<ScanResult> GetSelectedThreats()
+        {
+            // Implementera baserat på din selection-logik
+            // Placeholder - kan utökas senare för att hantera markerade rader
+            return new List<ScanResult>();
+        }
         private void SortByColumn(string property, Button header)
         {
-            ResetOtherHeaders(header);
+            if (_threatsView == null) return;
 
+            // Säkerställ att vi inte tappar selection
+            var selectedItems = GetSelectedThreats(); // Ny hjälpmetod
+
+            // Rensa befintlig sortering
+            _threatsView.SortDescriptions.Clear();
+
+            // Uppdatera sort-riktning
             if (_currentSortColumn == property)
             {
                 _sortAscending = !_sortAscending;
@@ -1258,13 +1333,24 @@ namespace FilKollen
                 _sortAscending = true;
             }
 
+            // Lägg till ny sortering
+            var direction = _sortAscending ? ListSortDirection.Ascending : ListSortDirection.Descending;
+            _threatsView.SortDescriptions.Add(new SortDescription(property, direction));
+
+            // Uppdatera header-indikator utan att påverka data
             UpdateHeaderSortIndicator(header, _sortAscending);
-            SortThreats(property, _sortAscending);
 
-            _logViewer?.AddLogEntry(LogLevel.Debug, "UI",
-                $"Sorterat hot efter {property} ({(_sortAscending ? "stigande" : "fallande")})");
+            // Återställ selection om möjligt
+            RestoreSelectedThreats(selectedItems);
+
+            _logger.Information($"Sorterat efter {property} ({direction})");
         }
-
+        private void RestoreSelectedThreats(List<ScanResult> previouslySelected)
+        {
+            // Implementera selection-återställning
+            // Detta förhindrar att sortering påverkar selection
+            // Placeholder - kan utökas senare
+        }
         private void ResetOtherHeaders(Button activeHeader)
         {
             var headers = new[] {

@@ -73,7 +73,24 @@
                      Color="{StaticResource FK.Color.Danger}"/>
     <SolidColorBrush x:Key="FK.Brush.StatusNeutral"
                      Color="{StaticResource FK.Color.StatusNeutral}"/>
+    <!-- === LIST/TABLE FÄRGER === -->
+    <Color x:Key="FK.Color.RowBackground">#FFFFFF</Color>
+    <Color x:Key="FK.Color.RowBackgroundAlt">#F8FAFC</Color>
+    <Color x:Key="FK.Color.RowHover">#F1F5F9</Color>
+    <Color x:Key="FK.Color.RowSelected">#DBEAFE</Color>
+    <Color x:Key="FK.Color.HeaderBackground">#F8FAFC</Color>
 
+    <!-- Row Brushes -->
+    <SolidColorBrush x:Key="FK.Brush.RowBackground"
+            Color="{StaticResource FK.Color.RowBackground}"/>
+    <SolidColorBrush x:Key="FK.Brush.RowBackgroundAlt"
+            Color="{StaticResource FK.Color.RowBackgroundAlt}"/>
+    <SolidColorBrush x:Key="FK.Brush.RowHover"
+            Color="{StaticResource FK.Color.RowHover}"/>
+    <SolidColorBrush x:Key="FK.Brush.RowSelected"
+            Color="{StaticResource FK.Color.RowSelected}"/>
+    <SolidColorBrush x:Key="FK.Brush.HeaderBackground"
+            Color="{StaticResource FK.Color.HeaderBackground}"/>
     <SolidColorBrush x:Key="FK.Brush.Hover"
                      Color="{StaticResource FK.Color.Hover}"/>
     <SolidColorBrush x:Key="FK.Brush.Focus"

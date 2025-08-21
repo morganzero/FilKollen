@@ -75,8 +75,25 @@
       Color="{StaticResource FK.Color.Hover}"/>
   <SolidColorBrush x:Key="FK.Brush.Focus"
       Color="{StaticResource FK.Color.Focus}"/>
+    <!-- === LIST/TABLE FÄRGER === -->
+    <Color x:Key="FK.Color.RowBackground">#1A202C</Color>
+    <Color x:Key="FK.Color.RowBackgroundAlt">#1E2A3A</Color>
+    <Color x:Key="FK.Color.RowHover">#2A3441</Color>
+    <Color x:Key="FK.Color.RowSelected">#1E3A5F</Color>
+    <Color x:Key="FK.Color.HeaderBackground">#1A202C</Color>
 
-  <!-- Rena gradients utan konstiga effekter -->
+    <!-- Row Brushes -->
+    <SolidColorBrush x:Key="FK.Brush.RowBackground"
+            Color="{StaticResource FK.Color.RowBackground}"/>
+    <SolidColorBrush x:Key="FK.Brush.RowBackgroundAlt"
+            Color="{StaticResource FK.Color.RowBackgroundAlt}"/>
+    <SolidColorBrush x:Key="FK.Brush.RowHover"
+            Color="{StaticResource FK.Color.RowHover}"/>
+    <SolidColorBrush x:Key="FK.Brush.RowSelected"
+            Color="{StaticResource FK.Color.RowSelected}"/>
+    <SolidColorBrush x:Key="FK.Brush.HeaderBackground"
+            Color="{StaticResource FK.Color.HeaderBackground}"/>
+    <!-- Rena gradients utan konstiga effekter -->
   <LinearGradientBrush x:Key="FK.Brush.PrimaryGradient"
       StartPoint="0,0"
       EndPoint="1,1">
