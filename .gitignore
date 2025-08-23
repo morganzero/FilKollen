@@ -35,3 +35,8 @@ Thumbs.db
 *.msi
 *.msm
 *.msp
+
+machine.id
+trial.dat
+theme.json
+*.enc

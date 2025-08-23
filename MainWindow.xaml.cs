@@ -27,6 +27,7 @@ namespace FilKollen
     public partial class MainWindow : Window, INotifyPropertyChanged, IDisposable
     {
         public event PropertyChangedEventHandler? PropertyChanged;
+    private ToastService? _toastService;
 
         private readonly ILogger _logger;
         private readonly LicenseService? _licenseService;
@@ -162,6 +163,7 @@ namespace FilKollen
                 _config = InitializeConfig();
                 InitializeServices();
                 InitializeComponent();
+                        _toastService = new ToastService(this, _logger);
                 InitializeBrandingFixed();
                 InitializeTheme();
 
@@ -374,6 +376,11 @@ namespace FilKollen
             try
             {
                 await InitializeServicesAsync();
+                if (_intrusionDetection != null)
+{
+    _intrusionDetection.IntrusionDetected += (s, e) => 
+        _toastService?.ShowToast($"🚨 INTRÅNG: {e.ProcessName}", ToastType.Error);
+}
                 await InitializeUIAsync();
                 await InitializeProtectionAsync();
                 await InitializeTrayAsync();
@@ -390,26 +397,45 @@ namespace FilKollen
             }
         }
 
-        private async Task InitializeServicesAsync()
+private async Task InitializeServicesAsync()
+{
+    try
+    {
+        if (_fileScanner != null && _quarantine != null && _logViewer != null)
         {
-            try
+            _intrusionDetection = new IntrusionDetectionService(_logger, _logViewer, _fileScanner, _quarantine);
+            _protectionService = new RealTimeProtectionService(_fileScanner, _quarantine, _logViewer, _logger, _config);
+            
+            // ✅ ENDAST EN GÅNG - koppla event handlers
+            if (_intrusionDetection != null)
             {
-                if (_fileScanner != null && _quarantine != null && _logViewer != null)
-                {
-                    _intrusionDetection = new IntrusionDetectionService(_logger, _logViewer, _fileScanner, _quarantine);
-                    _protectionService = new RealTimeProtectionService(_fileScanner, _quarantine, _logViewer, _logger, _config);
-                    _logger.Information("Protection services initierade");
-                }
-
-                _logViewer?.AddLogEntry(LogLevel.Information, "System", "🛡️ FilKollen säkerhetstjänster laddade");
+                _intrusionDetection.IntrusionDetected += OnIntrusionDetected;
+                _intrusionDetection.SecurityAlert += OnSecurityAlert;
             }
-            catch (Exception ex)
-            {
-                _logger.Warning($"Service initiation varning: {ex.Message}");
-            }
-
-            await Task.Delay(10);
+            
+            _logger.Information("Protection services initierade");
         }
+
+        _logViewer?.AddLogEntry(LogLevel.Information, "System", "🛡️ FilKollen säkerhetstjänster laddade");
+    }
+    catch (Exception ex)
+    {
+        _logger.Warning($"Service initiation varning: {ex.Message}");
+    }
+
+    await Task.Delay(10);
+}
+
+// ✅ Event handlers definierade UTANFÖR InitializeServicesAsync
+private void OnIntrusionDetected(object? sender, IntrusionDetectedEventArgs e)
+{
+    ShowToast($"🚨 INTRÅNG: {e.ThreatType} - {e.ProcessName}", ToastType.Error);
+}
+
+private void OnSecurityAlert(object? sender, SecurityAlertEventArgs e)
+{
+    ShowToast($"⚠️ {e.AlertType}: {e.Message}", ToastType.Warning);
+}
 
         private async Task InitializeUIAsync()
         {
@@ -443,7 +469,14 @@ namespace FilKollen
 
             await Task.Delay(10);
         }
-
+private async void SetupScheduledScanning()
+{
+    if (_config.EnableScheduling)
+    {
+        var scheduleManager = new ScheduleManager(_logger);
+        await scheduleManager.CreateScheduledTaskAsync(_config);
+    }
+}
         // NY: Kontrollera trial status och uppdatera property
         private void CheckTrialStatus()
         {
@@ -462,7 +495,7 @@ namespace FilKollen
                 if (_licenseService == null)
                 {
                     _logger.Warning("LicenseService är null - kan inte öppna registreringsfönster");
-                    ShowInAppNotification("❌ Licensservice inte tillgänglig", NotificationType.Error);
+                    ShowToast("❌ Licensservice inte tillgänglig", NotificationType.Error);
                     return;
                 }
 
@@ -482,7 +515,7 @@ namespace FilKollen
             catch (Exception ex)
             {
                 _logger.Error($"Fel vid öppning av licensregistrering från trial badge: {ex.Message}");
-                ShowInAppNotification("❌ Kunde inte öppna licensregistrering", NotificationType.Error);
+                ShowToast("❌ Kunde inte öppna licensregistrering", NotificationType.Error);
             }
         }
 
@@ -759,21 +792,21 @@ namespace FilKollen
                         _logViewer?.AddLogEntry(LogLevel.Warning, "Scan",
                             $"⚠️ Manuell skanning: {threats.Count} hot funna");
 
-                        ShowInAppNotification($"⚠️ {threats.Count} hot upptäckta!", NotificationType.Warning);
+                        ShowToast($"⚠️ {threats.Count} hot upptäckta!", NotificationType.Warning);
                     }
                     else
                     {
                         _logViewer?.AddLogEntry(LogLevel.Information, "Scan",
                             "✅ Manuell skanning: Inga hot funna");
 
-                        ShowInAppNotification("✅ Inga hot funna - systemet är säkert", NotificationType.Success);
+                        ShowToast("✅ Inga hot funna - systemet är säkert", NotificationType.Success);
                     }
                 }
             }
             catch (Exception ex)
             {
                 _logger.Error($"Manuell skanning fel: {ex.Message}");
-                ShowInAppNotification("❌ Skanning misslyckades", NotificationType.Error);
+                ShowToast("❌ Skanning misslyckades", NotificationType.Error);
             }
             finally
             {
@@ -811,7 +844,7 @@ namespace FilKollen
                     if (result.Success)
                     {
                         var message = $"✅ {result.MalwareNotificationsRemoved} falska aviseringar rensade";
-                        ShowInAppNotification(message, NotificationType.Success);
+                        ShowToast(message, NotificationType.Success);
 
                         _logViewer?.AddLogEntry(LogLevel.Information, "BrowserClean",
                             $"✅ Falska aviseringar rensade: {result.MalwareNotificationsRemoved} st");
@@ -822,7 +855,7 @@ namespace FilKollen
                     }
                     else
                     {
-                        ShowInAppNotification("❌ Rensning misslyckades", NotificationType.Error);
+                        ShowToast("❌ Rensning misslyckades", NotificationType.Error);
                         _logViewer?.AddLogEntry(LogLevel.Error, "BrowserClean",
                             "❌ Webbläsarrensning misslyckades");
                     }
@@ -831,7 +864,7 @@ namespace FilKollen
             catch (Exception ex)
             {
                 _logger.Error($"Fel vid webbläsarrensning: {ex.Message}");
-                ShowInAppNotification("❌ Rensning misslyckades", NotificationType.Error);
+                ShowToast("❌ Rensning misslyckades", NotificationType.Error);
             }
             finally
             {
@@ -891,7 +924,7 @@ namespace FilKollen
                 }
 
                 var message = $"✅ {handledCount} hot har tagits bort";
-                ShowInAppNotification(message, NotificationType.Success);
+                ShowToast(message, NotificationType.Success);
 
                 _logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",
                     $"✅ {handledCount} hot har hanterats framgångsrikt");
@@ -899,7 +932,7 @@ namespace FilKollen
             catch (Exception ex)
             {
                 _logger.Error($"Fel vid hantering av alla hot: {ex.Message}");
-                ShowInAppNotification("❌ Fel vid borttagning av hot", NotificationType.Error);
+                ShowToast("❌ Fel vid borttagning av hot", NotificationType.Error);
             }
             finally
             {
@@ -938,18 +971,18 @@ namespace FilKollen
 
                     if (threats.Any())
                     {
-                        ShowInAppNotification($"🔄 Uppdatering: {threats.Count} hot funna", NotificationType.Warning);
+                        ShowToast($"🔄 Uppdatering: {threats.Count} hot funna", NotificationType.Warning);
                     }
                     else
                     {
-                        ShowInAppNotification("🔄 Uppdatering: Inga hot funna", NotificationType.Success);
+                        ShowToast("🔄 Uppdatering: Inga hot funna", NotificationType.Success);
                     }
                 }
             }
             catch (Exception ex)
             {
                 _logger.Error($"Fel vid hotskanning: {ex.Message}");
-                ShowInAppNotification("❌ Uppdatering misslyckades", NotificationType.Error);
+                ShowToast("❌ Uppdatering misslyckades", NotificationType.Error);
             }
             finally
             {
@@ -1305,14 +1338,14 @@ namespace FilKollen
                                     threatsHandledText.Text = (currentHandled + 1).ToString();
                                 }
 
-                                ShowInAppNotification($"✅ {threat.FileName} har tagits bort", NotificationType.Success);
+                                ShowToast($"✅ {threat.FileName} har tagits bort", NotificationType.Success);
 
                                 _logViewer?.AddLogEntry(LogLevel.Information, "ThreatAction",
                                     $"🗑️ Hot raderat: {threat.FileName}");
                             }
                             else
                             {
-                                ShowInAppNotification($"❌ Kunde inte ta bort {threat.FileName}", NotificationType.Error);
+                                ShowToast($"❌ Kunde inte ta bort {threat.FileName}", NotificationType.Error);
                             }
                         }
                     }
@@ -1320,7 +1353,7 @@ namespace FilKollen
                 catch (Exception ex)
                 {
                     _logger.Error($"Fel vid radering av hot: {ex.Message}");
-                    ShowInAppNotification($"❌ Fel vid borttagning: {ex.Message}", NotificationType.Error);
+                    ShowToast($"❌ Fel vid borttagning: {ex.Message}", NotificationType.Error);
                 }
                 finally
                 {
@@ -1508,12 +1541,12 @@ namespace FilKollen
 
                     if (threats.Any())
                     {
-                        ShowInAppNotification($"⚠️ {threats.Count} hot upptäckta under uppstartsskanning", NotificationType.Warning);
+                        ShowToast($"⚠️ {threats.Count} hot upptäckta under uppstartsskanning", NotificationType.Warning);
                         _logViewer?.AddLogEntry(LogLevel.Warning, "Startup", $"⚠️ {threats.Count} hot funna vid uppstart");
                     }
                     else
                     {
-                        ShowInAppNotification("✅ Uppstartsskanning slutförd - inga hot funna", NotificationType.Success);
+                        ShowToast("✅ Uppstartsskanning slutförd - inga hot funna", NotificationType.Success);
                         _logViewer?.AddLogEntry(LogLevel.Information, "Startup", "✅ Uppstartsskanning: Inga hot funna");
                     }
                 }
@@ -1526,7 +1559,7 @@ namespace FilKollen
                     var scanningIndicator = FindName("ScanningIndicator") as StackPanel;
                     if (scanningIndicator != null)
                         scanningIndicator.Visibility = Visibility.Collapsed;
-                    ShowInAppNotification("❌ Uppstartsskanning misslyckades", NotificationType.Error);
+                    ShowToast("❌ Uppstartsskanning misslyckades", NotificationType.Error);
                 });
             }
         }
@@ -1567,7 +1600,7 @@ namespace FilKollen
             Info
         }
 
-        private void ShowInAppNotification(string message, NotificationType type)
+        private void ShowToast(string message, NotificationType type)
         {
             _logger.Information($"Notification ({type}): {message}");
         }
@@ -2020,7 +2053,7 @@ private void BuildEnhancedThreatsTable(List<ScanResult> threats)
     }
 }
 
-// Toast integration - ersätt ShowInAppNotification anrop
+// Toast integration - ersätt ShowToast anrop
 private ToastService? _toastService;
 
 private void InitializeToastService()
