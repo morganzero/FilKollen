@@ -1647,3 +1647,688 @@ namespace FilKollen
         }
     }
 }
+
+// MainWindow.xaml.cs - Förbättrade tabellmetoder
+// Lägg till dessa metoder i MainWindow-klassen
+
+private Border CreateEnhancedThreatRow(ScanResult threat)
+{
+    var row = new Border
+    {
+        Background = Application.Current.FindResource("FK.Brush.RowBackground") as Brush,
+        BorderBrush = Application.Current.FindResource("FK.Brush.Border") as Brush,
+        BorderThickness = new Thickness(0, 0, 0, 1),
+        Padding = new Thickness(0, 8, 0, 8), // Reducerat från 10
+        Margin = new Thickness(0, 1, 0, 1),
+        MinHeight = 44 // Kompaktare radhöjd
+    };
+
+    var grid = new Grid();
+
+    // FÖRBÄTTRADE kolumndefinitioner
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) }); // Filnamn
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) }); // Typ + ikon
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) }); // Storlek
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.5, GridUnitType.Star) }); // Sökväg
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) }); // Datum
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) }); // Risk badge
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) }); // Åtgärd
+
+    // Filnamn (kolumn 0) - Ökad vänstermarginal
+    var fileName = new TextBlock
+    {
+        Text = threat.FileName,
+        Style = TryFindResource("FK.Style.CompactTableCell") as Style,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(20, 0, 8, 0), // Ökad från 16 till 20
+        FontWeight = FontWeights.Medium
+    };
+    Grid.SetColumn(fileName, 0);
+    grid.Children.Add(fileName);
+
+    // Filtyp med ikon (kolumn 1) - FÖRBÄTTRAT
+    var typePanel = new StackPanel
+    {
+        Orientation = Orientation.Horizontal,
+        VerticalAlignment = VerticalAlignment.Center,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        Margin = new Thickness(8, 0, 8, 0)
+    };
+
+    var typeIcon = new TextBlock
+    {
+        Text = GetFileTypeIcon(threat.FileName),
+        FontSize = 16, // Större ikoner
+        Margin = new Thickness(0, 0, 6, 0),
+        VerticalAlignment = VerticalAlignment.Center
+    };
+    typePanel.Children.Add(typeIcon);
+
+    var typeText = new TextBlock
+    {
+        Text = GetFileTypeDisplay(threat.FileName),
+        FontSize = 11,
+        FontWeight = FontWeights.SemiBold,
+        VerticalAlignment = VerticalAlignment.Center,
+        Foreground = Application.Current.FindResource("FK.Brush.Subtext") as Brush
+    };
+    typePanel.Children.Add(typeText);
+
+    Grid.SetColumn(typePanel, 1);
+    grid.Children.Add(typePanel);
+
+    // Filstorlek (kolumn 2) - Högerjusterad
+    var fileSizeBlock = new TextBlock
+    {
+        Text = threat.FormattedSize ?? "Okänd",
+        Style = TryFindResource("FK.Style.CompactTableCell") as Style,
+        VerticalAlignment = VerticalAlignment.Center,
+        HorizontalAlignment = HorizontalAlignment.Right,
+        Margin = new Thickness(8, 0, 16, 0),
+        FontFamily = new FontFamily("Consolas, Monaco, monospace") // Monospace för siffror
+    };
+    Grid.SetColumn(fileSizeBlock, 2);
+    grid.Children.Add(fileSizeBlock);
+
+    // Sökväg (kolumn 3) - Med TextTrimming
+    var filePath = new TextBlock
+    {
+        Text = Path.GetDirectoryName(threat.FilePath) ?? "",
+        Style = TryFindResource("FK.Style.CompactTableCell") as Style,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(8, 0, 8, 0),
+        TextTrimming = TextTrimming.CharacterEllipsis,
+        ToolTip = threat.FilePath,
+        Opacity = 0.8
+    };
+    Grid.SetColumn(filePath, 3);
+    grid.Children.Add(filePath);
+
+    // Datum (kolumn 4) - Kompakt format
+    var createdDate = new TextBlock
+    {
+        Text = threat.CreatedDate.ToString("MM-dd HH:mm"),
+        Style = TryFindResource("FK.Style.CompactTableCell") as Style,
+        VerticalAlignment = VerticalAlignment.Center,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        Margin = new Thickness(8, 0, 8, 0),
+        FontFamily = new FontFamily("Consolas, Monaco, monospace")
+    };
+    Grid.SetColumn(createdDate, 4);
+    grid.Children.Add(createdDate);
+
+    // FÖRBÄTTRAD risk badge (kolumn 5)
+    var threatBadge = CreateCompactThreatLevelBadge(threat.ThreatLevel);
+    Grid.SetColumn(threatBadge, 5);
+    grid.Children.Add(threatBadge);
+
+    // KOMPAKT åtgärdsknapp (kolumn 6)
+    var actionButton = new Button
+    {
+        Content = "Ta bort",
+        Style = TryFindResource("FK.Style.CompactDangerButton") as Style,
+        Tag = threat,
+        Margin = new Thickness(8, 0, 8, 0),
+        Padding = new Thickness(10, 6),
+        FontSize = 11,
+        Height = 32,
+        MinWidth = 70,
+        HorizontalAlignment = HorizontalAlignment.Center
+    };
+    actionButton.Click += DeleteThreatButton_Click;
+    Grid.SetColumn(actionButton, 6);
+    grid.Children.Add(actionButton);
+
+    // FÖRBÄTTRADE hover-effekter med varannan rad
+    var rowIndex = _currentThreats.IndexOf(threat);
+    var isEvenRow = rowIndex % 2 == 0;
+
+    row.Background = isEvenRow
+        ? Application.Current.FindResource("FK.Brush.RowBackground") as Brush
+        : Application.Current.FindResource("FK.Brush.RowBackgroundAlt") as Brush;
+
+    row.MouseEnter += (s, e) =>
+    {
+        row.Background = Application.Current.FindResource("FK.Brush.RowHover") as Brush;
+        row.BorderBrush = Application.Current.FindResource("FK.Brush.Primary") as Brush;
+    };
+
+    row.MouseLeave += (s, e) =>
+    {
+        row.Background = isEvenRow
+            ? Application.Current.FindResource("FK.Brush.RowBackground") as Brush
+            : Application.Current.FindResource("FK.Brush.RowBackgroundAlt") as Brush;
+        row.BorderBrush = Application.Current.FindResource("FK.Brush.Border") as Brush;
+    };
+
+    row.Child = grid;
+    return row;
+}
+
+// FÖRBÄTTRAD metod för filtyps-ikoner
+private string GetFileTypeIcon(string fileName)
+{
+    var extension = Path.GetExtension(fileName)?.ToLowerInvariant();
+    return extension switch
+    {
+        ".exe" => "⚙️", // Executable
+        ".bat" => "📝", // Batch script
+        ".cmd" => "📝", // Command script
+        ".ps1" => "💻", // PowerShell
+        ".vbs" => "📜", // VBScript
+        ".scr" => "🖥️", // Screen saver
+        ".msi" => "📦", // Installer
+        ".jar" => "☕", // Java
+        ".js" => "🟨", // JavaScript
+        ".com" => "⚙️", // Command
+        ".pif" => "🔗", // Program Information File
+        _ => "📄" // Default file
+    };
+}
+
+// FÖRBÄTTRAD kompakt risk badge
+private Border CreateCompactThreatLevelBadge(ThreatLevel level)
+{
+    var badge = new Border
+    {
+        Style = TryFindResource("FK.Style.CompactThreatBadge") as Style,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center
+    };
+
+    var text = new TextBlock
+    {
+        Style = TryFindResource("FK.Style.CompactBadgeText") as Style,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center
+    };
+
+    switch (level)
+    {
+        case ThreatLevel.Critical:
+            badge.Background = TryFindResource("FK.Brush.Danger") as Brush ??
+                              new SolidColorBrush(Color.FromRgb(220, 53, 69));
+            text.Text = "KRITISK";
+            text.Foreground = Brushes.White;
+            break;
+        case ThreatLevel.High:
+            badge.Background = TryFindResource("FK.Brush.Danger") as Brush ??
+                              new SolidColorBrush(Color.FromRgb(220, 53, 69));
+            text.Text = "HÖG";
+            text.Foreground = Brushes.White;
+            break;
+        case ThreatLevel.Medium:
+            badge.Background = TryFindResource("FK.Brush.Warning") as Brush ??
+                              new SolidColorBrush(Color.FromRgb(255, 193, 7));
+            text.Text = "MEDIUM";
+            text.Foreground = Brushes.Black;
+            break;
+        default:
+            badge.Background = TryFindResource("FK.Brush.StatusNeutral") as Brush ??
+                              new SolidColorBrush(Color.FromRgb(108, 117, 125));
+            text.Text = "LÅG";
+            text.Foreground = Brushes.White;
+            break;
+    }
+
+    badge.Child = text;
+    return badge;
+}
+
+// FÖRBÄTTRAD sorteringsmetod med visuell feedback
+private void SortByColumnEnhanced(string property, Button header)
+{
+    if (_threatsView == null) return;
+
+    // Rensa alla andra headers
+    var allHeaders = new[] {
+        FindName("FileNameHeader") as Button,
+        FindName("TypeHeader") as Button,
+        FindName("SizeHeader") as Button,
+        FindName("PathHeader") as Button,
+        FindName("DateHeader") as Button,
+        FindName("RiskHeader") as Button
+    };
+
+    foreach (var otherHeader in allHeaders)
+    {
+        if (otherHeader != null && otherHeader != header)
+        {
+            otherHeader.Tag = null;
+            UpdateHeaderSortIndicator(otherHeader, null);
+        }
+    }
+
+    // Toggle sort direction
+    if (_currentSortColumn == property)
+    {
+        _sortAscending = !_sortAscending;
+    }
+    else
+    {
+        _currentSortColumn = property;
+        _sortAscending = true;
+    }
+
+    // Sortera data
+    var sortedThreats = _sortAscending
+        ? _currentThreats.OrderBy(GetSortValue)
+        : _currentThreats.OrderByDescending(GetSortValue);
+
+    // Uppdatera lista
+    _currentThreats.Clear();
+    foreach (var threat in sortedThreats)
+    {
+        _currentThreats.Add(threat);
+    }
+
+    // Uppdatera header visuellt
+    header.Tag = _sortAscending ? "SortAsc" : "SortDesc";
+    UpdateHeaderSortIndicator(header, _sortAscending);
+
+    // Återbygg tabell
+    BuildThreatsTableEnhanced(_currentThreats);
+
+    _logger.Information($"Sorterat efter {property} ({(_sortAscending ? "stigande" : "fallande")})");
+
+    // Lokal hjälpfunktion för sorteringsvärden
+    object GetSortValue(ScanResult threat) => property switch
+    {
+        "FileName" => threat.FileName,
+        "FileType" => Path.GetExtension(threat.FileName),
+        "FileSize" => threat.FileSize,
+        "FilePath" => threat.FilePath,
+        "CreatedDate" => threat.CreatedDate,
+        "ThreatLevel" => (int)threat.ThreatLevel,
+        _ => threat.FileName
+    };
+}
+
+private void UpdateHeaderSortIndicator(Button header, bool? ascending)
+{
+    // Hitta TextBlock med namnet "SortIndicator" i header template
+    if (header.Template != null)
+    {
+        var indicator = header.Template.FindName("SortIndicator", header) as TextBlock;
+        if (indicator != null)
+        {
+            if (ascending.HasValue)
+            {
+                indicator.Text = ascending.Value ? "▲" : "▼";
+                indicator.Foreground = Application.Current.FindResource("FK.Brush.Primary") as Brush;
+                indicator.Opacity = 1.0;
+            }
+            else
+            {
+                indicator.Text = "⇅";
+                indicator.Foreground = Application.Current.FindResource("FK.Brush.Subtext") as Brush;
+                indicator.Opacity = 0.5;
+            }
+        }
+    }
+}
+
+// FÖRBÄTTRAD metod för att bygga hela tabellen
+private void BuildEnhancedThreatsTable(List<ScanResult> threats)
+{
+    var threatsList = FindName("ThreatsList") as StackPanel;
+    if (threatsList == null) return;
+
+    threatsList.Children.Clear();
+
+    // Använd virtualisering för stora listor
+    if (threats.Count > 50)
+    {
+        // Visa endast första 50, lägg till "Visa fler" knapp
+        var visibleThreats = threats.Take(50).ToList();
+        foreach (var threat in visibleThreats)
+        {
+            var row = CreateEnhancedThreatRow(threat);
+            threatsList.Children.Add(row);
+        }
+
+        if (threats.Count > 50)
+        {
+            var showMoreButton = new Button
+            {
+                Content = $"Visa {threats.Count - 50} fler hot...",
+                Style = TryFindResource("FK.Style.SecondaryButton") as Style,
+                Margin = new Thickness(16, 12, 16, 12),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            showMoreButton.Click += (s, e) =>
+            {
+                // Visa alla hot
+                threatsList.Children.Remove(showMoreButton);
+                foreach (var threat in threats.Skip(50))
+                {
+                    var row = CreateEnhancedThreatRow(threat);
+                    threatsList.Children.Add(row);
+                }
+            };
+            threatsList.Children.Add(showMoreButton);
+        }
+    }
+    else
+    {
+        // Visa alla hot direkt
+        foreach (var threat in threats)
+        {
+            var row = CreateEnhancedThreatRow(threat);
+            threatsList.Children.Add(row);
+        }
+    }
+}
+
+// Toast integration - ersätt ShowInAppNotification anrop
+private ToastService? _toastService;
+
+private void InitializeToastService()
+{
+    _toastService = new ToastService(this);
+}
+
+private void ShowToast(string message, ToastType type = ToastType.Info, int duration = 4000)
+{
+    _toastService?.ShowToast(message, type, duration);
+}
+
+// === FÖRBÄTTRAD THREAT ROW CREATION ===
+private Border CreateThreatRow(ScanResult threat)
+{
+    var row = new Border
+    {
+        Background = Application.Current.FindResource("FK.Brush.RowBackground") as Brush,
+        BorderBrush = Application.Current.FindResource("FK.Brush.Border") as Brush,
+        BorderThickness = new Thickness(0, 0, 0, 1),
+        Padding = new Thickness(0, 8, 0, 8), // Reducerat från 10
+        Margin = new Thickness(0, 1, 0, 1),
+        MinHeight = 44 // Reducerat från implicit högre värde
+    };
+
+    var grid = new Grid();
+    
+    // Kolumndefinitioner med justerade bredder
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) }); // Typ + ikon
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) }); // Storlek
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.5, GridUnitType.Star) });
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) }); // Datum
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) }); // Risk
+    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) }); // Åtgärd
+
+    // Filnamn (kolumn 0)
+    var fileName = new TextBlock
+    {
+        Text = threat.FileName,
+        Style = TryFindResource("FK.Style.TableCell") as Style,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(20, 0, 8, 0) // Ökad vänstermarginal
+    };
+    Grid.SetColumn(fileName, 0);
+    grid.Children.Add(fileName);
+
+    // Filtyp med ikon (kolumn 1)
+    var typePanel = new StackPanel 
+    { 
+        Orientation = Orientation.Horizontal,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(8, 0, 8, 0)
+    };
+
+    // Lägg till filtyps-ikon
+    var typeIcon = new TextBlock
+    {
+        Text = GetFileTypeIcon(threat.FileName),
+        FontSize = 14,
+        Margin = new Thickness(0, 0, 6, 0),
+        VerticalAlignment = VerticalAlignment.Center
+    };
+    typePanel.Children.Add(typeIcon);
+
+    var typeText = new TextBlock
+    {
+        Text = GetFileTypeDisplay(threat.FileName),
+        FontSize = 12,
+        VerticalAlignment = VerticalAlignment.Center
+    };
+    typePanel.Children.Add(typeText);
+
+    Grid.SetColumn(typePanel, 1);
+    grid.Children.Add(typePanel);
+
+    // Storlek - högerjusterad (kolumn 2)
+    var fileSizeBlock = new TextBlock
+    {
+        Text = threat.FormattedSize ?? "Unknown",
+        Style = TryFindResource("FK.Style.TableCell") as Style,
+        VerticalAlignment = VerticalAlignment.Center,
+        HorizontalAlignment = HorizontalAlignment.Right,
+        Margin = new Thickness(8, 0, 16, 0)
+    };
+    Grid.SetColumn(fileSizeBlock, 2);
+    grid.Children.Add(fileSizeBlock);
+
+    // Sökväg med TextTrimming + ToolTip (kolumn 3)
+    var filePath = new TextBlock
+    {
+        Text = Path.GetDirectoryName(threat.FilePath) ?? "",
+        Style = TryFindResource("FK.Style.TableCell") as Style,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(8, 0, 8, 0),
+        TextTrimming = TextTrimming.CharacterEllipsis,
+        ToolTip = threat.FilePath
+    };
+    Grid.SetColumn(filePath, 3);
+    grid.Children.Add(filePath);
+
+    // Datum - kort format (kolumn 4)
+    var createdDate = new TextBlock
+    {
+        Text = threat.CreatedDate.ToString("MM-dd HH:mm"),
+        Style = TryFindResource("FK.Style.TableCell") as Style,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(8, 0, 8, 0)
+    };
+    Grid.SetColumn(createdDate, 4);
+    grid.Children.Add(createdDate);
+
+    // Förbättrad risk-badge (kolumn 5)
+    var threatBadge = CreateCompactThreatLevelBadge(threat.ThreatLevel);
+    Grid.SetColumn(threatBadge, 5);
+    grid.Children.Add(threatBadge);
+
+    // Kompakt åtgärdsknapp (kolumn 6)
+    var actionButton = new Button
+    {
+        Content = "Ta bort",
+        Style = TryFindResource("FK.Style.CompactDangerButton") as Style,
+        Tag = threat,
+        Margin = new Thickness(8, 0, 8, 0),
+        Padding = new Thickness(10, 6, 10, 6),
+        FontSize = 11,
+        Height = 32,
+        HorizontalAlignment = HorizontalAlignment.Center
+    };
+    actionButton.Click += DeleteThreatButton_Click;
+    Grid.SetColumn(actionButton, 6);
+    grid.Children.Add(actionButton);
+
+    // Hover-effekt med varannan rad
+    var isEvenRow = _currentThreats.IndexOf(threat) % 2 == 0;
+    row.Background = isEvenRow 
+        ? Application.Current.FindResource("FK.Brush.RowBackground") as Brush
+        : Application.Current.FindResource("FK.Brush.RowBackgroundAlt") as Brush;
+
+    row.MouseEnter += (s, e) =>
+    {
+        row.Background = Application.Current.FindResource("FK.Brush.RowHover") as Brush;
+    };
+
+    row.MouseLeave += (s, e) =>
+    {
+        row.Background = isEvenRow 
+            ? Application.Current.FindResource("FK.Brush.RowBackground") as Brush
+            : Application.Current.FindResource("FK.Brush.RowBackgroundAlt") as Brush;
+    };
+
+    row.Child = grid;
+    return row;
+}
+
+// === NYA METODER FÖR FILTYPS-IKONER ===
+private string GetFileTypeIcon(string fileName)
+{
+    var extension = Path.GetExtension(fileName)?.ToLowerInvariant();
+    return extension switch
+    {
+        ".exe" => "⚙️",
+        ".bat" => "📝",
+        ".cmd" => "📝", 
+        ".ps1" => "💻",
+        ".vbs" => "📜",
+        ".scr" => "🖥️",
+        _ => "📄"
+    };
+}
+
+// === FÖRBÄTTRAD KOMPAKT RISK-BADGE ===
+private Border CreateCompactThreatLevelBadge(ThreatLevel level)
+{
+    var badge = new Border
+    {
+        CornerRadius = new CornerRadius(8), // Reducerat från 6
+        Padding = new Thickness(8, 4, 8, 4), // Kompaktare
+        Margin = new Thickness(4),
+        HorizontalAlignment = HorizontalAlignment.Center,
+        MinWidth = 60 // Reducerat från 70
+    };
+
+    var text = new TextBlock
+    {
+        FontWeight = FontWeights.Bold,
+        FontSize = 9, // Mindre text
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center
+    };
+
+    switch (level)
+    {
+        case ThreatLevel.Critical:
+            badge.Background = TryFindResource("FK.Brush.Danger") as Brush;
+            text.Text = "KRITISK";
+            text.Foreground = Brushes.White;
+            break;
+        case ThreatLevel.High:
+            badge.Background = TryFindResource("FK.Brush.Danger") as Brush;
+            text.Text = "HÖG";
+            text.Foreground = Brushes.White;
+            break;
+        case ThreatLevel.Medium:
+            badge.Background = TryFindResource("FK.Brush.Warning") as Brush;
+            text.Text = "MEDIUM";
+            text.Foreground = Brushes.Black;
+            break;
+        default:
+            badge.Background = TryFindResource("FK.Brush.StatusNeutral") as Brush;
+            text.Text = "LÅG";
+            text.Foreground = Brushes.White;
+            break;
+    }
+
+    badge.Child = text;
+    return badge;
+}
+
+// === FÖRBÄTTRAD SORTERING IMPLEMENTATION ===
+private void SortByColumn(string property, Button header)
+{
+    // Rensa alla andra headers
+    foreach (Button otherHeader in new[] { FileNameHeader, TypeHeader, SizeHeader, PathHeader, DateHeader, RiskHeader })
+    {
+        if (otherHeader != null && otherHeader != header)
+        {
+            otherHeader.Tag = null;
+            UpdateHeaderSortIndicator(otherHeader, null);
+        }
+    }
+
+    // Toggle sort direction
+    if (_currentSortColumn == property)
+    {
+        _sortAscending = !_sortAscending;
+    }
+    else
+    {
+        _currentSortColumn = property;
+        _sortAscending = true;
+    }
+
+    // Sortera data
+    var sortedThreats = _sortAscending 
+        ? _currentThreats.OrderBy(GetSortValue)
+        : _currentThreats.OrderByDescending(GetSortValue);
+
+    _currentThreats.Clear();
+    foreach (var threat in sortedThreats)
+    {
+        _currentThreats.Add(threat);
+    }
+
+    // Uppdatera header visuellt
+    header.Tag = _sortAscending ? "SortAsc" : "SortDesc";
+    UpdateHeaderSortIndicator(header, _sortAscending);
+
+    // Återbygg UI
+    BuildThreatsTableEnhanced(_currentThreats);
+
+    object GetSortValue(ScanResult threat) => property switch
+    {
+        "FileName" => threat.FileName,
+        "FileType" => Path.GetExtension(threat.FileName),
+        "FileSize" => threat.FileSize,
+        "FilePath" => threat.FilePath,
+        "CreatedDate" => threat.CreatedDate,
+        "ThreatLevel" => (int)threat.ThreatLevel,
+        _ => threat.FileName
+    };
+}
+
+private void UpdateHeaderSortIndicator(Button header, bool? ascending)
+{
+    // Hitta sort indicator TextBlock i header
+    if (header.Template?.FindName("SortIndicator", header) is TextBlock indicator)
+    {
+        if (ascending.HasValue)
+        {
+            indicator.Text = ascending.Value ? "▲" : "▼";
+            indicator.Foreground = Application.Current.FindResource("FK.Brush.Primary") as Brush;
+            indicator.Opacity = 1.0;
+        }
+        else
+        {
+            indicator.Text = "⇅";
+            indicator.Foreground = Application.Current.FindResource("FK.Brush.Subtext") as Brush;
+            indicator.Opacity = 0.5;
+        }
+    }
+}
+
+// === INITIALISERING AV SORTERBARA HEADERS ===
+private void InitializeTableHeaders()
+{
+    MakeHeaderSortable(FindName("FileNameHeader") as Button, "FileName");
+    MakeHeaderSortable(FindName("TypeHeader") as Button, "FileType");
+    MakeHeaderSortable(FindName("SizeHeader") as Button, "FileSize");
+    MakeHeaderSortable(FindName("PathHeader") as Button, "FilePath");
+    MakeHeaderSortable(FindName("DateHeader") as Button, "CreatedDate");
+    MakeHeaderSortable(FindName("RiskHeader") as Button, "ThreatLevel");
+}
+
+private void MakeHeaderSortable(Button? header, string sortProperty)
+{
+    if (header == null) return;
+
+    header.Click += (s, e) => SortByColumn(sortProperty, header);
+    header.Tag = sortProperty;
+}

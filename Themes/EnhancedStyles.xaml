@@ -1,0 +1,496 @@
+<!-- EnhancedStyles.xaml - Tilläggsstilar för UI-förbättringar -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- === FÖRBÄTTRADE KNAPPSTILER === -->
+
+    <!-- Större destruktiv knapp -->
+    <Style x:Key="FK.Style.DangerButtonLarge"
+            TargetType="Button"
+            BasedOn="{StaticResource FK.Style.DangerButton}">
+        <Setter Property="MinWidth"
+                Value="160"/>
+        <Setter Property="Height"
+                Value="44"/>
+        <Setter Property="FontSize"
+                Value="14"/>
+        <Setter Property="FontWeight"
+                Value="SemiBold"/>
+        <Setter Property="Padding"
+                Value="20,12"/>
+        <Setter Property="Background"
+                Value="{DynamicResource FK.Brush.Danger}"/>
+        <Setter Property="Foreground"
+                Value="White"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonBorder"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="10"
+                            Padding="{TemplateBinding Padding}"
+                            RenderTransformOrigin="0.5,0.5">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+                        <Border.Effect>
+                            <DropShadowEffect Color="{DynamicResource FK.Color.Danger}"
+                                    Direction="270"
+                                              ShadowDepth="2"
+                                    BlurRadius="8"
+                                    Opacity="0.25"/>
+                        </Border.Effect>
+                        <Border.RenderTransform>
+                            <TransformGroup>
+                                <ScaleTransform x:Name="ButtonScale"/>
+                                <TranslateTransform x:Name="ButtonTranslate"/>
+                            </TransformGroup>
+                        </Border.RenderTransform>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver"
+                                Value="True">
+                            <Setter TargetName="ButtonBorder"
+                                    Property="Background"
+                                    Value="#DC2626"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ButtonTranslate"
+                                                         Storyboard.TargetProperty="Y"
+                                                To="-2"
+                                                Duration="0:0:0.15"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ButtonTranslate"
+                                                         Storyboard.TargetProperty="Y"
+                                                To="0"
+                                                Duration="0:0:0.15"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsPressed"
+                                Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ButtonScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                To="0.97"
+                                                Duration="0:0:0.1"/>
+                                        <DoubleAnimation Storyboard.TargetName="ButtonScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                To="0.97"
+                                                Duration="0:0:0.1"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ButtonScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                To="1"
+                                                Duration="0:0:0.2"/>
+                                        <DoubleAnimation Storyboard.TargetName="ButtonScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                To="1"
+                                                Duration="0:0:0.2"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Kompakt per-rad knapp -->
+    <Style x:Key="FK.Style.CompactDangerButton"
+            TargetType="Button">
+        <Setter Property="Background"
+                Value="{DynamicResource FK.Brush.Danger}"/>
+        <Setter Property="Foreground"
+                Value="White"/>
+        <Setter Property="BorderThickness"
+                Value="0"/>
+        <Setter Property="FontWeight"
+                Value="SemiBold"/>
+        <Setter Property="FontSize"
+                Value="11"/>
+        <Setter Property="Height"
+                Value="32"/>
+        <Setter Property="MinWidth"
+                Value="70"/>
+        <Setter Property="Cursor"
+                Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonBorder"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver"
+                                Value="True">
+                            <Setter TargetName="ButtonBorder"
+                                    Property="Background"
+                                    Value="#DC2626"/>
+                            <Setter Property="RenderTransform">
+                                <Setter.Value>
+                                    <TranslateTransform Y="-1"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsPressed"
+                                Value="True">
+                            <Setter Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="0.98"
+                                            ScaleY="0.98"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsEnabled"
+                                Value="False">
+                            <Setter Property="Opacity"
+                                    Value="0.6"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- === STATISTIK-CHIPS === -->
+    <Style x:Key="FK.Style.StatChip"
+            TargetType="Border">
+        <Setter Property="Background"
+                Value="{DynamicResource FK.Brush.Surface}"/>
+        <Setter Property="BorderBrush"
+                Value="{DynamicResource FK.Brush.Border}"/>
+        <Setter Property="BorderThickness"
+                Value="1"/>
+        <Setter Property="CornerRadius"
+                Value="12"/>
+        <Setter Property="Padding"
+                Value="16,10"/>
+        <Setter Property="Margin"
+                Value="0,0,12,0"/>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#000000"
+                        Direction="270"
+                        ShadowDepth="2"
+                                  BlurRadius="6"
+                        Opacity="0.08"/>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver"
+                    Value="True">
+                <Setter Property="BorderBrush"
+                        Value="{DynamicResource FK.Brush.Primary}"/>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect Color="{DynamicResource FK.Color.Primary}"
+                                Direction="270"
+                                          ShadowDepth="3"
+                                BlurRadius="8"
+                                Opacity="0.15"/>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- === PREMIUM TEMA TOGGLE === -->
+    <Style x:Key="FK.Style.PremiumThemeToggle"
+            TargetType="ToggleButton">
+        <Setter Property="Width"
+                Value="56"/>
+        <Setter Property="Height"
+                Value="30"/>
+        <Setter Property="Background"
+                Value="{DynamicResource FK.Brush.StatusNeutral}"/>
+        <Setter Property="BorderThickness"
+                Value="0"/>
+        <Setter Property="Cursor"
+                Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <!-- Track med pill-form -->
+                        <Border x:Name="Track"
+                                Width="{TemplateBinding Width}"
+                                Height="{TemplateBinding Height}"
+                                CornerRadius="15"
+                                Background="{TemplateBinding Background}"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="TrackScale"/>
+                            </Border.RenderTransform>
+                        </Border>
+
+                        <!-- Thumb -->
+                        <Border x:Name="Thumb"
+                                Width="24"
+                                Height="24"
+                                CornerRadius="12"
+                                Background="White"
+                                HorizontalAlignment="Left"
+                                Margin="3"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000"
+                                        Direction="270"
+                                        ShadowDepth="2"
+                                                  BlurRadius="6"
+                                        Opacity="0.2"/>
+                            </Border.Effect>
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <TranslateTransform x:Name="ThumbTransform"/>
+                                    <ScaleTransform x:Name="ThumbScale"/>
+                                </TransformGroup>
+                            </Border.RenderTransform>
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked"
+                                Value="True">
+                            <Setter TargetName="Track"
+                                    Property="Background"
+                                    Value="{DynamicResource FK.Brush.Primary}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbTransform"
+                                                         Storyboard.TargetProperty="X"
+                                                To="26"
+                                                         Duration="0:0:0.25"
+                                                         EasingFunction="{x:Static EasingFunction.EaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbTransform"
+                                                         Storyboard.TargetProperty="X"
+                                                To="0"
+                                                         Duration="0:0:0.25"
+                                                         EasingFunction="{x:Static EasingFunction.EaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+
+                        <Trigger Property="IsMouseOver"
+                                Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                To="1.1"
+                                                Duration="0:0:0.15"/>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                To="1.1"
+                                                Duration="0:0:0.15"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                To="1"
+                                                Duration="0:0:0.15"/>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                To="1"
+                                                Duration="0:0:0.15"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+
+                        <Trigger Property="IsPressed"
+                                Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="TrackScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                To="0.96"
+                                                Duration="0:0:0.06"/>
+                                        <DoubleAnimation Storyboard.TargetName="TrackScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                To="0.96"
+                                                Duration="0:0:0.06"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="TrackScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                To="1"
+                                                Duration="0:0:0.08"/>
+                                        <DoubleAnimation Storyboard.TargetName="TrackScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                To="1"
+                                                Duration="0:0:0.08"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled"
+                                Value="False">
+                            <Setter Property="Opacity"
+                                    Value="0.5"/>
+                            <Setter Property="Cursor"
+                                    Value="{x:Null}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- === STATUS CHIPS (för footer) === -->
+    <Style x:Key="FK.Style.StatusChip"
+            TargetType="Border"
+            BasedOn="{StaticResource FK.Style.StatusBadge}">
+        <Setter Property="Padding"
+                Value="12,8"/>
+        <Setter Property="Background"
+                Value="Transparent"/>
+        <Setter Property="BorderBrush"
+                Value="{DynamicResource FK.Brush.Border}"/>
+        <Setter Property="BorderThickness"
+                Value="1"/>
+        <Setter Property="CornerRadius"
+                Value="12"/>
+    </Style>
+
+    <Style x:Key="FK.Style.StatusChipText"
+            TargetType="TextBlock">
+        <Setter Property="FontSize"
+                Value="10"/>
+        <Setter Property="FontWeight"
+                Value="SemiBold"/>
+        <Setter Property="Foreground"
+                Value="{DynamicResource FK.Brush.Text}"/>
+        <Setter Property="VerticalAlignment"
+                Value="Center"/>
+    </Style>
+
+    <!-- Hjälp-chip knapp -->
+    <Style x:Key="FK.Style.HelpChipButton"
+            TargetType="Button">
+        <Setter Property="Background"
+                Value="Transparent"/>
+        <Setter Property="BorderBrush"
+                Value="{DynamicResource FK.Brush.Border}"/>
+        <Setter Property="BorderThickness"
+                Value="1"/>
+        <Setter Property="Padding"
+                Value="12,8"/>
+        <Setter Property="CornerRadius"
+                Value="12"/>
+        <Setter Property="Cursor"
+                Value="Hand"/>
+        <Setter Property="Foreground"
+                Value="{DynamicResource FK.Brush.Primary}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver"
+                                Value="True">
+                            <Setter Property="Background"
+                                    Value="{DynamicResource FK.Brush.Hover}"/>
+                            <Setter Property="BorderBrush"
+                                    Value="{DynamicResource FK.Brush.Primary}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed"
+                                Value="True">
+                            <Setter Property="Background"
+                                    Value="{DynamicResource FK.Brush.Focus}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- === FÖRBÄTTRAD TABELL-CELL STIL === -->
+    <Style x:Key="FK.Style.CompactTableCell"
+            TargetType="TextBlock"
+            BasedOn="{StaticResource FK.Style.TableCell}">
+        <Setter Property="Padding"
+                Value="12,12"/>
+        <Setter Property="FontSize"
+                Value="13"/>
+        <Setter Property="LineHeight"
+                Value="18"/>
+    </Style>
+
+    <!-- Kompakt risk badge -->
+    <Style x:Key="FK.Style.CompactThreatBadge"
+            TargetType="Border">
+        <Setter Property="CornerRadius"
+                Value="8"/>
+        <Setter Property="Padding"
+                Value="8,4"/>
+        <Setter Property="Margin"
+                Value="4"/>
+        <Setter Property="HorizontalAlignment"
+                Value="Center"/>
+        <Setter Property="MinWidth"
+                Value="60"/>
+        <Setter Property="BorderThickness"
+                Value="0"/>
+    </Style>
+
+    <!-- Kompakt badge text -->
+    <Style x:Key="FK.Style.CompactBadgeText"
+            TargetType="TextBlock">
+        <Setter Property="FontSize"
+                Value="9"/>
+        <Setter Property="FontWeight"
+                Value="Bold"/>
+        <Setter Property="HorizontalAlignment"
+                Value="Center"/>
+        <Setter Property="VerticalAlignment"
+                Value="Center"/>
+        <Setter Property="TextAlignment"
+                Value="Center"/>
+    </Style>
+
+</ResourceDictionary>
